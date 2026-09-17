@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Console filter & mock for benign [vite] dev logs in preview iframe -->
+    <script>
+      (function () {
+        // 1. Mock WebSocket for vite-hmr to prevent failed connection attempts when HMR is disabled
+        try {
+          var OriginalWS = window.WebSocket;
+          function ViteMockWebSocket(url, protocols) {
+            var isHmr = (protocols === 'vite-hmr') ||
+                        (typeof url === 'string' && (url.indexOf('token=') !== -1 || url.indexOf('vite-hmr') !== -1 || url.indexOf('5173') !== -1));
+            if (isHmr) {
+              var listeners = {};
+              var self = {
+                url: url,
+                protocol: 'vite-hmr',
+                readyState: 1,
+                CONNECTING: 0,
+                OPEN: 1,
+                CLOSING: 2,
+                CLOSED: 3,
+                binaryType: 'blob',
+                bufferedAmount: 0,
+                extensions: '',
+                onopen: null,
+                onclose: null,
+                onerror: null,
+                onmessage: null,
+                addEventListener: function (type, fn) {
+                  listeners[type] = listeners[type] || [];
+                  listeners[type].push(fn);
+                },
+                removeEventListener: function (type, fn) {
+                  if (listeners[type]) {
+                    listeners[type] = listeners[type].filter(function (l) { return l !== fn; });
+                  }
+                },
+                dispatchEvent: function (event) {
+                  var fns = listeners[event.type] || [];
+                  for (var i = 0; i < fns.length; i++) {
+                    try { fns[i].call(self, event); } catch (err) {}
+                  }
+                  return true;
+                },
+                send: function () {},
+                close: function () {
+                  self.readyState = 3;
+                }
+              };
+
+              setTimeout(function () {
+                var evt = new Event('open');
+                if (typeof self.onopen === 'function') {
+                  try { self.onopen(evt); } catch (e) {}
+                }
+                self.dispatchEvent(evt);
+              }, 5);
+
+              return self;
+            }
+
+            if (OriginalWS) {
+              return new OriginalWS(url, protocols);
+            }
+          }
+
+          if (OriginalWS) {
+            ViteMockWebSocket.CONNECTING = OriginalWS.CONNECTING || 0;
+            ViteMockWebSocket.OPEN = OriginalWS.OPEN || 1;
+            ViteMockWebSocket.CLOSING = OriginalWS.CLOSING || 2;
+            ViteMockWebSocket.CLOSED = OriginalWS.CLOSED || 3;
+            ViteMockWebSocket.prototype = OriginalWS.prototype;
+          }
+          window.WebSocket = ViteMockWebSocket;
+        } catch (e) {}
+
+        // 2. Filter any [vite] console logs
+        function shouldFilter(args) {
+          for (var i = 0; i < args.length; i++) {
+            var val = args[i];
+            if (val !== null && val !== undefined) {
+              try {
+                var str = String(val.message || val.reason || val.stack || val);
+                if (str.indexOf('[vite]') !== -1 || str.indexOf('vite-hmr') !== -1) return true;
+              } catch (e) {}
+            }
+          }
+          return false;
+        }
+
+        var origError = console.error;
+        console.error = function () {
+          if (shouldFilter(arguments)) return;
+          origError.apply(console, arguments);
+        };
+
+        var origWarn = console.warn;
+        console.warn = function () {
+          if (shouldFilter(arguments)) return;
+          origWarn.apply(console, arguments);
+        };
+
+        var origInfo = console.info;
+        console.info = function () {
+          if (shouldFilter(arguments)) return;
+          origInfo.apply(console, arguments);
+        };
+
+        var origLog = console.log;
+        console.log = function () {
+          if (shouldFilter(arguments)) return;
+          origLog.apply(console, arguments);
+        };
+
+        var origDebug = console.debug;
+        console.debug = function () {
+          if (shouldFilter(arguments)) return;
+          origDebug.apply(console, arguments);
+        };
+
+        window.addEventListener('error', function (e) {
+          if (e && e.message && String(e.message).indexOf('[vite]') !== -1) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function (e) {
+          if (e && e.reason && String(e.reason).indexOf('[vite]') !== -1) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brain Studio - Conecte. Estude. Conquiste</title>
+    <meta name="description" content="Brain Studio: Conecte. Estude. Conquiste. Plataforma de aprendizado gamificada com tutoria socrática profunda, equipes acadêmicas e integração AVA Moodle IFES." />
+    <meta property="og:title" content="Brain Studio - Conecte. Estude. Conquiste" />
+    <meta property="og:description" content="Brain Studio - Conecte. Estude. Conquiste. Plataforma de estudos com método socrático e desafios de equipes." />
+    <meta property="og:image" content="/logo.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- PWA Settings -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#050512" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Brain Studio" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+    <link rel="shortcut icon" href="/logo.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,11 @@
+{
+  "name": "Brain Studio",
+  "description": "Brain Studio: Conecte. Estude. Conquiste. Plataforma de aprendizado gamificada com tutoria socrática profunda (maiêutica), sistema de energias, cursos multidisciplinares, equipes colaborativas com rankings e baú semanal, integração AVA Moodle IFES e acesso offline PWA.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
