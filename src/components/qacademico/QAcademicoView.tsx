@@ -28,6 +28,7 @@ import {
   QAcademicoGradeItem,
   QAcademicoScheduleItem,
   IfesCourse,
+  IfesAccountInfo,
   UserProfile,
 } from "../../types";
 import { qacademicoApi } from "../../utils/qacademicoApi";
@@ -46,12 +47,14 @@ import { parseQAcademicoContent } from "../../utils/qacademicoParser";
 interface QAcademicoViewProps {
   user: UserProfile;
   onUpdateQAcademicoAccount?: (account: QAcademicoAccountInfo | undefined) => void;
+  onUpdateIfesAccount?: (ifesAccount: IfesAccountInfo | undefined) => void;
   onImportCourses?: (courses: IfesCourse[]) => void;
 }
 
 export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
   user,
   onUpdateQAcademicoAccount,
+  onUpdateIfesAccount,
   onImportCourses,
 }) => {
   const PORTAL_URL = "https://academico.ifes.edu.br/qacademico/index.asp?t=2000";
@@ -60,6 +63,18 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
   const [account, setAccount] = useState<QAcademicoAccountInfo | null>(() => loadQAcademicoAccount());
   const [grades, setGrades] = useState<QAcademicoGradeItem[]>(() => loadQAcademicoGrades());
   const [schedules, setSchedules] = useState<QAcademicoScheduleItem[]>(() => loadQAcademicoSchedules());
+
+  // Check Connection Status State
+  const [connectionStatus, setConnectionStatus] = useState<{
+    state: "idle" | "checking" | "online" | "offline";
+    latencyMs: number;
+    message: string;
+    lastChecked?: string;
+  }>({
+    state: "idle",
+    latencyMs: 0,
+    message: "Status não verificado.",
+  });
 
   // Connection & Paste State
   const [matricula, setMatricula] = useState(user.ifesAccount?.username || account?.matricula || "");
@@ -72,6 +87,108 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
   // Search and Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [situationFilter, setSituationFilter] = useState<"all" | "cursando" | "aprovado" | "exame">("all");
+
+  // Real-time explicit Check Connection test
+  const handleCheckConnection = async (quiet: boolean = false) => {
+    console.group("[QAcademicoView] Executando Check Connection...");
+    setConnectionStatus((prev) => ({ ...prev, state: "checking" }));
+    try {
+      const res = await qacademicoApi.checkStatus();
+      const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      console.log("[QAcademicoView] Resultado da verificação:", res);
+      setConnectionStatus({
+        state: res.online ? "online" : "offline",
+        latencyMs: res.latencyMs,
+        message: res.message,
+        lastChecked: now,
+      });
+      if (!quiet) {
+        if (res.online) {
+          setSuccessMessage(`Conexão com o servidor do Q-Acadêmico verificada com sucesso! (${res.latencyMs}ms)`);
+          setTimeout(() => setSuccessMessage(null), 4000);
+        } else {
+          setErrorMessage(`Aviso de conexão com o Q-Acadêmico: ${res.message}`);
+        }
+      }
+    } catch (err: any) {
+      console.error("[QAcademicoView] Falha durante Check Connection:", err);
+      setConnectionStatus({
+        state: "offline",
+        latencyMs: 0,
+        message: "Erro ao testar gateway com o Q-Acadêmico.",
+        lastChecked: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+    } finally {
+      console.groupEnd();
+    }
+  };
+
+  // Run initial diagnostic check connection on mount
+  useEffect(() => {
+    handleCheckConnection(true);
+  }, []);
+
+  // Map and accurately propagate grades, averages and absences to user.ifesAccount
+  const mapAndSaveToIfesAccount = (
+    finalAccount: QAcademicoAccountInfo,
+    finalGrades: QAcademicoGradeItem[],
+    finalSchedules: QAcademicoScheduleItem[]
+  ) => {
+    console.group("[QAcademicoView] Mapeando notas e faltas para user.ifesAccount");
+    const totalDisciplinas = finalGrades.length;
+    const aprovadas = finalGrades.filter((g) => g.situacao === "Aprovado").length;
+    const cursando = finalGrades.filter((g) => g.situacao === "Cursando").length;
+    const emExame = finalGrades.filter((g) => g.situacao === "Em Exame" || g.situacao === "Reprovado").length;
+    const totalFaltas = finalGrades.reduce((acc, curr) => acc + (curr.faltas || 0), 0);
+
+    const validMedias = finalGrades
+      .map((g) => g.mediaFinal)
+      .filter((m): m is number => typeof m === "number" && !isNaN(m));
+    const mediaGeral =
+      validMedias.length > 0
+        ? (validMedias.reduce((a, b) => a + b, 0) / validMedias.length).toFixed(1)
+        : finalAccount.coeficienteRendimento
+        ? String(finalAccount.coeficienteRendimento)
+        : "0.0";
+
+    console.log("Estatísticas calculadas:", {
+      totalDisciplinas,
+      aprovadas,
+      cursando,
+      emExame,
+      totalFaltas,
+      mediaGeral,
+    });
+
+    if (onUpdateIfesAccount) {
+      const updatedIfesAccount: IfesAccountInfo = {
+        connected: true,
+        username: finalAccount.matricula || user.ifesAccount?.username || "estudante",
+        fullname: finalAccount.fullname || user.ifesAccount?.fullname || user.name,
+        campusUrl: finalAccount.portalUrl || PORTAL_URL,
+        campusName: finalAccount.campus || user.ifesAccount?.campusName || "IFES",
+        token: user.ifesAccount?.token,
+        lastSync: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        matricula: finalAccount.matricula,
+        department: finalAccount.curso || user.ifesAccount?.department,
+        gradesSummary: {
+          totalDisciplinas,
+          aprovadas,
+          cursando,
+          emExame,
+          totalFaltas,
+          mediaGeral,
+          crOficial: finalAccount.coeficienteRendimento,
+          lastGradesSync: new Date().toISOString(),
+        },
+        academicGrades: finalGrades,
+        academicSchedules: finalSchedules,
+      };
+      console.log("Atualizando ifesAccount com notas e faltas:", updatedIfesAccount);
+      onUpdateIfesAccount(updatedIfesAccount);
+    }
+    console.groupEnd();
+  };
 
   // Keep state reactive to global changes
   useEffect(() => {
@@ -170,6 +287,9 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
           saveQAcademicoSchedules(res.schedules);
         }
 
+        // Mapeia rigorosamente para user.ifesAccount
+        mapAndSaveToIfesAccount(res.account, res.grades || [], res.schedules || []);
+
         setSuccessMessage("Conexão direta estabelecida com o Q-Acadêmico do IFES!");
         setActiveSubTab("boletim");
       } else {
@@ -266,6 +386,9 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
 
       setSchedules(finalSchedules);
       saveQAcademicoSchedules(finalSchedules);
+
+      // Mapeia rigorosamente notas, faltas e médias para user.ifesAccount
+      mapAndSaveToIfesAccount(finalAccount, finalGrades, finalSchedules);
 
       // Sincroniza com as matérias gerais do Brain Studio
       if (finalCourses.length > 0) {
@@ -455,6 +578,58 @@ Sexta-feira 07:00 às 08:40: Engenharia de Software e Projetos - Sala 105`;
           <span>{errorMessage}</span>
         </div>
       )}
+
+      {/* Explicit Check Connection Status Indicator */}
+      <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-3 h-3 rounded-full shrink-0 ${
+              connectionStatus.state === "checking"
+                ? "bg-amber-400 animate-ping"
+                : connectionStatus.state === "online"
+                ? "bg-emerald-400 shadow-sm shadow-emerald-400/50"
+                : "bg-rose-500"
+            }`}
+          />
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-white">Status da Conexão Q-Acadêmico:</span>
+              <span
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider font-mono ${
+                  connectionStatus.state === "checking"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : connectionStatus.state === "online"
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                    : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                }`}
+              >
+                {connectionStatus.state === "checking"
+                  ? "Verificando..."
+                  : connectionStatus.state === "online"
+                  ? `Online (${connectionStatus.latencyMs}ms)`
+                  : "Offline / Instável"}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-400">
+              {connectionStatus.message}{" "}
+              {connectionStatus.lastChecked && (
+                <span className="text-neutral-500 font-mono">• Testado às {connectionStatus.lastChecked}</span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleCheckConnection(false)}
+          disabled={connectionStatus.state === "checking"}
+          className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-200 border border-white/10 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 shrink-0"
+          title="Verificar se o portal e backend do Q-Acadêmico estão respondendo"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-[#60a5fa] ${connectionStatus.state === "checking" ? "animate-spin" : ""}`} />
+          <span>Verificar Conexão</span>
+        </button>
+      </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

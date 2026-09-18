@@ -112,14 +112,14 @@ export const Header: React.FC<HeaderProps> = ({
       subtitle: "Vídeo, áudio, compartilhamento de tela e chat colaborativo com colegas",
     },
     lumina: {
-      category: "Maiêutica Socrática",
+      category: "Tutoria Inteligente",
       title: "Lumina IA",
-      subtitle: "Desenvolva e 'dê à luz' suas próprias conclusões através de perguntas",
+      subtitle: "Aprofunde conceitos, tire dúvidas e revise matérias com tutoria personalizada",
     },
     sequence: {
       category: "Catálogo Acadêmico IFES",
       title: "Minhas Disciplinas AVA",
-      subtitle: "Trilhas socráticas, exclusão e importação direta do AVA",
+      subtitle: "Trilhas de disciplinas, organização e importação direta do AVA",
     },
     games: {
       category: "Simulados 10 Questões",
@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
     library: {
       category: "Acervo Digital",
       title: "Biblioteca de Estudos",
-      subtitle: "Documentos, planos de ensino, ementas e diálogos socráticos salvos",
+      subtitle: "Documentos, planos de ensino, ementas e anotações salvas",
     },
     theme: {
       category: "Identidade Visual",
@@ -201,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               {currentTab === "lumina" && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
-                  <Sparkles className="w-3 h-3" /> Maiêutica Ativa
+                  <Sparkles className="w-3 h-3" /> Tutoria Ativa
                 </span>
               )}
             </div>
@@ -246,30 +246,60 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-xs flex flex-col">
-          <div className="bg-[var(--app-card)] text-[var(--app-text)] p-6 rounded-b-3xl border-b border-[var(--app-border)] shadow-2xl space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--app-border)]">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 bg-[var(--app-primary)] rounded-full" />
-                <span className="font-black text-base uppercase tracking-tight">
-                  Brain Studio IFES
+        <div
+          className="fixed inset-0 bg-black/75 z-50 md:hidden backdrop-blur-md flex flex-col justify-end sm:justify-start transition-opacity"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl sm:rounded-b-3xl border-t sm:border shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            style={{
+              backgroundColor: "var(--app-card, #1e293b)",
+              color: "var(--app-text, #f8fafc)",
+              borderColor: "var(--app-border, rgba(255, 255, 255, 0.15))",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header: Apenas a Logo do app e o botão fechar X */}
+            <div
+              className="flex justify-between items-center pb-3 border-b"
+              style={{ borderColor: "var(--app-border, rgba(255, 255, 255, 0.12))" }}
+            >
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/logo.png"
+                  alt="Logo"
+                  className="h-9 w-auto object-contain rounded-lg shadow-sm"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
+                />
+                <span
+                  className="text-xs font-black tracking-wider uppercase font-mono"
+                  style={{ color: "var(--app-primary, #6366f1)" }}
+                >
+                  Navegação
                 </span>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-lg cursor-pointer"
+                className="p-2 rounded-xl cursor-pointer border active:scale-95 transition"
+                style={{
+                  backgroundColor: "var(--app-bg, #0f172a)",
+                  color: "var(--app-text, #f8fafc)",
+                  borderColor: "var(--app-border, rgba(255, 255, 255, 0.15))",
+                }}
+                aria-label="Fechar menu"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
-
-            <BrandLogoBanner compact className="w-full" />
 
             <div className="w-full">
               <PWAInstallButton variant="sidebar" />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Grid dos botões: todos visíveis com excelente contraste e cores do tema */}
+            <div className="grid grid-cols-2 gap-2.5">
               {navTabs.map((t) => {
                 const Icon = t.icon;
                 const active = currentTab === t.id;
@@ -280,14 +310,24 @@ export const Header: React.FC<HeaderProps> = ({
                       onTabChange(t.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl text-xs font-bold transition cursor-pointer ${
-                      active
-                        ? "bg-[var(--app-primary)] text-white shadow-sm"
-                        : "bg-[var(--app-bg)] text-[var(--app-text)] border border-[var(--app-border)]"
+                    style={{
+                      backgroundColor: active
+                        ? "var(--app-primary, #6366f1)"
+                        : "var(--app-bg, #0f172a)",
+                      color: active ? "#ffffff" : "var(--app-text, #f8fafc)",
+                      borderColor: active
+                        ? "var(--app-primary, #6366f1)"
+                        : "var(--app-border, rgba(255, 255, 255, 0.18))",
+                    }}
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl text-xs font-extrabold transition-all select-none cursor-pointer border shadow-sm active:scale-95 ${
+                      active ? "shadow-md ring-2 ring-[var(--app-primary)]/40" : "hover:brightness-110"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{t.label}</span>
+                    <Icon
+                      className="w-4 h-4 shrink-0"
+                      style={{ color: active ? "#ffffff" : "var(--app-primary, #6366f1)" }}
+                    />
+                    <span className="truncate">{t.label}</span>
                   </button>
                 );
               })}
@@ -299,9 +339,14 @@ export const Header: React.FC<HeaderProps> = ({
                   onOpenProfileSettings();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-primary)]/10 text-[var(--app-text)] rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-[var(--app-border)] cursor-pointer"
+                style={{
+                  backgroundColor: "var(--app-bg, #0f172a)",
+                  color: "var(--app-text, #f8fafc)",
+                  borderColor: "var(--app-border, rgba(255, 255, 255, 0.18))",
+                }}
+                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
-                <Settings className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+                <Settings className="w-4 h-4" style={{ color: "var(--app-primary, #6366f1)" }} />
                 <span>Editar Matrícula & Perfil</span>
               </button>
             )}
@@ -312,9 +357,9 @@ export const Header: React.FC<HeaderProps> = ({
                   onLogout();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-red-200 cursor-pointer"
+                className="w-full py-3 bg-red-500/15 hover:bg-red-500/25 text-red-500 dark:text-red-400 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border border-red-500/30 cursor-pointer active:scale-95 shadow-xs"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
                 <span>Fazer Logout (Sair da Conta)</span>
               </button>
             )}

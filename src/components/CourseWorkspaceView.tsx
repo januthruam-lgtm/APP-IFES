@@ -273,7 +273,7 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
   const filteredParticipants = participants.filter(
     (p) =>
       p.name.toLowerCase().includes(searchParticipant.toLowerCase()) ||
-      p.matricula.toLowerCase().includes(searchParticipant.toLowerCase()) ||
+      (p.matricula || "").toLowerCase().includes(searchParticipant.toLowerCase()) ||
       p.role.toLowerCase().includes(searchParticipant.toLowerCase())
   );
 

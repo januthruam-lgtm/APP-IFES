@@ -145,121 +145,20 @@ export const convertIfesCoursesToTracks = (courses: IfesCourse[]): CourseTrack[]
   }
 
   return courses.map((c, index) => {
-    const nameLower = c.name.toLowerCase();
-    const existing = COURSES_CATALOG.find((cat) => {
-      const catLower = cat.name.toLowerCase();
-      return (
-        cat.id === c.id ||
-        catLower === nameLower ||
-        (catLower.includes("teoria geral") && nameLower.includes("teoria geral")) ||
-        (catLower.includes("tga") && nameLower.includes("tga")) ||
-        (catLower.includes("pessoas") && (nameLower.includes("pessoas") || nameLower.includes("recursos humanos") || nameLower.includes("rh"))) ||
-        (catLower.includes("financeira") && (nameLower.includes("financeira") || nameLower.includes("custos"))) ||
-        (catLower.includes("logística") && (nameLower.includes("logística") || nameLower.includes("logistica") || nameLower.includes("produção"))) ||
-        (catLower.includes("marketing") && nameLower.includes("marketing")) ||
-        (catLower.includes("contabilidade") && nameLower.includes("contabilidade")) ||
-        (catLower.includes("legislação") && (nameLower.includes("legislação") || nameLower.includes("legislacao") || nameLower.includes("direito"))) ||
-        (catLower.includes("portuguesa") && nameLower.includes("portugu")) ||
-        (catLower.includes("matemática") && nameLower.includes("matem")) ||
-        (catLower.includes("física") && nameLower.includes("físic")) ||
-        (catLower.includes("química") && nameLower.includes("químic")) ||
-        (catLower.includes("biologia") && nameLower.includes("biolog")) ||
-        (catLower.includes("história") && nameLower.includes("histór")) ||
-        (catLower.includes("geografia") && nameLower.includes("geograf")) ||
-        (catLower.includes("filosofia") && nameLower.includes("filosof")) ||
-        (catLower.includes("sociologia") && nameLower.includes("sociolog")) ||
-        (catLower.includes("inglesa") && nameLower.includes("ingl")) ||
-        (catLower.includes("educação física") && (nameLower.includes("educação física") || nameLower.includes("edf")))
-      );
-    });
-
-    if (existing) {
-      return {
-        ...existing,
-        id: c.id || existing.id,
-        title: c.name,
-        icon: getSubjectIconEmoji(c.name),
-        description: existing.description.includes(c.professor || "")
-          ? existing.description
-          : `${existing.description} (${c.professor || "Prof. IFES"} - ${c.code || "IFES"})`,
-      };
-    }
-
-    const baseId = 20000 + index * 100;
-    const dynamicModules: TrackModule[] = [
-      {
-        id: baseId + 1,
-        title: `Módulo 1: Fundamentos e Estruturas de ${c.name}`,
-        subtitle: `Conceitos centrais, terminologia técnica do IFES e aplicações práticas no curso de Administração/Ensino Médio.`,
-        category: getSubjectCategory(c.name),
-        status: "active",
-        xpReward: 100,
-        estimatedMinutes: 15,
-        summary: `Explore a base teórica e as ferramentas analíticas de ${c.name} com abordagem socrática.`,
-        keyConcepts: ["Conceito Fundamental", "Estrutura Analítica", "Aplicações Práticas", "Normas IFES"],
-        lessons: [
-          {
-            id: `dyn-${baseId}-1`,
-            title: `Introdução Reflexiva a ${c.name}`,
-            conceptText: `O estudo sistemático de ${c.name} desenvolve competências técnicas, visão estratégica e pensamento crítico indispensáveis para o sucesso acadêmico e profissional no IFES.`,
-            socraticPrompt: `De que maneira os conceitos fundamentais de ${c.name} impactam a tomada de decisões no seu curso e na rotina organizacional?`,
-            quizQuestion: {
-              question: `Qual é o objetivo primordial no estudo continuado de ${c.name}?`,
-              options: [
-                `Desenvolver raciocínio crítico, domínio conceitual e aplicação prática orientada a resultados no IFES.`,
-                `Memorizar termos isolados sem contextualização com a prática.`,
-                `Apenas cumprir carga horária sem reflexão metodológica.`,
-                `Executar tarefas repetitivas sem analisar os dados e impactos.`,
-              ],
-              correctIndex: 0,
-              explanation: `No IFES, o aprendizado foca na sólida fundamentação teórica conectada à resolução prática de desafios profissionais e cotidianos.`,
-            },
-          },
-        ],
-      },
-      {
-        id: baseId + 2,
-        title: `Módulo 2: Tomada de Decisão e Resolução de Problemas`,
-        subtitle: `Estudos de caso, análise quantitativa/qualitativa de dados e conexões interdisciplinares.`,
-        category: getSubjectCategory(c.name),
-        status: "locked",
-        xpReward: 120,
-        estimatedMinutes: 20,
-        summary: `Aplique os princípios de ${c.name} em simulações gerenciais e estudos práticos.`,
-        keyConcepts: ["Tomada de Decisão", "Diagnóstico Situacional", "Interdisciplinaridade"],
-        lessons: [
-          {
-            id: `dyn-${baseId}-2`,
-            title: `Aplicação Prática e Maiêutica em ${c.name}`,
-            conceptText: `Ao formular perguntas direcionadas e decompor variáveis complexas, a maiêutica socrática capacita o estudante a identificar causas-raízes e propor soluções inovadoras.`,
-            socraticPrompt: `Qual critério técnico você utilizaria para avaliar a viabilidade de uma proposta de melhoria nesta área?`,
-            quizQuestion: {
-              question: `Na resolução de problemas de ${c.name}, qual abordagem metodológica garante maior eficácia?`,
-              options: [
-                `Mapear o cenário, analisar evidências objetivas e testar hipóteses estruturadas.`,
-                `Adotar decisões precipitadas sem consultar dados ou normas.`,
-                `Ignorar o contexto dos envolvidos e as restrições de recursos.`,
-                `Replicar soluções antigas sem avaliar as particularidades do problema atual.`,
-              ],
-              correctIndex: 0,
-              explanation: `O diagnóstico estruturado e a análise rigorosa de evidências são os pilares da excelência no IFES.`,
-            },
-          },
-        ],
-      },
-    ];
+    // Preserve any real modules if provided by syllabus or AVA, otherwise keep modules empty (do NOT invent fake modules)
+    const realModules: TrackModule[] = Array.isArray((c as any).modules) ? (c as any).modules : [];
 
     return {
-      id: c.id || `custom-track-${index}`,
+      id: c.id || `course-track-${index}`,
       name: c.name,
       title: c.name,
       icon: getSubjectIconEmoji(c.name),
       category: getSubjectCategory(c.name),
-      description: `Disciplina oficial do AVA IFES (${c.code || "IFES"}). Docente: ${c.professor || "Prof. IFES"}.`,
+      description: `Disciplina oficial do IFES (${c.code || "IFES"}). Docente: ${c.professor || "Prof. IFES"}.`,
       color: "#10b981",
       accentBg: "rgba(16, 185, 129, 0.15)",
-      tags: [c.name, c.code || "IFES", "Administração 2º Ano", "AVA IFES"],
-      modules: dynamicModules,
+      tags: [c.name, c.code || "IFES", "Oficial IFES", (c as any).room || c.campus || "Campus IFES"],
+      modules: realModules,
     };
   });
 };

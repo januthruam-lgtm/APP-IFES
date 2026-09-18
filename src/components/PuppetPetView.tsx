@@ -47,11 +47,11 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
   };
 
   const cssVariables = getRiggingCssVariables(config);
-  const stageInfo = getPetStageInfo(pet?.type || "bunny", pet?.level || 1);
+  const stageInfo = getPetStageInfo(pet);
 
   // If no custom image, fallback to template or emoji
   const fallbackTemplate = MASCOT_TEMPLATES.find((t) => t.id === pet?.type);
-  const displayImage = imageUrl || (fallbackTemplate ? fallbackTemplate.svgDataUri : null);
+  const displayImage = imageUrl || null;
 
   const handleInteraction = (e: React.MouseEvent<HTMLDivElement>) => {
     if (showRigPins && onCanvasClick) {

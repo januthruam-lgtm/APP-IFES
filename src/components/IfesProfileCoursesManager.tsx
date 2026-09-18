@@ -207,6 +207,8 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
         saveQAcademicoAccount({
           connected: true,
           campusUrl: "https://academico.ifes.edu.br/qacademico",
+          portalUrl: finalAccount.portalUrl || "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
+          lastSync: finalAccount.lastSync || new Date().toISOString(),
           matricula: finalAccount.matricula || "20241TIADM0042",
           fullname: finalAccount.fullname || "Estudante IFES",
           ...finalAccount,

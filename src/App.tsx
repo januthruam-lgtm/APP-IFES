@@ -481,17 +481,21 @@ export default function App() {
     }));
   };
 
-  const handlePermanentEnergyUpgrade = (amount: number, cost: number) => {
+  const handlePermanentEnergyUpgrade = (cost: number): boolean => {
+    if ((user.coins ?? 0) < cost) {
+      return false;
+    }
     setUser((prev) => {
       const currentMax = prev.maxEnergy || 50;
-      const newMax = currentMax + amount;
+      const newMax = currentMax + 10;
       return {
         ...prev,
-        xp: prev.xp - cost,
+        coins: Math.max(0, (prev.coins ?? 0) - cost),
         maxEnergy: newMax,
         energy: newMax, // Instant full refill
       };
     });
+    return true;
   };
 
   const handleUpdatePet = (newPet: UserPet) => {
@@ -517,17 +521,17 @@ export default function App() {
     }
   };
 
-  const handleBuyBadge = (badgeId: string, price: number) => {
-    if (user.xp < price) {
-      alert("XP insuficiente para desbloquear este distintivo!");
-      return;
+  const handleBuyBadge = (badgeId: string, price: number): boolean => {
+    if ((user.coins ?? 0) < price) {
+      return false;
     }
     setUser((prev) => ({
       ...prev,
-      xp: prev.xp - price,
-      unlockedBadges: [...prev.unlockedBadges, badgeId],
+      coins: Math.max(0, (prev.coins ?? 0) - price),
+      unlockedBadges: [...(prev.unlockedBadges || []), badgeId],
       equippedBadge: badgeId,
     }));
+    return true;
   };
 
   const handleEquipBadge = (badgeId: string) => {
@@ -606,24 +610,18 @@ export default function App() {
   };
 
   const handleImportQAcademicoCourses = (newCourses: IfesCourse[]) => {
-    setIfesCourses((prev) => {
-      const map = new Map<string, IfesCourse>();
-      prev.forEach((c) => map.set(c.name.toLowerCase(), c));
-      newCourses.forEach((c) => map.set(c.name.toLowerCase(), c));
-      const merged = Array.from(map.values());
-      saveSyncedCourses(merged);
-      return merged;
-    });
+    console.log("[App] Importando e aplicando disciplinas reais do Q-Acadêmico:", newCourses);
+    // As disciplinas reais importadas do Q-Acadêmico tornam-se a lista autêntica do estudante
+    setIfesCourses(newCourses);
+    saveSyncedCourses(newCourses);
 
-    setCourses((prevCourses) => {
-      const tracks = convertIfesCoursesToTracks(newCourses);
-      const map = new Map<string, CourseTrack>();
-      prevCourses.forEach((t) => map.set(t.title.toLowerCase(), t));
-      tracks.forEach((t) => map.set(t.title.toLowerCase(), t));
-      const mergedTracks = Array.from(map.values());
-      cacheStudyTracks(mergedTracks).catch(() => {});
-      return mergedTracks;
-    });
+    const tracks = convertIfesCoursesToTracks(newCourses);
+    setCourses(tracks);
+    if (tracks.length > 0) {
+      setCurrentCourse(tracks[0]);
+      setModules(tracks[0].modules || []);
+    }
+    cacheStudyTracks(tracks).catch(() => {});
   };
 
   const handleLogout = async () => {
@@ -797,12 +795,12 @@ export default function App() {
               courses={courses}
               currentCourse={currentCourse}
               onSelectCourse={handleSelectCourse}
-              onOpenLesson={(mod) => setActiveLessonModule(mod)}
+              onOpenLesson={(mod: TrackModule) => setActiveLessonModule(mod)}
               onOpenDeck={handleOpenDeckInGames}
               onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
               onResetCourses={handleResetCourses}
               onDeleteCourse={handleDeleteSingleCourse}
-              onStartCallWithMember={(member, isVideo) => {
+              onStartCallWithMember={(member: any, isVideo: boolean) => {
                 setTargetCallPeer({ id: member.id, name: member.name, isVideo });
                 setCurrentTab("study_room");
                 stopSpeaking();
@@ -839,17 +837,17 @@ export default function App() {
           {currentTab === "ifes" && (
             <IfesAvaTab
               user={user}
-              onGenerateQuizFromTopic={(topic) => {
+              onGenerateQuizFromTopic={(topic: string) => {
                 setCurrentTab("games");
               }}
-              onOpenSocraticWithTopic={(topic) => {
+              onOpenSocraticWithTopic={(topic: string) => {
                 setCurrentTab("lumina");
               }}
               onUpdateIfesAccount={handleUpdateIfesAccount}
               onUpdateQAcademicoAccount={handleUpdateQAcademicoAccount}
               onImportCourses={handleImportQAcademicoCourses}
               onRewardXp={handleRewardXp}
-              onEnterCourse={(ifesCourse) => {
+              onEnterCourse={(ifesCourse: IfesCourse) => {
                 const match = courses.find(
                   (c) =>
                     c.id === ifesCourse.id ||
@@ -869,7 +867,9 @@ export default function App() {
             <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
               <QAcademicoView
                 user={user}
+                ifesCourses={ifesCourses}
                 onUpdateQAcademicoAccount={handleUpdateQAcademicoAccount}
+                onUpdateIfesAccount={handleUpdateIfesAccount}
                 onImportCourses={handleImportQAcademicoCourses}
               />
             </div>
@@ -894,7 +894,7 @@ export default function App() {
           {currentTab === "library" && (
             <LibraryTab
               user={user}
-              onOpenSocraticWithContext={(topic) => {
+              onOpenSocraticWithContext={(topic: string) => {
                 setCurrentTab("lumina");
               }}
               onOpenDeckWithDocument={() => {
@@ -933,7 +933,7 @@ export default function App() {
                 setCurrentTab("flashcards");
                 stopSpeaking();
               }}
-              onOpenSocraticWithTopic={(topic) => {
+              onOpenSocraticWithTopic={(topic: string) => {
                 setCurrentTab("lumina");
                 stopSpeaking();
               }}
@@ -962,7 +962,7 @@ export default function App() {
           {currentTab === "theme" && (
             <ColorThemeTab
               currentTheme={currentTheme}
-              onThemeChange={(newTheme) => {
+              onThemeChange={(newTheme: CustomThemeColors) => {
                 setCurrentTheme(newTheme);
                 saveTheme(newTheme);
                 applyThemeToDOM(newTheme);

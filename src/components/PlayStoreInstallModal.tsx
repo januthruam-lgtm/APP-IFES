@@ -114,7 +114,7 @@ export const PlayStoreInstallModal: React.FC<PlayStoreInstallModalProps> = ({
 
         // Step 2: System installation phase
         setTimeout(async () => {
-          await install((pct) => setProgress(pct));
+          await install();
           setProgress(100);
           setInstallState('installed');
           confetti({ particleCount: 90, spread: 75, origin: { y: 0.6 } });

@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+:root {
+  --app-bg: #0f172a;
+  --app-card: #1e293b;
+  --app-card-secondary: #334155;
+  --app-card-hover: #283548;
+  --app-text: #f8fafc;
+  --app-text-muted: #94a3b8;
+  --app-primary: #6366f1;
+  --app-primary-hover: #4f46e5;
+  --app-border: rgba(255, 255, 255, 0.1);
+  --app-success: #10b981;
+  --app-accent: #38bdf8;
+}
+
+body {
+  background-color: var(--app-bg, #0f172a);
+  color: var(--app-text, #f8fafc);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

@@ -124,15 +124,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="uppercase text-[11px] tracking-widest text-[var(--app-primary)] font-extrabold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[var(--app-primary)] animate-pulse" />
-                Brain Studio • Metodologia Socrática IFES
+                Brain Studio • Assistente de Aprendizagem IFES
               </div>
               <span className="px-3 py-1 rounded-full border border-[var(--app-border)] text-[10px] uppercase tracking-widest text-[var(--app-text-muted)] font-mono">
-                {currentCourse?.category || "Técnico em Administração"}
+                {currentCourse?.category || "Técnico / Ensino Médio"}
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-[1.1] tracking-tight max-w-xl text-[var(--app-text)]">
-              Dê à luz suas ideias com raciocínio socrático.
+              Potencialize seus estudos com inteligência acadêmica.
             </h1>
 
             <p className="text-[var(--app-text-muted)] text-xs sm:text-sm leading-relaxed max-w-lg font-normal">
@@ -173,10 +173,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="pt-6 flex flex-wrap items-center gap-3 relative z-10">
             {courses.length > 0 && currentCourse?.id !== "empty-course" ? (
               <button
-                onClick={onOpenActiveLesson}
+                onClick={activeModule ? onOpenActiveLesson : () => onNavigate("sequence")}
                 className="bg-[var(--app-primary)] hover:opacity-90 text-white px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm transition shadow-sm flex items-center gap-2 cursor-pointer"
               >
-                <span>Continuar: {activeModule?.title || "Módulo 1"}</span>
+                <span>{activeModule ? `Continuar: ${activeModule.title}` : `Estudar: ${currentCourse?.title || "Disciplina"}`}</span>
                 <ArrowUpRight className="w-4 h-4" />
               </button>
             ) : (
@@ -194,7 +194,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               className="bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] px-6 py-3.5 rounded-2xl font-bold text-xs sm:text-sm transition border border-[var(--app-border)] flex items-center gap-2 cursor-pointer"
             >
               <Brain className="w-4 h-4 text-[var(--app-primary)]" />
-              <span>Tutor Socrático</span>
+              <span>Tutora Lumina</span>
             </button>
 
             <button
@@ -482,7 +482,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               Nenhuma disciplina cadastrada
             </h4>
             <p className="text-xs text-[var(--app-text-muted)] max-w-md mx-auto">
-              Conecte sua matrícula institucional no AVA IFES para carregar sua grade curricular e trilhas socráticas.
+              Conecte sua matrícula institucional no AVA IFES para carregar sua grade curricular e trilhas de aprendizagem.
             </p>
             <button
               onClick={() => onNavigate("ifes")}

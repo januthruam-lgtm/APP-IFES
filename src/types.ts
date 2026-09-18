@@ -1,6 +1,19 @@
-export type ThemeId = "default" | "cyberpunk" | "solar" | "emerald" | "sunset" | "custom" | "paper" | "dark" | "nordic";
+export type ThemeId =
+  | "default"
+  | "cyberpunk"
+  | "solar"
+  | "emerald"
+  | "sunset"
+  | "custom"
+  | "paper"
+  | "dark"
+  | "nordic"
+  | "cyber_green"
+  | "paper_focus"
+  | "sakura_warm"
+  | "sunset_amber";
 
-export type PetType = "bunny" | "bird" | "elephant" | "tiger" | "custom";
+export type PetType = "bunny" | "bird" | "elephant" | "tiger" | "custom" | "owl";
 
 export interface PuppetRigPin {
   x: number; // Percentage 0 - 100
@@ -23,17 +36,29 @@ export interface PuppetRigConfig {
   rigProfile: "mammal" | "bird" | "biped" | "quadruped" | "robot";
 }
 
+export interface PetStageInfo {
+  stageName: string;
+  minLevel: number;
+  perks: string[];
+  auraColor: string;
+  badge: string;
+  avatarEmoji?: string;
+  accessoryBadge?: string;
+}
+
 export interface UserPet {
   type: PetType;
   name: string;
   level: number;
   exp: number;
+  experience?: number;
   maxExp: number;
   happiness: number; // 0 - 100
   hunger: number; // 0 - 100 (100 = satisfeito)
   energy: number; // 0 - 100
   totalMeals: number;
   lastFedTimestamp: string;
+  lastFed?: string;
   unlockedPets: PetType[];
   customImageUrl?: string;
   customRigConfig?: PuppetRigConfig;
@@ -44,8 +69,10 @@ export interface UserPet {
 export interface CustomThemeColors {
   id: string;
   name: string;
+  bgMain?: string;
   bgPrimary: string;
   bgCard: string;
+  bgCardSecondary?: string;
   bgCardHover: string;
   textPrimary: string;
   textMuted: string;
@@ -70,6 +97,18 @@ export interface IfesAccountInfo {
   email?: string;
   department?: string;
   city?: string;
+  gradesSummary?: {
+    totalDisciplinas: number;
+    aprovadas: number;
+    cursando: number;
+    emExame: number;
+    totalFaltas: number;
+    mediaGeral: string;
+    crOficial?: number;
+    lastGradesSync?: string;
+  };
+  academicGrades?: QAcademicoGradeItem[];
+  academicSchedules?: QAcademicoScheduleItem[];
 }
 
 export interface QAcademicoAccountInfo {
@@ -78,6 +117,7 @@ export interface QAcademicoAccountInfo {
   fullname?: string;
   curso?: string;
   campus?: string;
+  campusUrl?: string;
   periodo?: string;
   coeficienteRendimento?: number; // CR Oficial (ex: 85.4)
   portalUrl: string; // https://academico.ifes.edu.br/qacademico/index.asp?t=2000
@@ -228,6 +268,8 @@ export interface TrackModule {
   subtitle: string;
   category: string;
   status: "completed" | "active" | "locked";
+  completed?: boolean;
+  description?: string;
   xpReward: number;
   estimatedMinutes: number;
   summary: string;
@@ -250,6 +292,7 @@ export interface CourseDefinition {
 export interface CourseTrack {
   id: string;
   title: string;
+  code?: string;
   name: string;
   icon: string;
   category: string;

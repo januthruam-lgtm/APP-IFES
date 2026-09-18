@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Lumina IA",
           icon: Brain,
           highlight: true,
-          badge: "Maiêutica",
+          badge: "Tutora IA",
           badgeColor: "text-[var(--app-primary)] bg-[var(--app-primary)]/10 border-[var(--app-primary)]/20",
         },
         {

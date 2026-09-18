@@ -177,7 +177,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           score: 80,
           verdict: "Correta",
           feedback: "Excelente raciocínio! Você articulou os conceitos fundamentais da lição.",
-          detailedExplanation: currentLesson.conceptText || "A reflexão socrática valida a compreensão da matéria.",
+          detailedExplanation: currentLesson.conceptText || "A reflexão profunda valida a compreensão da matéria.",
           keyStrengths: ["Boa síntese conceitual"],
           pointsToImprove: ["Continuar praticando nos próximos módulos"],
           xpEarned: 35,
@@ -351,7 +351,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
                 <Sparkles className="w-4 h-4 text-[#e2ff31]" />
-                <span>Reflexão Socrática Lumina</span>
+                <span>Reflexão e Síntese com Lumina</span>
               </div>
               <button
                 onClick={() => {
