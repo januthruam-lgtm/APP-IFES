@@ -1,21 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --app-bg: #0f172a;
-  --app-card: #1e293b;
-  --app-card-secondary: #334155;
-  --app-card-hover: #283548;
-  --app-text: #f8fafc;
-  --app-text-muted: #94a3b8;
-  --app-primary: #6366f1;
-  --app-primary-hover: #4f46e5;
-  --app-border: rgba(255, 255, 255, 0.1);
-  --app-success: #10b981;
-  --app-accent: #38bdf8;
+  --app-bg: #f8fafc;
+  --app-card: #ffffff;
+  --app-card-secondary: #f1f5f9;
+  --app-card-hover: #e2e8f0;
+  --app-text: #0f172a;
+  --app-text-muted: #475569;
+  --app-primary: #15803d;
+  --app-primary-hover: #166534;
+  --app-border: #e2e8f0;
+  --app-success: #15803d;
+  --app-accent: #0284c7;
+
+  /* Aliases for universal compatibility across all components */
+  --bg-color: var(--app-bg);
+  --bg-main: var(--app-bg);
+  --bg-card: var(--app-card);
+  --bg-card-secondary: var(--app-card-secondary);
+  --bg-card-hover: var(--app-card-hover);
+  --text-color: var(--app-text);
+  --text-primary: var(--app-text);
+  --text-muted: var(--app-text-muted);
+  --text-secondary: var(--app-text-muted);
+  --border-color: var(--app-border);
+  --border-subtle: var(--app-border);
+  --btn-primary: var(--app-primary);
+  --btn-primary-hover: var(--app-primary-hover);
+  --color-success: var(--app-success);
+  --color-accent: var(--app-accent);
 }
 
 body {
-  background-color: var(--app-bg, #0f172a);
-  color: var(--app-text, #f8fafc);
+  background-color: var(--app-bg, #f8fafc);
+  color: var(--app-text, #0f172a);
   transition: background-color 0.2s ease, color 0.2s ease;
 }

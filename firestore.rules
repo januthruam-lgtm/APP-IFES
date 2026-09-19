@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Presença e Heartbeat
+    match /presencas/{uid} {
+      allow read, write: if true;
+    }
+
+    // Chamadas WebRTC e Sinalização
+    match /chamadas/{callId} {
+      allow read, write: if true;
+      match /candidatos/{candidatoId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Notificações Unificadas
+    match /notificacoes/{notifId} {
+      allow read, write: if true;
+    }
+
+    // Equipes e Fóruns em Tempo Real
+    match /equipes/{equipeId} {
+      allow read, write: if true;
+      match /mensagens/{mensagemId} {
+        allow read, write: if true;
+      }
+    }
+
+    // Credenciais e Perfil de Usuário
+    match /users/{uid} {
+      allow read, write: if true;
+      match /credentials/{credType} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

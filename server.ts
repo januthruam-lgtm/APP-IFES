@@ -1,5 +1,7 @@
 import express from "express";
 import path from "path";
+import http from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import webpush from "web-push";
@@ -183,6 +185,7 @@ const teamsDatabase: TeamInfo[] = [];
 
 async function startServer() {
   const app = express();
+  const server = http.createServer(app);
   const PORT = 3000;
 
   app.use(express.json({ limit: "50mb" }));
@@ -2254,9 +2257,13 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
 
       const portalUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2000";
       const authUrl = "https://academico.ifes.edu.br/qacademico/lib/autenticacao/autentica.asp";
+      const boletimUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2071";
+      const horariosUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2010";
 
       let sessionCookie = "";
       let directLoginWorked = false;
+      let realHtmlBoletim = "";
+      let realHtmlHorarios = "";
 
       if (senha) {
         try {
@@ -2279,127 +2286,161 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
             signal: AbortSignal.timeout(6000),
           });
 
-          const setCookie = loginResponse.headers.get("set-cookie");
-          if (setCookie) {
-            sessionCookie = setCookie;
+          // Check Set-Cookie headers
+          const rawCookies = loginResponse.headers.get("set-cookie");
+          if (rawCookies && !rawCookies.toLowerCase().includes("expirado")) {
+            sessionCookie = rawCookies.split(";")[0];
             directLoginWorked = true;
           }
+
+          if (directLoginWorked && sessionCookie) {
+            // Fetch real Boletim (t=2071)
+            try {
+              const bolRes = await fetch(boletimUrl, {
+                headers: {
+                  Cookie: sessionCookie,
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  Referer: portalUrl,
+                },
+                signal: AbortSignal.timeout(6000),
+              });
+              if (bolRes.ok) {
+                realHtmlBoletim = await bolRes.text();
+              }
+            } catch (bolErr) {
+              console.warn("Could not fetch boletim via session cookie:", bolErr);
+            }
+
+            // Fetch real Horários (t=2010)
+            try {
+              const horRes = await fetch(horariosUrl, {
+                headers: {
+                  Cookie: sessionCookie,
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                  Referer: portalUrl,
+                },
+                signal: AbortSignal.timeout(5000),
+              });
+              if (horRes.ok) {
+                realHtmlHorarios = await horRes.text();
+              }
+            } catch (horErr) {
+              console.warn("Could not fetch horarios via session cookie:", horErr);
+            }
+          }
         } catch (authErr) {
-          console.warn("Direct Q-Academico fetch encountered proxy limit:", authErr);
+          console.warn("Direct Q-Academico fetch encountered network/proxy limit:", authErr);
         }
       }
 
-      // Check if we have cached data for this matricula
-      let cached = qacademicoSessions.get(cleanMatricula);
+      // Check if we managed to parse real data from HTML
+      let parsedRealGrades: any[] = [];
+      let parsedRealSchedules: any[] = [];
+      let extractedStudentName = "";
+      let extractedCourse = "";
 
-      // Authentic IFES subjects for the student's program: Técnico Integrado em Administração (ADIG)
-      const authenticAdigSubjects = [
-        { nome: "Informática (20251.ADIG.1V)", codigo: "ADIG.INFO1", docente: "Prof. Cayo Magno da Cruz Fontana", ch: 80, notas: [85, 88, 90, 86], faltas: 0 },
-        { nome: "Língua Portuguesa e Literatura Brasileira 1 (ADIG.1V)", codigo: "ADIG.PORT1", docente: "Prof. Wallas Gomes Zoteli", ch: 80, notas: [80, 84, 82, 85], faltas: 2 },
-        { nome: "2025 ADM - Física 1", codigo: "ADIG.FIS1", docente: "Prof. Adriano Mesquita Oliveira", ch: 60, notas: [78, 80, 85, 82], faltas: 2 },
-        { nome: "Matemática 1 - ADIG 1V", codigo: "ADIG.MAT1", docente: "Profa. Dóris Reis de Magalhães", ch: 80, notas: [82, 85, 80, 88], faltas: 0 },
-        { nome: "Fundamentos da Administração - 2025", codigo: "ADIG.ADM1", docente: "Prof. Caio Ruano da Silva", ch: 60, notas: [90, 92, 88, 94], faltas: 0 },
-        { nome: "2025. Sociologia 1 - Adig1", codigo: "ADIG.SOC1", docente: "Prof. Rafael Lobo", ch: 40, notas: [88, 90, 85, 92], faltas: 0 },
-        { nome: "Fundamentos da Economia", codigo: "ADIG.ECON1", docente: "Profa. Virgínia de Paula Batista Carvalho", ch: 60, notas: [84, 86, 82, 88], faltas: 2 },
-        { nome: "Biologia 2", codigo: "ADIG.BIO2", docente: "Docente IFES", ch: 60, notas: [80, 82, 85, 84], faltas: 0 },
-        { nome: "Práticas Contábeis", codigo: "ADIG.CONT1", docente: "Prof. Robson de Souza Linhares", ch: 60, notas: [86, 88, 90, 87], faltas: 0 },
-        { nome: "Empreendedorismo (2ADIG - Técnico Integrado Administração)", codigo: "ADIG.EMP1", docente: "Profa. Andrea Maria de Quadros", ch: 60, notas: [92, 95, 90, 94], faltas: 0 },
-        { nome: "Sociologia 2", codigo: "ADIG.SOC2", docente: "Profa. Sabrina Souza da Silva", ch: 40, notas: [85, 88, 86, 90], faltas: 0 },
-        { nome: "Língua Portuguesa e Literatura Brasileira 2", codigo: "ADIG.PORT2", docente: "Prof. Guilherme Augusto dos Santos Póvoa", ch: 80, notas: [82, 85, 88, 86], faltas: 2 },
-        { nome: "Filosofia 1", codigo: "ADIG.FIL1", docente: "Docente IFES", ch: 40, notas: [88, 86, 90, 88], faltas: 0 },
-        { nome: "História 1", codigo: "ADIG.HIST1", docente: "Docente IFES", ch: 60, notas: [84, 82, 86, 85], faltas: 0 },
-        { nome: "Geografia 1", codigo: "ADIG.GEO1", docente: "Docente IFES", ch: 60, notas: [82, 85, 84, 88], faltas: 0 },
-        { nome: "Artes 1", codigo: "ADIG.ART1", docente: "Docente IFES", ch: 40, notas: [90, 92, 90, 94], faltas: 0 },
-        { nome: "Educação Física 1", codigo: "ADIG.EDF1", docente: "Docente IFES", ch: 40, notas: [95, 95, 95, 95], faltas: 0 },
-      ];
+      if (realHtmlBoletim) {
+        // Parse table rows from real Boletim HTML
+        const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
+        const rows = realHtmlBoletim.match(rowRegex) || [];
+        for (const row of rows) {
+          const cells = (row.match(/<td[\s\S]*?<\/td>/gi) || []).map((c) =>
+            c.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim()
+          );
+          if (cells.length >= 6) {
+            const discName = cells[0];
+            // Ignore header rows
+            if (!discName || /disciplina|c\.h\.|etapa|boletim|total/i.test(discName)) continue;
 
-      // If client provided user's real synced courses, map them directly into Q-Acadêmico grades
-      const clientCourses = Array.isArray(req.body.userCourses) && req.body.userCourses.length > 0 ? req.body.userCourses : null;
+            const ch = parseInt(cells[2], 10) || 60;
+            const faltas = parseInt(cells[4], 10) || 0;
+            const n1 = parseFloat(cells[5]?.replace(",", ".")) || undefined;
+            const n2 = parseFloat(cells[6]?.replace(",", ".")) || undefined;
+            const n3 = parseFloat(cells[7]?.replace(",", ".")) || undefined;
+            const n4 = parseFloat(cells[8]?.replace(",", ".")) || undefined;
+            const mediaFinal = parseFloat(cells[cells.length - 2]?.replace(",", ".")) || undefined;
+            const situacao = cells[cells.length - 1] || "Cursando";
 
-      let defaultGrades: any[] = [];
-      if (clientCourses && clientCourses.length > 0) {
-        defaultGrades = clientCourses.map((c: any, i: number) => {
-          const notas = [82 + (i % 5), 85 + (i % 4), 84 + (i % 6), 88 + (i % 3)];
-          const media = Number((notas.reduce((a, b) => a + b, 0) / 4).toFixed(1));
-          return {
-            id: `qacad-disc-${c.id || i + 1}`,
-            disciplina: c.name || c.fullname || `Disciplina ${i + 1}`,
-            codigo: c.code || `ADIG-${i + 1}`,
-            turma: "2025.1",
-            docente: c.professor || "Docente IFES",
-            cargaHoraria: 60,
-            aulasDadas: 56,
-            faltas: (i % 3 === 0) ? 2 : 0,
-            etapas: notas.map((n, idx) => ({ etapa: `${idx + 1}ª Etapa`, nota: n, notaMax: 100, faltas: (idx === 0 ? 2 : 0) })),
-            mediaParcial: media,
-            mediaFinal: media,
-            situacao: media >= 60 ? "Aprovado" : "Cursando",
-          };
-        });
-      } else {
-        defaultGrades = authenticAdigSubjects.map((s, i) => {
-          const media = Number((s.notas.reduce((a, b) => a + b, 0) / 4).toFixed(1));
-          return {
-            id: `qacad-disc-${i + 1}`,
-            disciplina: s.nome,
-            codigo: s.codigo,
-            turma: "2025.1",
-            docente: s.docente,
-            cargaHoraria: s.ch,
-            aulasDadas: Math.round(s.ch * 0.9),
-            faltas: s.faltas,
-            etapas: s.notas.map((n, idx) => ({ etapa: `${idx + 1}ª Etapa`, nota: n, notaMax: 100, faltas: (idx === 0 ? s.faltas : 0) })),
-            mediaParcial: media,
-            mediaFinal: media,
-            situacao: media >= 60 ? "Aprovado" : "Cursando",
-          };
+            const etapas: any[] = [];
+            if (n1 !== undefined) etapas.push({ etapa: "1ª Etapa", nota: n1, notaMax: 100 });
+            if (n2 !== undefined) etapas.push({ etapa: "2ª Etapa", nota: n2, notaMax: 100 });
+            if (n3 !== undefined) etapas.push({ etapa: "3ª Etapa", nota: n3, notaMax: 100 });
+            if (n4 !== undefined) etapas.push({ etapa: "4ª Etapa", nota: n4, notaMax: 100 });
+
+            parsedRealGrades.push({
+              id: `qacad-${discName.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30)}-${parsedRealGrades.length + 1}`,
+              disciplina: discName,
+              codigo: `QACAD-${parsedRealGrades.length + 1}`,
+              cargaHoraria: ch,
+              faltas,
+              etapas,
+              mediaFinal,
+              situacao: /aprovad/i.test(situacao) ? "Aprovado" : /reprovad/i.test(situacao) ? "Reprovado" : /exame/i.test(situacao) ? "Em Exame" : "Cursando",
+            });
+          }
+        }
+
+        const nameMatch = realHtmlBoletim.match(/(?:aluno|estudante|nome)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ\s]{4,60})/i);
+        if (nameMatch) extractedStudentName = nameMatch[1].trim();
+
+        const cursoMatch = realHtmlBoletim.match(/(?:curso)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ0-9\s\-\.\(\)]+)/i);
+        if (cursoMatch) extractedCourse = cursoMatch[1].trim();
+      }
+
+      // Check if we have previously verified real synced data in cache
+      const cached = qacademicoSessions.get(cleanMatricula);
+      if (parsedRealGrades.length === 0 && cached?.grades && cached.grades.length > 0) {
+        parsedRealGrades = cached.grades;
+      }
+      if (parsedRealSchedules.length === 0 && cached?.schedules && cached.schedules.length > 0) {
+        parsedRealSchedules = cached.schedules;
+      }
+
+      // CRITICAL: NEVER serve fake mock grades!
+      // If we don't have real grades from scraping or verified cache, return an explicit error
+      if (parsedRealGrades.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error:
+            "Não foi possível obter dados reais do Q-Acadêmico. Verifique sua matrícula e senha institucional. Caso o portal do IFES esteja com captcha ou restrição de proxy, use a opção 'Ponte Rápida / Importar Boletim' para sincronizar seu boletim oficial instantaneamente.",
+          authMethod: "failed",
         });
       }
 
-      const defaultSchedules: any[] = [
-        { id: "sch-1", diaSemana: "Segunda", horario: "07:00 - 08:40", disciplina: "Informática (20251.ADIG.1V)", sala: "Lab Informática 02", docente: "Prof. Cayo Magno da Cruz Fontana" },
-        { id: "sch-2", diaSemana: "Segunda", horario: "08:50 - 10:30", disciplina: "Fundamentos da Administração - 2025", sala: "Sala 104", docente: "Prof. Caio Ruano da Silva" },
-        { id: "sch-3", diaSemana: "Terça", horario: "07:00 - 08:40", disciplina: "Língua Portuguesa e Literatura Brasileira 1 (ADIG.1V)", sala: "Sala 104", docente: "Prof. Wallas Gomes Zoteli" },
-        { id: "sch-4", diaSemana: "Terça", horario: "08:50 - 10:30", disciplina: "Matemática 1 - ADIG 1V", sala: "Sala 104", docente: "Profa. Dóris Reis de Magalhães" },
-        { id: "sch-5", diaSemana: "Quarta", horario: "07:00 - 08:40", disciplina: "2025 ADM - Física 1", sala: "Lab Multidisciplinar", docente: "Prof. Adriano Mesquita Oliveira" },
-        { id: "sch-6", diaSemana: "Quinta", horario: "07:00 - 08:40", disciplina: "Fundamentos da Economia", sala: "Sala 104", docente: "Profa. Virgínia de Paula Batista Carvalho" },
-        { id: "sch-7", diaSemana: "Sexta", horario: "07:00 - 08:40", disciplina: "Práticas Contábeis", sala: "Lab 01", docente: "Prof. Robson de Souza Linhares" },
-      ];
-
-      const gradesToReturn = cached?.grades && cached.grades.length > 0 ? cached.grades : defaultGrades;
-      const schedulesToReturn = cached?.schedules && cached.schedules.length > 0 ? cached.schedules : defaultSchedules;
-
+      const syncDate = new Date();
       const accountData = {
         connected: true,
         matricula: cleanMatricula,
-        fullname: cached?.account?.fullname || (cleanMatricula === "20251ADIG0343" ? "Januário da Silva" : `Estudante IFES (${cleanMatricula})`),
-        curso: cached?.account?.curso || "Técnico Integrado em Administração (ADIG)",
-        campus: campus || "IFES Cefor AVA3",
+        fullname: extractedStudentName || cached?.account?.fullname || `Estudante IFES (${cleanMatricula})`,
+        curso: extractedCourse || cached?.account?.curso || "Curso Técnico / Superior IFES",
+        campus: campus || "IFES",
         periodo: "2026/1",
-        coeficienteRendimento: 85.6,
+        coeficienteRendimento: cached?.account?.coeficienteRendimento || 0,
         portalUrl,
-        lastSync: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        authMethod: directLoginWorked ? "direct_session" : "direct_session",
+        lastSync: syncDate.toLocaleDateString("pt-BR") + " às " + syncDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        lastRealSyncTimestamp: syncDate.toISOString(),
+        authMethod: "direct_session",
       };
 
       // Save into sessions map
       qacademicoSessions.set(cleanMatricula, {
         matricula: cleanMatricula,
         account: accountData,
-        grades: gradesToReturn,
-        schedules: schedulesToReturn,
+        grades: parsedRealGrades,
+        schedules: parsedRealSchedules,
         courses: cached?.courses || [],
-        lastSync: new Date().toISOString(),
+        lastSync: syncDate.toISOString(),
       });
 
       return res.json({
         success: true,
         authenticated: true,
         account: accountData,
-        grades: gradesToReturn,
-        schedules: schedulesToReturn,
+        grades: parsedRealGrades,
+        schedules: parsedRealSchedules,
         courses: cached?.courses || [],
-        message: "Dados sincronizados com sucesso no Q-Acadêmico IFES (Notas, Faltas e Horários carregados)!",
+        lastSync: accountData.lastSync,
+        message: "Dados reais do Q-Acadêmico IFES sincronizados com sucesso!",
       });
     } catch (err: any) {
       return res.status(500).json({
@@ -2506,7 +2547,7 @@ Retorne ESTRITAMENTE um JSON com esta estrutura:
         const nameMatch = rawContent.match(/(?:aluno|estudante|nome)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ\s]{4,50})/i);
         const crMatch = rawContent.match(/(?:coeficiente|c\.r\.|cr)[:\s]+(\d{1,3}(?:[,\.]\d{1,2})?)/i);
 
-        let studentMatricula = matMatch ? matMatch[1].trim() : "20241TIADM0042";
+        let studentMatricula = matMatch ? matMatch[1].trim() : (rawContent.match(/\b(20[12][0-9][12][A-Z0-9]{4,10})\b/i)?.[1] || "");
         let studentName = nameMatch ? nameMatch[1].trim().replace(/\s+(?:matrícula|curso)[\s\S]*/i, "") : "Estudante IFES";
         let studentCr = crMatch ? parseFloat(crMatch[1].replace(",", ".")) : undefined;
 
@@ -2576,7 +2617,7 @@ Retorne ESTRITAMENTE um JSON com esta estrutura:
       }));
 
       // Cache session in memory
-      const finalMatricula = parsedData.account?.matricula || "20241TIADM0042";
+      const finalMatricula = parsedData.account?.matricula || `qacad-${Date.now()}`;
       qacademicoSessions.set(finalMatricula, {
         matricula: finalMatricula,
         account: parsedData.account,
@@ -2633,6 +2674,463 @@ Retorne ESTRITAMENTE um JSON com esta estrutura:
     });
   });
 
+  // ==========================================
+  // REAL-TIME VIRTUAL STUDY ROOM & WEBRTC SIGNALING
+  // Mesh WebRTC (Audio, Video, Screen Sharing) + Live Chat + Pomodoro Foco
+  // ==========================================
+
+  interface StudyRoomPeer {
+    peerId: string;
+    peerName: string;
+    campus?: string;
+    matricula?: string;
+    ws?: WebSocket;
+    isVideo: boolean;
+    isAudio: boolean;
+    isScreenSharing: boolean;
+    isSpeaking: boolean;
+    joinedAt: number;
+  }
+
+  interface StudyRoomMessage {
+    id: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    timestamp: string;
+    type?: "text" | "link" | "pomodoro";
+  }
+
+  interface StudyRoomState {
+    roomId: string;
+    roomName: string;
+    peers: Map<string, StudyRoomPeer>;
+    messages: StudyRoomMessage[];
+    pendingSignals: Map<string, Array<{ senderId: string; signal: any }>>;
+    pomodoro: {
+      isRunning: boolean;
+      mode: "focus" | "shortBreak" | "longBreak";
+      timeLeftSeconds: number;
+      lastUpdated: number;
+    };
+  }
+
+  const studyRoomsStore = new Map<string, StudyRoomState>();
+
+  function getOrCreateStudyRoom(roomId: string, roomName?: string): StudyRoomState {
+    let room = studyRoomsStore.get(roomId);
+    if (!room) {
+      const defaultNames: Record<string, string> = {
+        "sala-geral-ifes": "Sala Geral de Estudos IFES",
+        "sala-exatas": "Sala de Apoio - Exatas & Cálculo",
+        "sala-ti": "Lab Virtual - Programação & Redes",
+        "sala-gestao": "Sala de Estudos - Administração & Gestão",
+      };
+      room = {
+        roomId,
+        roomName: roomName || defaultNames[roomId] || `Sala ${roomId}`,
+        peers: new Map(),
+        messages: [
+          {
+            id: `msg-welcome-${Date.now()}`,
+            senderId: "system",
+            senderName: "Brain Studio",
+            text: "Bem-vindos à sala virtual de estudos! Comunicação em tempo real entre estudantes do IFES com áudio, vídeo e compartilhamento de tela.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            type: "text",
+          },
+        ],
+        pendingSignals: new Map(),
+        pomodoro: {
+          isRunning: false,
+          mode: "focus",
+          timeLeftSeconds: 25 * 60,
+          lastUpdated: Date.now(),
+        },
+      };
+      studyRoomsStore.set(roomId, room);
+    }
+    return room;
+  }
+
+  // Pre-instantiate standard rooms
+  getOrCreateStudyRoom("sala-geral-ifes", "Sala Geral de Estudos IFES");
+  getOrCreateStudyRoom("sala-exatas", "Sala de Apoio - Exatas & Cálculo");
+  getOrCreateStudyRoom("sala-ti", "Lab Virtual - Programação & Redes");
+  getOrCreateStudyRoom("sala-gestao", "Sala de Estudos - Administração & Gestão");
+
+  // Study Rooms REST Endpoints
+  app.get("/api/study-room/rooms", (req, res) => {
+    const list = Array.from(studyRoomsStore.values()).map((r) => ({
+      roomId: r.roomId,
+      roomName: r.roomName,
+      peersCount: r.peers.size,
+      peers: Array.from(r.peers.values()).map((p) => ({
+        peerId: p.peerId,
+        peerName: p.peerName,
+        campus: p.campus,
+        isVideo: p.isVideo,
+        isAudio: p.isAudio,
+        isScreenSharing: p.isScreenSharing,
+        isSpeaking: p.isSpeaking,
+      })),
+      pomodoroMode: r.pomodoro.mode,
+      isPomodoroRunning: r.pomodoro.isRunning,
+      messagesCount: r.messages.length,
+    }));
+    return res.json({ rooms: list });
+  });
+
+  app.get("/api/study-room/rooms/:roomId", (req, res) => {
+    const { roomId } = req.params;
+    const room = getOrCreateStudyRoom(roomId);
+    return res.json({
+      roomId: room.roomId,
+      roomName: room.roomName,
+      peers: Array.from(room.peers.values()).map((p) => ({
+        peerId: p.peerId,
+        peerName: p.peerName,
+        campus: p.campus,
+        isVideo: p.isVideo,
+        isAudio: p.isAudio,
+        isScreenSharing: p.isScreenSharing,
+        isSpeaking: p.isSpeaking,
+      })),
+      messages: room.messages.slice(-50),
+      pomodoro: room.pomodoro,
+    });
+  });
+
+  app.post("/api/study-room/rooms/:roomId/chat", (req, res) => {
+    const { roomId } = req.params;
+    const { senderId, senderName, text, type } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "Texto da mensagem não pode ser vazio." });
+    }
+    const room = getOrCreateStudyRoom(roomId);
+    const newMsg: StudyRoomMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      senderId: senderId || "anon",
+      senderName: senderName || "Estudante",
+      text: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      type: type || "text",
+    };
+    room.messages.push(newMsg);
+    if (room.messages.length > 150) room.messages.shift();
+
+    const chatPayload = JSON.stringify({ type: "chat-message", message: newMsg });
+    for (const p of room.peers.values()) {
+      if (p.ws && p.ws.readyState === WebSocket.OPEN) {
+        try {
+          p.ws.send(chatPayload);
+        } catch {}
+      }
+    }
+    return res.json({ success: true, message: newMsg });
+  });
+
+  app.post("/api/study-room/rooms/:roomId/signal", (req, res) => {
+    const { roomId } = req.params;
+    const { senderId, targetPeerId, signal } = req.body;
+    const room = getOrCreateStudyRoom(roomId);
+    const target = room.peers.get(targetPeerId);
+
+    if (target && target.ws && target.ws.readyState === WebSocket.OPEN) {
+      try {
+        target.ws.send(JSON.stringify({ type: "signal", senderId, signal }));
+      } catch {}
+    } else {
+      if (!room.pendingSignals.has(targetPeerId)) {
+        room.pendingSignals.set(targetPeerId, []);
+      }
+      room.pendingSignals.get(targetPeerId)!.push({ senderId, signal });
+    }
+    return res.json({ success: true });
+  });
+
+  app.get("/api/study-room/rooms/:roomId/signals/:peerId", (req, res) => {
+    const { roomId, peerId } = req.params;
+    const room = getOrCreateStudyRoom(roomId);
+    const signals = room.pendingSignals.get(peerId) || [];
+    room.pendingSignals.set(peerId, []);
+    return res.json({ signals });
+  });
+
+  app.post("/api/study-room/rooms/:roomId/pomodoro", (req, res) => {
+    const { roomId } = req.params;
+    const { action, mode, timeLeftSeconds } = req.body;
+    const room = getOrCreateStudyRoom(roomId);
+
+    if (action === "start") room.pomodoro.isRunning = true;
+    else if (action === "pause") room.pomodoro.isRunning = false;
+    else if (action === "reset") {
+      room.pomodoro.isRunning = false;
+      room.pomodoro.timeLeftSeconds = room.pomodoro.mode === "focus" ? 25 * 60 : room.pomodoro.mode === "shortBreak" ? 5 * 60 : 15 * 60;
+    } else if (action === "switch-mode" && mode) {
+      room.pomodoro.mode = mode;
+      room.pomodoro.isRunning = false;
+      room.pomodoro.timeLeftSeconds = mode === "focus" ? 25 * 60 : mode === "shortBreak" ? 5 * 60 : 15 * 60;
+    }
+    if (typeof timeLeftSeconds === "number") {
+      room.pomodoro.timeLeftSeconds = timeLeftSeconds;
+    }
+    room.pomodoro.lastUpdated = Date.now();
+
+    const pomodoroPayload = JSON.stringify({ type: "pomodoro-updated", pomodoro: room.pomodoro });
+    for (const p of room.peers.values()) {
+      if (p.ws && p.ws.readyState === WebSocket.OPEN) {
+        try {
+          p.ws.send(pomodoroPayload);
+        } catch {}
+      }
+    }
+    return res.json({ success: true, pomodoro: room.pomodoro });
+  });
+
+  // WebSocket Server for WebRTC Signaling & Real-time Room Events
+  const wss = new WebSocketServer({ server, path: "/ws/study-room" });
+
+  wss.on("connection", (ws: WebSocket) => {
+    let currentRoomId: string | null = null;
+    let currentPeerId: string | null = null;
+
+    ws.on("message", (raw: string) => {
+      try {
+        const data = JSON.parse(raw.toString());
+        const { type } = data;
+
+        if (type === "join") {
+          const { roomId, peerId, peerName, campus, matricula, isVideo = true, isAudio = true, isScreenSharing = false } = data;
+          if (!roomId || !peerId) return;
+
+          currentRoomId = roomId;
+          currentPeerId = peerId;
+
+          const room = getOrCreateStudyRoom(roomId);
+          const newPeer: StudyRoomPeer = {
+            peerId,
+            peerName: peerName || "Colega IFES",
+            campus: campus || "IFES",
+            matricula: matricula || "",
+            ws,
+            isVideo: !!isVideo,
+            isAudio: !!isAudio,
+            isScreenSharing: !!isScreenSharing,
+            isSpeaking: false,
+            joinedAt: Date.now(),
+          };
+
+          room.peers.set(peerId, newPeer);
+
+          // Return room-state to the newly joined peer
+          const existingPeersList = Array.from(room.peers.values())
+            .filter((p) => p.peerId !== peerId)
+            .map((p) => ({
+              peerId: p.peerId,
+              peerName: p.peerName,
+              campus: p.campus,
+              matricula: p.matricula,
+              isVideo: p.isVideo,
+              isAudio: p.isAudio,
+              isScreenSharing: p.isScreenSharing,
+              isSpeaking: p.isSpeaking,
+            }));
+
+          ws.send(
+            JSON.stringify({
+              type: "room-state",
+              roomId: room.roomId,
+              roomName: room.roomName,
+              peers: existingPeersList,
+              messages: room.messages.slice(-50),
+              pomodoro: room.pomodoro,
+            })
+          );
+
+          // Broadcast peer-joined to all other peers in the room
+          const joinNotification = JSON.stringify({
+            type: "peer-joined",
+            peer: {
+              peerId: newPeer.peerId,
+              peerName: newPeer.peerName,
+              campus: newPeer.campus,
+              matricula: newPeer.matricula,
+              isVideo: newPeer.isVideo,
+              isAudio: newPeer.isAudio,
+              isScreenSharing: newPeer.isScreenSharing,
+              isSpeaking: false,
+            },
+          });
+
+          for (const [pId, p] of room.peers.entries()) {
+            if (pId !== peerId && p.ws && p.ws.readyState === WebSocket.OPEN) {
+              try {
+                p.ws.send(joinNotification);
+              } catch {}
+            }
+          }
+        } else if (type === "signal") {
+          const { roomId, targetPeerId, signal } = data;
+          if (!roomId || !targetPeerId || !signal) return;
+          const room = studyRoomsStore.get(roomId);
+          if (!room) return;
+
+          const target = room.peers.get(targetPeerId);
+          if (target && target.ws && target.ws.readyState === WebSocket.OPEN) {
+            try {
+              target.ws.send(
+                JSON.stringify({
+                  type: "signal",
+                  senderId: currentPeerId,
+                  signal,
+                })
+              );
+            } catch {}
+          } else {
+            if (!room.pendingSignals.has(targetPeerId)) {
+              room.pendingSignals.set(targetPeerId, []);
+            }
+            room.pendingSignals.get(targetPeerId)!.push({ senderId: currentPeerId || "", signal });
+          }
+        } else if (type === "chat") {
+          const { roomId, message } = data;
+          if (!roomId || !message) return;
+          const room = studyRoomsStore.get(roomId);
+          if (!room) return;
+
+          const newMsg: StudyRoomMessage = {
+            id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            senderId: message.senderId || currentPeerId || "anon",
+            senderName: message.senderName || "Estudante",
+            text: String(message.text || "").trim(),
+            timestamp: message.timestamp || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            type: message.type || "text",
+          };
+
+          room.messages.push(newMsg);
+          if (room.messages.length > 150) room.messages.shift();
+
+          const chatPayload = JSON.stringify({ type: "chat-message", message: newMsg });
+          for (const p of room.peers.values()) {
+            if (p.ws && p.ws.readyState === WebSocket.OPEN) {
+              try {
+                p.ws.send(chatPayload);
+              } catch {}
+            }
+          }
+        } else if (type === "media-state") {
+          const { roomId, peerId, isVideo, isAudio, isScreenSharing } = data;
+          if (!roomId || !peerId) return;
+          const room = studyRoomsStore.get(roomId);
+          if (!room) return;
+
+          const peer = room.peers.get(peerId);
+          if (peer) {
+            if (typeof isVideo === "boolean") peer.isVideo = isVideo;
+            if (typeof isAudio === "boolean") peer.isAudio = isAudio;
+            if (typeof isScreenSharing === "boolean") peer.isScreenSharing = isScreenSharing;
+
+            const mediaPayload = JSON.stringify({
+              type: "peer-media-state",
+              peerId,
+              isVideo: peer.isVideo,
+              isAudio: peer.isAudio,
+              isScreenSharing: peer.isScreenSharing,
+            });
+
+            for (const [pId, p] of room.peers.entries()) {
+              if (pId !== peerId && p.ws && p.ws.readyState === WebSocket.OPEN) {
+                try {
+                  p.ws.send(mediaPayload);
+                } catch {}
+              }
+            }
+          }
+        } else if (type === "speaking") {
+          const { roomId, peerId, isSpeaking } = data;
+          if (!roomId || !peerId) return;
+          const room = studyRoomsStore.get(roomId);
+          if (!room) return;
+
+          const peer = room.peers.get(peerId);
+          if (peer) {
+            peer.isSpeaking = !!isSpeaking;
+            const speakingPayload = JSON.stringify({
+              type: "peer-speaking",
+              peerId,
+              isSpeaking: peer.isSpeaking,
+            });
+            for (const [pId, p] of room.peers.entries()) {
+              if (pId !== peerId && p.ws && p.ws.readyState === WebSocket.OPEN) {
+                try {
+                  p.ws.send(speakingPayload);
+                } catch {}
+              }
+            }
+          }
+        } else if (type === "pomodoro-action") {
+          const { roomId, action, mode, timeLeftSeconds } = data;
+          if (!roomId) return;
+          const room = studyRoomsStore.get(roomId);
+          if (!room) return;
+
+          if (action === "start") room.pomodoro.isRunning = true;
+          else if (action === "pause") room.pomodoro.isRunning = false;
+          else if (action === "reset") {
+            room.pomodoro.isRunning = false;
+            room.pomodoro.timeLeftSeconds = room.pomodoro.mode === "focus" ? 25 * 60 : room.pomodoro.mode === "shortBreak" ? 5 * 60 : 15 * 60;
+          } else if (action === "switch-mode" && mode) {
+            room.pomodoro.mode = mode;
+            room.pomodoro.isRunning = false;
+            room.pomodoro.timeLeftSeconds = mode === "focus" ? 25 * 60 : mode === "shortBreak" ? 5 * 60 : 15 * 60;
+          }
+          if (typeof timeLeftSeconds === "number") {
+            room.pomodoro.timeLeftSeconds = timeLeftSeconds;
+          }
+          room.pomodoro.lastUpdated = Date.now();
+
+          const pomodoroPayload = JSON.stringify({ type: "pomodoro-updated", pomodoro: room.pomodoro });
+          for (const p of room.peers.values()) {
+            if (p.ws && p.ws.readyState === WebSocket.OPEN) {
+              try {
+                p.ws.send(pomodoroPayload);
+              } catch {}
+            }
+          }
+        } else if (type === "leave") {
+          cleanupPeer();
+        }
+      } catch (e) {
+        console.warn("WS error handling message:", e);
+      }
+    });
+
+    const cleanupPeer = () => {
+      if (currentRoomId && currentPeerId) {
+        const room = studyRoomsStore.get(currentRoomId);
+        if (room) {
+          room.peers.delete(currentPeerId);
+          room.pendingSignals.delete(currentPeerId);
+
+          const leftPayload = JSON.stringify({ type: "peer-left", peerId: currentPeerId });
+          for (const p of room.peers.values()) {
+            if (p.ws && p.ws.readyState === WebSocket.OPEN) {
+              try {
+                p.ws.send(leftPayload);
+              } catch {}
+            }
+          }
+        }
+      }
+      currentRoomId = null;
+      currentPeerId = null;
+    };
+
+    ws.on("close", cleanupPeer);
+    ws.on("error", cleanupPeer);
+  });
+
   // Dedicated 404 handler for API routes to never return HTML to API callers
   app.all("/api/*", (req, res) => {
     return res.status(404).json({ error: `Rota de API ${req.method} ${req.path} não encontrada` });
@@ -2670,7 +3168,7 @@ Retorne ESTRITAMENTE um JSON com esta estrutura:
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Brain Studio Server running on http://localhost:${PORT}`);
   });
 }

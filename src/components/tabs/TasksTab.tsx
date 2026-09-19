@@ -157,23 +157,23 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--bg-card,#1e293b)] p-6 rounded-3xl border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--app-card)] p-6 rounded-3xl border border-[var(--app-border)] shadow-sm">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
             <CheckSquare className="w-3.5 h-3.5" />
             <span>Gestão Acadêmica de Tarefas</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary,#f8fafc)]">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--app-text)]">
             Minhas Tarefas & Prazos
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--text-muted,#94a3b8)]">
+          <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
             {pendingCount} pendente{pendingCount !== 1 ? "s" : ""} • {completedCount} concluída{completedCount !== 1 ? "s" : ""}
           </p>
         </div>
 
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="px-5 py-2.5 rounded-2xl text-xs font-bold bg-[var(--btn-primary,#6366f1)] hover:bg-[var(--btn-primary-hover,#4f46e5)] text-[var(--btn-primary-text,#ffffff)] transition shadow-lg flex items-center gap-2 self-start sm:self-auto cursor-pointer"
+          className="px-5 py-2.5 rounded-2xl text-xs font-bold bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white transition shadow-sm flex items-center gap-2 self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>{isAdding ? "Fechar Formulário" : "Nova Tarefa"}</span>
@@ -184,16 +184,16 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       {isAdding && (
         <form
           onSubmit={handleCreateTask}
-          className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl space-y-4 animate-in slide-in-from-top-2"
+          className="p-6 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-md space-y-4 animate-in slide-in-from-top-2"
         >
-          <h3 className="text-sm font-bold text-[var(--text-primary,#f8fafc)] flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
+          <h3 className="text-sm font-bold text-[var(--app-text)] flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[var(--app-primary)]" />
             Cadastrar Nova Tarefa
           </h3>
 
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted,#94a3b8)] mb-1">
+              <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
                 Título da Tarefa
               </label>
               <input
@@ -201,20 +201,20 @@ export const TasksTab: React.FC<TasksTabProps> = ({
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Ex: Entregar lista de exercícios no AVA..."
-                className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] rounded-xl px-4 py-2.5 text-xs text-[var(--text-primary,#f8fafc)] placeholder-neutral-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-4 py-2.5 text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] focus:outline-none focus:border-[var(--app-primary)]"
                 required
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted,#94a3b8)] mb-1">
+                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
                   Matéria / Disciplina
                 </label>
                 <select
                   value={newCourse}
                   onChange={(e) => setNewCourse(e.target.value)}
-                  className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] rounded-xl px-3 py-2.5 text-xs text-[var(--text-primary,#f8fafc)] focus:outline-none"
+                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
                 >
                   <option value="Geral">Geral (Todas as Matérias)</option>
                   {courses.map((c) => (
@@ -226,25 +226,25 @@ export const TasksTab: React.FC<TasksTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted,#94a3b8)] mb-1">
+                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
                   Data Limite
                 </label>
                 <input
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] rounded-xl px-3 py-2.5 text-xs text-[var(--text-primary,#f8fafc)] focus:outline-none"
+                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted,#94a3b8)] mb-1">
+                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
                   Prioridade
                 </label>
                 <select
                   value={newPriority}
                   onChange={(e) => setNewPriority(e.target.value as any)}
-                  className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] rounded-xl px-3 py-2.5 text-xs text-[var(--text-primary,#f8fafc)] focus:outline-none"
+                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
                 >
                   <option value="baixa">Baixa (+15 XP)</option>
                   <option value="media">Média (+25 XP)</option>
@@ -254,17 +254,17 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--app-border)]">
             <button
               type="button"
               onClick={() => setIsAdding(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300"
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--app-card-secondary)] hover:opacity-80 text-[var(--app-text-muted)]"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition"
+              className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white transition cursor-pointer"
             >
               Salvar Tarefa
             </button>
@@ -273,14 +273,14 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       )}
 
       {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-card,#1e293b)] p-4 rounded-2xl border border-[var(--border-color,rgba(255,255,255,0.1))]">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--app-card)] p-4 rounded-2xl border border-[var(--app-border)]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilter("todas")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
               filter === "todas"
-                ? "bg-[var(--btn-primary,#6366f1)] text-white"
-                : "text-[var(--text-muted,#94a3b8)] hover:text-white"
+                ? "bg-[var(--app-primary)] text-white shadow-xs"
+                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             Todas ({tasks.length})
@@ -289,8 +289,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onClick={() => setFilter("pendentes")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
               filter === "pendentes"
-                ? "bg-[var(--btn-primary,#6366f1)] text-white"
-                : "text-[var(--text-muted,#94a3b8)] hover:text-white"
+                ? "bg-[var(--app-primary)] text-white shadow-xs"
+                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             Pendentes ({pendingCount})
@@ -299,8 +299,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onClick={() => setFilter("concluidas")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
               filter === "concluidas"
-                ? "bg-[var(--btn-primary,#6366f1)] text-white"
-                : "text-[var(--text-muted,#94a3b8)] hover:text-white"
+                ? "bg-[var(--app-primary)] text-white shadow-xs"
+                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             Concluídas ({completedCount})
@@ -311,7 +311,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
           <select
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
-            className="bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] rounded-xl px-3 py-1.5 text-xs text-[var(--text-primary,#f8fafc)] focus:outline-none"
+            className="bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl px-3 py-1.5 text-xs text-[var(--app-text)] focus:outline-none"
           >
             <option value="todas">Filtrar por Disciplina</option>
             {courses.map((c) => (
@@ -326,12 +326,12 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       {/* Task List */}
       <div className="space-y-3">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-12 bg-[var(--bg-card,#1e293b)] rounded-3xl border border-[var(--border-color,rgba(255,255,255,0.1))] p-6 space-y-2">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto opacity-70" />
-            <h4 className="text-sm font-bold text-[var(--text-primary,#f8fafc)]">
+          <div className="text-center py-12 bg-[var(--app-card)] rounded-3xl border border-[var(--app-border)] p-6 space-y-2">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto opacity-70" />
+            <h4 className="text-sm font-bold text-[var(--app-text)]">
               Nenhuma tarefa encontrada neste filtro!
             </h4>
-            <p className="text-xs text-[var(--text-muted,#94a3b8)]">
+            <p className="text-xs text-[var(--app-text-muted)]">
               Você está em dia com seus estudos acadêmicos.
             </p>
           </div>
@@ -343,8 +343,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
                 key={task.id}
                 className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-4 group ${
                   isCompleted
-                    ? "bg-[var(--bg-card,#1e293b)]/60 opacity-60 border-white/5"
-                    : "bg-[var(--bg-card,#1e293b)] border-[var(--border-color,rgba(255,255,255,0.1))] hover:border-indigo-500/40 shadow-sm"
+                    ? "bg-[var(--app-card)]/60 opacity-60 border-[var(--app-border)]"
+                    : "bg-[var(--app-card)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 shadow-xs"
                 }`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">

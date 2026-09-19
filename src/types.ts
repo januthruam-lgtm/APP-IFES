@@ -90,6 +90,7 @@ export interface IfesAccountInfo {
   fullname: string;
   campusUrl: string;
   campusName: string;
+  password?: string;
   token?: string;
   userPictureUrl?: string;
   lastSync: string;
@@ -177,6 +178,8 @@ export interface CollectibleCard {
 }
 
 export interface UserProfile {
+  id?: string;
+  uid?: string;
   email: string;
   name: string;
   xp: number;

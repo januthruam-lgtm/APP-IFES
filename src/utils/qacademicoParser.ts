@@ -78,6 +78,8 @@ export function parseQAcademicoContent(rawInput: string, defaultCampus: string =
 
   const raw = rawInput.trim();
   const isHtml = /<[a-z][\s\S]*>/i.test(raw);
+  const cleanedText = isHtml ? cleanHtmlText(raw) : raw;
+  const lines = cleanedText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
 
   // 1. Extrair Metadados do Aluno (Nome, Matrícula, Curso, CR)
   const matriculaMatch = raw.match(/(?:matr[íi]cula|login)[:\s]+([0-9A-Za-z]+)/i);
@@ -109,135 +111,198 @@ export function parseQAcademicoContent(rawInput: string, defaultCampus: string =
   }
 
   // 2. Extrair Boletim Escolar (Disciplinas, Etapas, Faltas, Médias)
-  // Estrutura Q-Acadêmico clássica: Linhas com nome de matéria, notas de etapas e situação
-  const cleanedText = isHtml ? cleanHtmlText(raw) : raw;
-  const lines = cleanedText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-
-  const ignoredWords = [
-    "q-acadêmico", "instituto federal", "ministério da educação", "boletim escolar",
-    "horário de aulas", "etapa", "méd. parcial", "exame final", "média final", "situação",
-    "carga horária", "aulas dadas", "faltas", "disciplina", "turma", "matrícula", "versão",
-    "página", "imprimir", "todos os direitos reservados"
-  ];
-
   const parsedGrades: QAcademicoGradeItem[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const lower = line.toLowerCase();
+  // 2.1 ESTRATÉGIA A: Parser nativo de tabelas HTML (se for código HTML do Q-Acadêmico)
+  if (isHtml && /<tr\b/i.test(raw)) {
+    const rowMatches = raw.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi) || [];
+    for (const rowHtml of rowMatches) {
+      const cellMatches = rowHtml.match(/<td\b[^>]*>([\s\S]*?)<\/td>/gi) || [];
+      if (cellMatches.length >= 5) {
+        const cells = cellMatches.map((c) =>
+          c
+            .replace(/<[^>]+>/g, "")
+            .replace(/&nbsp;/g, " ")
+            .trim()
+        );
 
-    if (ignoredWords.some((w) => lower === w || (lower.startsWith(w) && line.length < 35))) {
-      continue;
+        const discCandidate = cells[0];
+        // Ignorar linhas de cabeçalho ou rodapé
+        if (
+          !discCandidate ||
+          /disciplina|c\.h\.|etapa|boletim|total|versão|período/i.test(discCandidate) ||
+          discCandidate.length < 3
+        ) {
+          continue;
+        }
+
+        // Tenta detectar se a coluna 1 é turma/código ou se já é C.H.
+        let offset = 1;
+        if (cells.length >= 7 && !/^\d+$/.test(cells[1])) {
+          // Coluna 1 é turma/professor ou código
+          offset = 2;
+        }
+
+        const ch = parseInt(cells[offset - 1] || cells[offset] || "60", 10) || 60;
+        const faltas = parseInt(cells[offset + 1] || "0", 10) || 0;
+
+        // Extrai etapas
+        const etapas: QAcademicoGradeItem["etapas"] = [];
+        const n1 = parseFloat(cells[offset + 2]?.replace(",", "."));
+        const n2 = parseFloat(cells[offset + 3]?.replace(",", "."));
+        const n3 = parseFloat(cells[offset + 4]?.replace(",", "."));
+        const n4 = parseFloat(cells[offset + 5]?.replace(",", "."));
+
+        if (!isNaN(n1)) etapas.push({ etapa: "1ª Etapa", nota: n1 <= 10 ? n1 * 10 : n1, notaMax: 100 });
+        if (!isNaN(n2)) etapas.push({ etapa: "2ª Etapa", nota: n2 <= 10 ? n2 * 10 : n2, notaMax: 100 });
+        if (!isNaN(n3)) etapas.push({ etapa: "3ª Etapa", nota: n3 <= 10 ? n3 * 10 : n3, notaMax: 100 });
+        if (!isNaN(n4)) etapas.push({ etapa: "4ª Etapa", nota: n4 <= 10 ? n4 * 10 : n4, notaMax: 100 });
+
+        const lastCell = cells[cells.length - 1];
+        const secondToLast = cells[cells.length - 2];
+        const mediaFinalCandidate = parseFloat(secondToLast?.replace(",", "."));
+        const mediaFinal = !isNaN(mediaFinalCandidate)
+          ? mediaFinalCandidate <= 10
+            ? mediaFinalCandidate * 10
+            : mediaFinalCandidate
+          : etapas.length > 0
+          ? Number((etapas.reduce((a, b) => a + (b.nota || 0), 0) / etapas.length).toFixed(1))
+          : undefined;
+
+        let sit: QAcademicoGradeItem["situacao"] = "Cursando";
+        if (/aprovad/i.test(lastCell) || /aprovad/i.test(rowHtml)) sit = "Aprovado";
+        else if (/reprovad/i.test(lastCell) || /reprovad/i.test(rowHtml)) sit = "Reprovado";
+        else if (/exame/i.test(lastCell) || /exame/i.test(rowHtml)) sit = "Em Exame";
+        else if (mediaFinal !== undefined && mediaFinal >= 60 && etapas.length >= 2) sit = "Aprovado";
+
+        const cleanName = discCandidate.replace(/^[0-9]+[\.\-\s]+/, "").trim();
+        parsedGrades.push({
+          id: `qacad-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30)}-${parsedGrades.length + 1}`,
+          disciplina: cleanName,
+          codigo: `QACAD-${parsedGrades.length + 1}`,
+          cargaHoraria: ch,
+          faltas,
+          etapas,
+          mediaParcial: mediaFinal,
+          mediaFinal,
+          situacao: sit,
+        });
+      }
     }
+  }
 
-    // Procura padrão de notas: números com vírgula ou ponto (ex: 80,0  75,5  90,0 ou 8.0 7.5)
-    // No Q-Acadêmico do IFES, notas normalmente vão de 0 a 100 (ou 0 a 10)
-    // Linha com delimitador de coluna "|" ou múltiplos espaços
-    const parts = line.split(/[\|\t]+/).map((p) => p.trim()).filter(Boolean);
+  // 2.2 ESTRATÉGIA B: Parser de texto limpo ou tabulado (se a estratégia A não capturou disciplinas)
+  if (parsedGrades.length === 0) {
+    const ignoredWords = [
+      "q-acadêmico", "instituto federal", "ministério da educação", "boletim escolar",
+      "horário de aulas", "etapa", "méd. parcial", "exame final", "média final", "situação",
+      "carga horária", "aulas dadas", "faltas", "disciplina", "turma", "matrícula", "versão",
+      "página", "imprimir", "todos os direitos reservados"
+    ];
 
-    let discName = "";
-    let candidateNumbers: number[] = [];
-    let situacao: QAcademicoGradeItem["situacao"] = "Cursando";
-    let ch = 60;
-    let faltas = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lower = line.toLowerCase();
 
-    if (parts.length >= 3) {
-      // Formato tabular (ex: de HTML limpo ou tabela copiada com tabulações)
-      discName = parts[0];
-      for (let j = 1; j < parts.length; j++) {
-        const val = parts[j];
-        const numMatch = val.match(/^(\d{1,3}(?:[,\.]\d{1,2})?)$/);
-        if (numMatch) {
-          candidateNumbers.push(parseFloat(numMatch[1].replace(",", ".")));
-        } else if (/aprovado/i.test(val)) {
-          situacao = "Aprovado";
-        } else if (/reprovado/i.test(val)) {
-          situacao = "Reprovado";
-        } else if (/exame/i.test(val)) {
-          situacao = "Em Exame";
-        } else if (/cursando/i.test(val) || /matriculado/i.test(val)) {
-          situacao = "Cursando";
-        }
+      if (ignoredWords.some((w) => lower === w || (lower.startsWith(w) && line.length < 35))) {
+        continue;
       }
-    } else {
-      // Formato corrido por linha única
-      // Ex: "LÍNGUA PORTUGUESA II 80 80 0 75,0 80,0 85,0 90,0 82,5 Aprovado"
-      const numberMatches = Array.from(line.matchAll(/\b(\d{1,3}(?:[,\.]\d{1,2})?)\b/g));
-      if (numberMatches.length >= 2) {
-        const firstNumIndex = line.indexOf(numberMatches[0][0]);
-        discName = line.substring(0, firstNumIndex).trim();
-        candidateNumbers = numberMatches.map((m) => parseFloat(m[1].replace(",", ".")));
 
-        if (/aprovad[oa]/i.test(line)) situacao = "Aprovado";
-        else if (/reprovad[oa]/i.test(line)) situacao = "Reprovado";
-        else if (/exame/i.test(line)) situacao = "Em Exame";
-        else situacao = "Cursando";
-      }
-    }
+      const parts = line.split(/[\|\t]+/).map((p) => p.trim()).filter(Boolean);
 
-    // Limpar nome da disciplina
-    discName = discName.replace(/^[0-9]+[\.\-\s]+/g, "").trim();
+      let discName = "";
+      let candidateNumbers: number[] = [];
+      let situacao: QAcademicoGradeItem["situacao"] = "Cursando";
+      let ch = 60;
+      let faltas = 0;
 
-    if (
-      discName.length >= 3 &&
-      !ignoredWords.some((w) => discName.toLowerCase() === w) &&
-      !discName.toLowerCase().includes("total de faltas") &&
-      !discName.toLowerCase().includes("coeficiente")
-    ) {
-      // Normalizar notas para escala 0 a 100 se vierem em escala 0 a 10
-      let normalizedScores = candidateNumbers.map((s) => (s <= 10 && candidateNumbers.every((x) => x <= 10) ? Number((s * 10).toFixed(1)) : s));
-
-      // Extrair etapas
-      const etapas: QAcademicoGradeItem["etapas"] = [];
-      let mediaFinal: number | undefined = undefined;
-      let mediaParcial: number | undefined = undefined;
-
-      if (normalizedScores.length > 0) {
-        // As primeiras podem ser Carga Horária e Faltas se forem inteiros típicos
-        if (normalizedScores.length >= 5 && normalizedScores[0] >= 30 && normalizedScores[0] <= 400) {
-          ch = normalizedScores[0];
-          // Próximo pode ser aulas dadas e faltas
-          faltas = normalizedScores[2] < 50 ? normalizedScores[2] : 0;
-          normalizedScores = normalizedScores.slice(3);
+      if (parts.length >= 3) {
+        discName = parts[0];
+        for (let j = 1; j < parts.length; j++) {
+          const val = parts[j];
+          const numMatch = val.match(/^(\d{1,3}(?:[,\.]\d{1,2})?)$/);
+          if (numMatch) {
+            candidateNumbers.push(parseFloat(numMatch[1].replace(",", ".")));
+          } else if (/aprovado/i.test(val)) {
+            situacao = "Aprovado";
+          } else if (/reprovado/i.test(val)) {
+            situacao = "Reprovado";
+          } else if (/exame/i.test(val)) {
+            situacao = "Em Exame";
+          } else if (/cursando/i.test(val) || /matriculado/i.test(val)) {
+            situacao = "Cursando";
+          }
         }
+      } else {
+        const numberMatches = Array.from(line.matchAll(/\b(\d{1,3}(?:[,\.]\d{1,2})?)\b/g));
+        if (numberMatches.length >= 2) {
+          const firstNumIndex = line.indexOf(numberMatches[0][0]);
+          discName = line.substring(0, firstNumIndex).trim();
+          candidateNumbers = numberMatches.map((m) => parseFloat(m[1].replace(",", ".")));
 
-        // Atribui às etapas N1, N2, N3, N4
-        const etapaNames = ["1ª Etapa", "2ª Etapa", "3ª Etapa", "4ª Etapa"];
-        for (let e = 0; e < Math.min(4, normalizedScores.length); e++) {
-          etapas.push({
-            etapa: etapaNames[e],
-            nota: normalizedScores[e],
-            notaMax: 100,
-          });
-        }
-
-        // Último número geralmente é a Média Final
-        if (normalizedScores.length >= 1) {
-          mediaFinal = normalizedScores[normalizedScores.length - 1];
-          mediaParcial = normalizedScores[Math.max(0, normalizedScores.length - 2)] || mediaFinal;
+          if (/aprovad[oa]/i.test(line)) situacao = "Aprovado";
+          else if (/reprovad[oa]/i.test(line)) situacao = "Reprovado";
+          else if (/exame/i.test(line)) situacao = "Em Exame";
+          else situacao = "Cursando";
         }
       }
 
-      // Inferir situação caso ainda esteja neutro
-      if (situacao === "Cursando" && mediaFinal !== undefined) {
-        if (mediaFinal >= 60 && etapas.length >= 2) situacao = "Aprovado";
-        else if (mediaFinal < 60 && mediaFinal >= 20) situacao = "Em Exame";
-        else if (mediaFinal < 20 && etapas.length >= 3) situacao = "Reprovado";
+      discName = discName.replace(/^[0-9]+[\.\-\s]+/g, "").trim();
+
+      if (
+        discName.length >= 3 &&
+        !ignoredWords.some((w) => discName.toLowerCase() === w) &&
+        !discName.toLowerCase().includes("total de faltas") &&
+        !discName.toLowerCase().includes("coeficiente")
+      ) {
+        let normalizedScores = candidateNumbers.map((s) => (s <= 10 && candidateNumbers.every((x) => x <= 10) ? Number((s * 10).toFixed(1)) : s));
+
+        const etapas: QAcademicoGradeItem["etapas"] = [];
+        let mediaFinal: number | undefined = undefined;
+        let mediaParcial: number | undefined = undefined;
+
+        if (normalizedScores.length > 0) {
+          if (normalizedScores.length >= 5 && normalizedScores[0] >= 30 && normalizedScores[0] <= 400) {
+            ch = normalizedScores[0];
+            faltas = normalizedScores[2] < 50 ? normalizedScores[2] : 0;
+            normalizedScores = normalizedScores.slice(3);
+          }
+
+          const etapaNames = ["1ª Etapa", "2ª Etapa", "3ª Etapa", "4ª Etapa"];
+          for (let e = 0; e < Math.min(4, normalizedScores.length); e++) {
+            etapas.push({
+              etapa: etapaNames[e],
+              nota: normalizedScores[e],
+              notaMax: 100,
+            });
+          }
+
+          if (normalizedScores.length >= 1) {
+            mediaFinal = normalizedScores[normalizedScores.length - 1];
+            mediaParcial = normalizedScores[Math.max(0, normalizedScores.length - 2)] || mediaFinal;
+          }
+        }
+
+        if (situacao === "Cursando" && mediaFinal !== undefined) {
+          if (mediaFinal >= 60 && etapas.length >= 2) situacao = "Aprovado";
+          else if (mediaFinal < 60 && mediaFinal >= 20) situacao = "Em Exame";
+          else if (mediaFinal < 20 && etapas.length >= 3) situacao = "Reprovado";
+        }
+
+        const id = `qacad-${discName.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30)}-${parsedGrades.length + 1}`;
+
+        parsedGrades.push({
+          id,
+          disciplina: discName,
+          codigo: `QACAD-${parsedGrades.length + 1}`,
+          cargaHoraria: ch,
+          faltas,
+          etapas,
+          mediaParcial,
+          mediaFinal,
+          situacao,
+        });
       }
-
-      const id = `qacad-${discName.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30)}-${parsedGrades.length + 1}`;
-
-      parsedGrades.push({
-        id,
-        disciplina: discName,
-        codigo: `QACAD-${parsedGrades.length + 1}`,
-        cargaHoraria: ch,
-        faltas,
-        etapas,
-        mediaParcial,
-        mediaFinal,
-        situacao,
-      });
     }
   }
 

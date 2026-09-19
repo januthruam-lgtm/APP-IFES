@@ -49,6 +49,7 @@ interface QAcademicoViewProps {
   onUpdateQAcademicoAccount?: (account: QAcademicoAccountInfo | undefined) => void;
   onUpdateIfesAccount?: (ifesAccount: IfesAccountInfo | undefined) => void;
   onImportCourses?: (courses: IfesCourse[]) => void;
+  ifesCourses?: IfesCourse[];
 }
 
 export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
@@ -56,6 +57,7 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
   onUpdateQAcademicoAccount,
   onUpdateIfesAccount,
   onImportCourses,
+  ifesCourses = [],
 }) => {
   const PORTAL_URL = "https://academico.ifes.edu.br/qacademico/index.asp?t=2000";
 
@@ -77,7 +79,7 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
   });
 
   // Connection & Paste State
-  const [matricula, setMatricula] = useState(user.ifesAccount?.username || account?.matricula || "");
+  const [matricula, setMatricula] = useState(user.qacademicoAccount?.matricula || account?.matricula || "");
   const [senha, setSenha] = useState("");
   const [pastedContent, setPastedContent] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -162,14 +164,14 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
 
     if (onUpdateIfesAccount) {
       const updatedIfesAccount: IfesAccountInfo = {
-        connected: true,
-        username: finalAccount.matricula || user.ifesAccount?.username || "estudante",
-        fullname: finalAccount.fullname || user.ifesAccount?.fullname || user.name,
-        campusUrl: finalAccount.portalUrl || PORTAL_URL,
-        campusName: finalAccount.campus || user.ifesAccount?.campusName || "IFES",
+        connected: user.ifesAccount?.connected ?? false,
+        username: user.ifesAccount?.username || finalAccount.matricula || "estudante",
+        fullname: user.ifesAccount?.fullname || finalAccount.fullname || user.name,
+        campusUrl: user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br",
+        campusName: user.ifesAccount?.campusName || finalAccount.campus || "IFES",
         token: user.ifesAccount?.token,
-        lastSync: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        matricula: finalAccount.matricula,
+        lastSync: user.ifesAccount?.lastSync || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        matricula: finalAccount.matricula || user.ifesAccount?.matricula,
         department: finalAccount.curso || user.ifesAccount?.department,
         gradesSummary: {
           totalDisciplinas,
@@ -184,7 +186,7 @@ export const QAcademicoView: React.FC<QAcademicoViewProps> = ({
         academicGrades: finalGrades,
         academicSchedules: finalSchedules,
       };
-      console.log("Atualizando ifesAccount com notas e faltas:", updatedIfesAccount);
+      console.log("Atualizando dados acadêmicos sem sobrescrever credenciais do AVA:", updatedIfesAccount);
       onUpdateIfesAccount(updatedIfesAccount);
     }
     console.groupEnd();

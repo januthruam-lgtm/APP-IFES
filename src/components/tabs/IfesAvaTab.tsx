@@ -336,52 +336,52 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
   return (
     <div id="ifes-ava-tab" className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
       {/* Top Banner with Authentic AVA IFES Header */}
-      <div className="bg-[#111111] border border-white/10 rounded-3xl p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#10b981]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--app-primary)]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span className="px-3 py-1 bg-[var(--app-primary)]/15 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5" /> Ambiente Virtual de Aprendizagem IFES
               </span>
               {isConnected ? (
-                <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" /> Conectado via API ({currentCampusName})
                 </span>
               ) : (
-                <span className="text-xs text-neutral-400 font-mono">Não conectado</span>
+                <span className="text-xs text-[var(--app-text-muted)] font-mono">Não conectado</span>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--app-text)] tracking-tight">
               Portal Acadêmico AVA IFES (Moodle Oficial)
             </h1>
-            <p className="text-sm text-neutral-400 max-w-2xl">
+            <p className="text-sm text-[var(--app-text-muted)] max-w-2xl">
               Acesse suas disciplinas, envie atividades avaliativas, consulte suas notas e acompanhe os prazos com sincronização direta via API Moodle do Instituto Federal do Espírito Santo.
             </p>
           </div>
 
           {/* User Account Bar & Direct Sync Button */}
           {isConnected ? (
-            <div className="bg-[#161616] p-4 rounded-2xl border border-white/10 space-y-3 shrink-0 w-full lg:w-auto">
+            <div className="bg-[var(--app-card-secondary)] p-4 rounded-2xl border border-[var(--app-border)] space-y-3 shrink-0 w-full lg:w-auto">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#10b981]/20 text-[#10b981] flex items-center justify-center font-bold text-base border border-[#10b981]/30">
+                <div className="w-10 h-10 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center font-bold text-base border border-[var(--app-primary)]/30">
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white leading-tight">{studentName}</h4>
-                  <p className="text-[11px] text-neutral-400 font-mono">
+                  <h4 className="text-xs font-bold text-[var(--app-text)] leading-tight">{studentName}</h4>
+                  <p className="text-[11px] text-[var(--app-text-muted)] font-mono">
                     Matrícula: {studentUsername}
                   </p>
-                  <p className="text-[10px] text-emerald-400">{currentCampusName}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">{currentCampusName}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-2 border-t border-[var(--app-border)]">
                 <button
                   onClick={handleSyncNow}
                   disabled={isLoading}
-                  className="px-3 py-2 bg-[#10b981] hover:bg-[#059669] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                   title="Sincronizar dados diretamente com a API do Moodle"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
@@ -389,15 +389,15 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 </button>
                 <button
                   onClick={() => setShowCoursesManager(true)}
-                  className="px-3 py-2 bg-[#222222] hover:bg-white/10 text-neutral-300 hover:text-white rounded-xl text-xs transition border border-white/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="px-3 py-2 bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] rounded-xl text-xs transition border border-[var(--app-border)] flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Gerenciar matérias reais do seu perfil"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#10b981]" />
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--app-primary)]" />
                   <span>Matérias ({courses.length})</span>
                 </button>
                 <button
                   onClick={handleDisconnect}
-                  className="px-3 py-2 bg-[#222222] hover:bg-red-500/20 text-neutral-400 hover:text-red-400 rounded-xl text-xs transition border border-white/5 flex items-center justify-center gap-1 cursor-pointer"
+                  className="px-3 py-2 bg-[var(--app-card)] hover:bg-rose-500/20 text-[var(--app-text-muted)] hover:text-rose-500 rounded-xl text-xs transition border border-[var(--app-border)] flex items-center justify-center gap-1 cursor-pointer"
                   title="Desconectar do AVA IFES"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -409,15 +409,15 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 onClick={() => setAvaSubTab("connection")}
-                className="px-4 py-2.5 bg-[#10b981] hover:bg-[#059669] text-black font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-[#10b981]/20 cursor-pointer"
+                className="px-4 py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
               >
                 <Lock className="w-4 h-4" /> Conectar Conta do AVA IFES
               </button>
               <button
                 onClick={() => setShowCoursesManager(true)}
-                className="px-4 py-2.5 bg-[#222222] hover:bg-[#2a2a2a] text-neutral-200 font-semibold text-xs rounded-xl transition flex items-center gap-1.5 border border-white/10 cursor-pointer"
+                className="px-4 py-2.5 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] font-semibold text-xs rounded-xl transition flex items-center gap-1.5 border border-[var(--app-border)] cursor-pointer"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#10b981]" /> Gerenciar Matérias ({courses.length})
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Gerenciar Matérias ({courses.length})
               </button>
             </div>
           )}
@@ -426,14 +426,14 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
 
       {/* Global Alerts */}
       {successMessage && (
-        <div className="p-4 bg-[#10b981]/15 border border-[#10b981]/30 rounded-2xl flex items-center gap-3 text-xs text-[#10b981] font-semibold animate-fade-in">
+        <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-3 text-xs text-emerald-600 dark:text-emerald-400 font-semibold animate-fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-4 bg-red-500/15 border border-red-500/30 rounded-2xl flex items-center gap-3 text-xs text-red-400 font-semibold animate-fade-in">
+        <div className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-xs text-rose-600 dark:text-rose-400 font-semibold animate-fade-in">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>

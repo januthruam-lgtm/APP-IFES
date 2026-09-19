@@ -20,6 +20,8 @@ import {
 import { UserProfile, IfesAccountInfo } from "../types";
 import confetti from "canvas-confetti";
 import { PWAInstallButton } from "./PWAInstallButton";
+import { loadQAcademicoAccount, saveQAcademicoAccount } from "../utils/qacademicoStorage";
+import { saveUserQAcademicoCreds, saveUserMoodleCreds } from "../lib/firebase";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -48,9 +50,19 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 }) => {
   const [name, setName] = useState(user.name || "Ruam Sérgio de Sousa Januth");
   const [email, setEmail] = useState(user.email || "ruamsergioj@gmail.com");
-  const [matricula, setMatricula] = useState(
-    user.ifesAccount?.matricula || user.ifesAccount?.username || "20241IFES0482"
+
+  // Separate credentials state
+  const [moodleUsername, setMoodleUsername] = useState(
+    user.ifesAccount?.username || user.ifesAccount?.matricula || "20241IFES0482"
   );
+  const [moodlePassword, setMoodlePassword] = useState(user.ifesAccount?.password || "");
+
+  const existingQAcademico = loadQAcademicoAccount();
+  const [qacademicoMatricula, setQacademicoMatricula] = useState(
+    user.qacademicoAccount?.matricula || existingQAcademico?.matricula || ""
+  );
+  const [qacademicoPassword, setQacademicoPassword] = useState("");
+
   const [campusUrl, setCampusUrl] = useState(
     user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br"
   );
@@ -114,23 +126,67 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       ? directAvaLink.trim()
       : `https://${directAvaLink.trim()}`;
 
+    // 1. Update Moodle / AVA Account cleanly
     const updatedIfesAccount: IfesAccountInfo = {
+      ...user.ifesAccount,
       connected: true,
-      username: matricula.trim() || user.ifesAccount?.username || "20241IFES0482",
+      username: moodleUsername.trim() || user.ifesAccount?.username || "20241IFES0482",
+      password: moodlePassword.trim() || user.ifesAccount?.password,
       fullname: name.trim() || user.name,
-      matricula: matricula.trim(),
+      matricula: moodleUsername.trim(),
       email: email.trim(),
       campusUrl: cleanUrl || campusUrl,
       campusName,
       department: courseProgram.trim(),
-      lastSync: "Atualizado manualmente em " + new Date().toLocaleDateString(),
+      lastSync: "Atualizado em " + new Date().toLocaleDateString(),
       token: user.ifesAccount?.token || "moodle_mobile_cefor_auth",
     };
+
+    const userId = user.id || user.uid || "local-user";
+
+    // 2. Update Q-Acadêmico Account cleanly without touching Moodle credentials
+    if (qacademicoMatricula.trim()) {
+      const qAccount = {
+        connected: true,
+        matricula: qacademicoMatricula.trim(),
+        fullname: name.trim() || user.name,
+        curso: courseProgram.trim(),
+        campus: campusName,
+        portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
+        lastSync: new Date().toISOString(),
+      };
+      saveQAcademicoAccount(qAccount);
+      saveUserQAcademicoCreds(userId, {
+        matricula: qacademicoMatricula.trim(),
+        senha: qacademicoPassword ? qacademicoPassword.trim() : undefined,
+        campus: campusName,
+        lastUpdated: Date.now(),
+      });
+    }
+
+    // Save Moodle creds to Firebase store if available
+    saveUserMoodleCreds(userId, {
+      username: moodleUsername.trim(),
+      password: moodlePassword ? moodlePassword.trim() : undefined,
+      campusUrl: cleanUrl || campusUrl,
+      lastUpdated: Date.now(),
+    });
 
     onSaveUser({
       name: name.trim(),
       email: email.trim(),
       ifesAccount: updatedIfesAccount,
+      qacademicoAccount: qacademicoMatricula.trim()
+        ? {
+            connected: true,
+            matricula: qacademicoMatricula.trim(),
+            fullname: name.trim(),
+            curso: courseProgram.trim(),
+            campus: campusName,
+            portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
+            lastSync: new Date().toISOString(),
+          }
+        : user.qacademicoAccount,
     });
 
     setSavedToast(true);
@@ -178,42 +234,26 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
           {/* Form Fields */}
           <form onSubmit={handleSubmit} className="space-y-4 pt-4 relative z-10 overflow-y-auto flex-1 pr-1">
-            {/* Student Full Name */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Nome Completo do Estudante
-              </label>
-              <input
-                id="profile-edit-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Ruam Sérgio de Sousa Januth"
-                className="w-full px-4 py-2.5 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] focus:border-[var(--app-primary)] outline-none transition font-medium"
-                required
-              />
-            </div>
-
-            {/* Matricula & Email */}
+            {/* Student Full Name & Email */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Matrícula IFES
+                  <User className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Nome Completo
                 </label>
                 <input
-                  id="profile-edit-matricula"
+                  id="profile-edit-name"
                   type="text"
-                  value={matricula}
-                  onChange={(e) => setMatricula(e.target.value)}
-                  placeholder="Ex: 20241IFES0482"
-                  className="w-full px-4 py-2.5 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] focus:border-[var(--app-primary)] outline-none transition font-mono"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: Ruam Sérgio de Sousa Januth"
+                  className="w-full px-4 py-2.5 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] focus:border-[var(--app-primary)] outline-none transition font-medium"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-[var(--app-primary)]" /> E-mail Institucional / Pessoal
+                  <Mail className="w-3.5 h-3.5 text-[var(--app-primary)]" /> E-mail Institucional
                 </label>
                 <input
                   id="profile-edit-email"
@@ -227,54 +267,143 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Direct Link do Perfil AVA / Moodle */}
-            <div className="space-y-1.5">
+            {/* SEPARATE CREDENTIAL SECTION: AVA MOODLE IFES */}
+            <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Link className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Link Direto do Perfil/Moodle AVA IFES
-                </label>
-                {directAvaLink && (
-                  <a
-                    href={directAvaLink.startsWith("http") ? directAvaLink : `https://${directAvaLink}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-[var(--app-primary)] hover:underline font-bold flex items-center gap-1"
-                  >
-                    <span>Testar Link</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🎓</span>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[var(--app-text)]">
+                    Credenciais AVA Moodle IFES
+                  </h4>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  Moodle Oficial
+                </span>
               </div>
-              <input
-                id="profile-edit-direct-link"
-                type="text"
-                value={directAvaLink}
-                onChange={(e) => setDirectAvaLink(e.target.value)}
-                placeholder="Ex: https://ava3.cefor.ifes.edu.br ou link do seu perfil"
-                className="w-full px-4 py-2.5 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] focus:border-[var(--app-primary)] outline-none transition font-mono"
-              />
-              <p className="text-[10px] text-[var(--app-text-muted)]">
-                O Brain Studio salvará este link oficial e disponibilizará um botão de <strong>Acesso Rápido ao AVA IFES</strong> no seu painel.
-              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                    Usuário / Matrícula AVA
+                  </label>
+                  <input
+                    id="profile-edit-moodle-user"
+                    type="text"
+                    value={moodleUsername}
+                    onChange={(e) => setMoodleUsername(e.target.value)}
+                    placeholder="Ex: 20241IFES0482"
+                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                    Senha do AVA (Opcional)
+                  </label>
+                  <input
+                    id="profile-edit-moodle-pass"
+                    type="password"
+                    value={moodlePassword}
+                    onChange={(e) => setMoodlePassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                  Campus / Instância AVA
+                </label>
+                <select
+                  id="profile-edit-campus"
+                  value={campusUrl}
+                  onChange={(e) => handleCampusChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition cursor-pointer"
+                >
+                  {CAMPUS_OPTIONS.map((c) => (
+                    <option key={c.url} value={c.url}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                    Link Direto do AVA
+                  </label>
+                  {directAvaLink && (
+                    <a
+                      href={directAvaLink.startsWith("http") ? directAvaLink : `https://${directAvaLink}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-[var(--app-primary)] hover:underline font-bold flex items-center gap-1"
+                    >
+                      <span>Abrir</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
+                </div>
+                <input
+                  id="profile-edit-direct-link"
+                  type="text"
+                  value={directAvaLink}
+                  onChange={(e) => setDirectAvaLink(e.target.value)}
+                  placeholder="Ex: https://ava3.cefor.ifes.edu.br"
+                  className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                />
+              </div>
             </div>
 
-            {/* Campus Selector */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Campus / Instância do AVA Moodle
-              </label>
-              <select
-                id="profile-edit-campus"
-                value={campusUrl}
-                onChange={(e) => handleCampusChange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition cursor-pointer"
-              >
-                {CAMPUS_OPTIONS.map((c) => (
-                  <option key={c.url} value={c.url}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+            {/* SEPARATE CREDENTIAL SECTION: Q-ACADÊMICO IFES */}
+            <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📋</span>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[var(--app-text)]">
+                    Credenciais Q-Acadêmico IFES
+                  </h4>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-500/10 text-[var(--app-primary)] border border-indigo-500/20">
+                  Boletim & Histórico
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                    Matrícula Q-Acadêmico
+                  </label>
+                  <input
+                    id="profile-edit-qacademico-user"
+                    type="text"
+                    value={qacademicoMatricula}
+                    onChange={(e) => setQacademicoMatricula(e.target.value)}
+                    placeholder="Ex: 20241IFES0482"
+                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                    Senha Q-Acadêmico
+                  </label>
+                  <input
+                    id="profile-edit-qacademico-pass"
+                    type="password"
+                    value={qacademicoPassword}
+                    onChange={(e) => setQacademicoPassword(e.target.value)}
+                    placeholder="Senha do Portal Acadêmico"
+                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[10px] text-[var(--app-text-muted)]">
+                Segregação total: o login do Q-Acadêmico é armazenado isoladamente para evitar qualquer interferência nas credenciais do AVA Moodle.
+              </p>
             </div>
 
             {/* Program / Curso */}

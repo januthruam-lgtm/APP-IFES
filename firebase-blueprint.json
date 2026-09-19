@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "Presenca": {
+      "title": "Presenca",
+      "description": "Heartbeat de presença online de usuários do IFES",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nome": { "type": "string" },
+        "matricula": { "type": "string" },
+        "curso": { "type": "string" },
+        "campus": { "type": "string" },
+        "avatar": { "type": "string" },
+        "petName": { "type": "string" },
+        "status": { "type": "string", "enum": ["disponivel", "em_chamada", "estudando"] },
+        "lastSeen": { "type": "number" }
+      },
+      "required": ["uid", "nome", "status", "lastSeen"]
+    },
+    "Chamada": {
+      "title": "Chamada",
+      "description": "Sessão de chamada WebRTC de áudio e vídeo entre alunos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callerId": { "type": "string" },
+        "callerName": { "type": "string" },
+        "callerMatricula": { "type": "string" },
+        "targetUserId": { "type": "string" },
+        "type": { "type": "string", "enum": ["individual", "grupo"] },
+        "mediaType": { "type": "string", "enum": ["video", "audio"] },
+        "status": { "type": "string", "enum": ["calling", "active", "rejected", "ended"] },
+        "roomTitle": { "type": "string" },
+        "participants": { "type": "array" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "callerId", "type", "mediaType", "status", "createdAt"]
+    },
+    "Notificacao": {
+      "title": "Notificacao",
+      "description": "Notificação unificada de App, Q-Acadêmico e AVA IFES",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "origem": { "type": "string", "enum": ["app", "qacademico", "ava"] },
+        "titulo": { "type": "string" },
+        "mensagem": { "type": "string" },
+        "lida": { "type": "boolean" },
+        "linkTab": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "origem", "titulo", "mensagem", "lida", "createdAt"]
+    },
+    "Equipe": {
+      "title": "Equipe",
+      "description": "Grupo de estudo real mantido por alunos do IFES",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "descricao": { "type": "string" },
+        "disciplina": { "type": "string" },
+        "liderId": { "type": "string" },
+        "liderNome": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "nome", "disciplina", "liderId", "createdAt"]
+    },
+    "MensagemEquipe": {
+      "title": "MensagemEquipe",
+      "description": "Mensagem do fórum em tempo real de uma equipe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "equipeId": { "type": "string" },
+        "autorId": { "type": "string" },
+        "autorNome": { "type": "string" },
+        "conteudo": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "equipeId", "autorId", "autorNome", "conteudo", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/presencas/{uid}": {
+      "schema": "Presenca",
+      "description": "Documentos de presença ativa e heartbeat de alunos"
+    },
+    "/chamadas/{callId}": {
+      "schema": "Chamada",
+      "description": "Sessão e sinalização de chamadas WebRTC"
+    },
+    "/chamadas/{callId}/candidatos/{candidatoId}": {
+      "schema": { "$ref": "#/entities/Chamada" },
+      "description": "Candidatos ICE da chamada WebRTC"
+    },
+    "/notificacoes/{notifId}": {
+      "schema": "Notificacao",
+      "description": "Notificações do aluno"
+    },
+    "/equipes/{equipeId}": {
+      "schema": "Equipe",
+      "description": "Equipes reais cadastradas por alunos"
+    },
+    "/equipes/{equipeId}/mensagens/{mensagemId}": {
+      "schema": "MensagemEquipe",
+      "description": "Fórum em tempo real da equipe"
+    },
+    "/users/{uid}/credentials/{credType}": {
+      "schema": { "$ref": "#/entities/Presenca" },
+      "description": "Credenciais isoladas de Q-Acadêmico e Moodle do aluno"
+    }
+  }
+}
