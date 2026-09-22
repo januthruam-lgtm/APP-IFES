@@ -27,6 +27,8 @@ export interface QAcademicoApiResponse {
   message?: string;
   error?: string;
   debugLogs?: string[];
+  dataFormatada?: string;
+  sincronizadoEm?: number;
 }
 
 class QAcademicoApiClient {

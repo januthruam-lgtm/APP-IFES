@@ -13,7 +13,15 @@ export type ThemeId =
   | "sakura_warm"
   | "sunset_amber";
 
-export type PetType = "bunny" | "bird" | "elephant" | "tiger" | "custom" | "owl";
+export type PetType =
+  | "bunny"
+  | "bird"
+  | "elephant"
+  | "tiger"
+  | "custom"
+  | "owl"
+  | "coruja"
+  | (string & {});
 
 export interface PuppetRigPin {
   x: number; // Percentage 0 - 100
@@ -47,6 +55,8 @@ export interface PetStageInfo {
 }
 
 export interface UserPet {
+  id?: string;
+  activePetId?: string;
   type: PetType;
   name: string;
   level: number;
@@ -55,15 +65,16 @@ export interface UserPet {
   maxExp: number;
   happiness: number; // 0 - 100
   hunger: number; // 0 - 100 (100 = satisfeito)
-  energy: number; // 0 - 100
-  totalMeals: number;
-  lastFedTimestamp: string;
+  energy?: number; // 0 - 100
+  totalMeals?: number;
+  lastFedTimestamp?: string;
   lastFed?: string;
-  unlockedPets: PetType[];
+  unlockedPets: (PetType | string)[];
   customImageUrl?: string;
   customRigConfig?: PuppetRigConfig;
   customAccessory?: "glasses" | "cap" | "crown" | "aura" | "badge" | "none";
   customSpeciesName?: string;
+  customSpeciesEmoji?: string;
 }
 
 export interface CustomThemeColors {
@@ -128,6 +139,7 @@ export interface QAcademicoAccountInfo {
 
 export interface QAcademicoEtapaGrade {
   etapa: string; // "1ª Etapa", "2ª Etapa", "3ª Etapa", "4ª Etapa", "Exame Final"
+  rotulo?: string;
   nota?: number;
   notaMax?: number;
   faltas?: number;

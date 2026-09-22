@@ -158,7 +158,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       saveQAcademicoAccount(qAccount);
       saveUserQAcademicoCreds(userId, {
         matricula: qacademicoMatricula.trim(),
-        senha: qacademicoPassword ? qacademicoPassword.trim() : undefined,
         campus: campusName,
         lastUpdated: Date.now(),
       });

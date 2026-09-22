@@ -101,7 +101,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
   };
 
   const activePetDef = getPetDefinition(user.pet?.activePetId || user.pet?.id);
-  const unlockedPetsList = user.pet?.unlockedPets || [DEFAULT_PET_ID];
+  const unlockedPetsList: string[] = (user.pet?.unlockedPets as string[]) || [DEFAULT_PET_ID];
 
   const handleEquipPet = async (petItem: PetCatalogItem) => {
     try {
