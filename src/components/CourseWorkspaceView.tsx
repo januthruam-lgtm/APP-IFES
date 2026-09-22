@@ -336,7 +336,7 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
             {onStartGroupCallWithCourse && (
               <button
                 onClick={() => onStartGroupCallWithCourse(course, participants)}
-                className="px-4 py-2.5 rounded-xl bg-[#00f0ff] hover:bg-[#00d6e6] text-black font-extrabold text-xs transition flex items-center justify-center gap-2 shadow-sm active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs transition flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer"
               >
                 <Video className="w-4 h-4" />
                 <span>Chamada da Turma</span>
@@ -561,7 +561,7 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                     const firstSelected = participants.find((p) => p.id === selectedForGroupCall[0]);
                     if (firstSelected) onStartCallWithMember(firstSelected, true);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-[#00f0ff] hover:bg-[#00d6e6] text-black font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  className="px-3.5 py-2 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                 >
                   <Video className="w-3.5 h-3.5" />
                   <span>Chamada em Grupo ({selectedForGroupCall.length} selecionados)</span>

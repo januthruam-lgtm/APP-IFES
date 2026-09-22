@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CourseTrack, UserProfile } from "../../types";
 import confetti from "canvas-confetti";
+import { creditXp, creditCoins } from "../../features/gamificacao/economyService";
 
 export interface TaskItem {
   id: string;
@@ -27,38 +28,7 @@ export interface TaskItem {
 
 const STORAGE_KEY = "brain_studio_tasks_list_v2";
 
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: "task-1",
-    title: "Resolver lista de exercícios de Algoritmos (Recursão)",
-    courseTitle: "Algoritmos e Estruturas de Dados",
-    dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-    priority: "alta",
-    completed: false,
-    xpReward: 35,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "task-2",
-    title: "Revisar anotações sobre Integrais por Partes",
-    courseTitle: "Cálculo Diferencial e Integral",
-    dueDate: new Date(Date.now() + 86400000 * 4).toISOString().split("T")[0],
-    priority: "media",
-    completed: false,
-    xpReward: 25,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "task-3",
-    title: "Configurar ambiente de laboratório para Redes (Cisco Packet Tracer)",
-    courseTitle: "Redes de Computadores",
-    dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
-    priority: "baixa",
-    completed: true,
-    xpReward: 20,
-    createdAt: new Date().toISOString(),
-  },
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 interface TasksTabProps {
   user: UserProfile;
@@ -109,12 +79,19 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       prev.map((t) => (t.id === task.id ? { ...t, completed: updatedStatus } : t))
     );
 
-    // Call parent reward handlers ONLY in direct user interaction event
+    // Call centralized economy service and parent reward handlers
     if (updatedStatus) {
       confetti({ particleCount: 30, spread: 50 });
+      const coinsReward = Math.max(5, Math.floor(task.xpReward / 2));
+      const userId = user.email || user.name || "aluno";
+
+      // Persistência atômica no Firestore
+      creditXp(userId, task.xpReward, `Conclusão da tarefa: ${task.title}`).catch(console.warn);
+      creditCoins(userId, coinsReward, `Recompensa tarefa: ${task.title}`).catch(console.warn);
+
       onRewardXp(task.xpReward);
       if (onRewardCoins) {
-        onRewardCoins(Math.floor(task.xpReward / 2));
+        onRewardCoins(coinsReward);
       }
     }
   };

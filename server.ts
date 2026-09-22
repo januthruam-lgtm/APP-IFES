@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import webpush from "web-push";
+import { scrapeQAcademicoDirect, parseQAcademicoCheerio } from "./patch_academic";
 
 // VAPID Web Push Setup
 let vapidKeys = {
@@ -349,8 +350,8 @@ async function startServer() {
         id: c.id,
         name: c.name,
         role: "Estudante",
-        matricula: c.matricula || "20241TIADM0042",
-        campus: c.campus || "IFES - Campus Serra",
+        matricula: c.matricula || "",
+        campus: c.campus || "IFES",
         isOnline: true,
         lastSeen: c.lastSeen,
       }));
@@ -516,7 +517,7 @@ DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA:
 4. Disciplina/Curso atual: ${courseName} | Tópico: ${currentModule} | Objetivo: ${learningGoal}.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents,
         config: {
           systemInstruction,
@@ -602,7 +603,7 @@ Avalie com precisão e fundamentação pedagógica:
 6. Calcule o XP ganho (entre 10 e 50 proporcional).`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -720,7 +721,7 @@ REQUISITOS OBRIGATÓRIOS (EM PORTUGUÊS PT-BR):
 
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
+          model: "gemini-2.5-flash",
           contents: { parts },
           config: {
             responseMimeType: "application/json",
@@ -1277,7 +1278,7 @@ REQUISITOS OBRIGATÓRIOS (EM PORTUGUÊS PT-BR):
   }) => {
     const {
       campusUrl = "https://ava3.cefor.ifes.edu.br",
-      studentId = "20241TIADM0042",
+      studentId = "",
       token = "",
       campusName = "IFES",
       existingCourses = [],
@@ -1606,35 +1607,11 @@ REQUISITOS OBRIGATÓRIOS (EM PORTUGUÊS PT-BR):
         }
       }
 
-      // Calculate grades report based on enrolled courses
-      const gradesReport = sessionCourses.map((c) => {
-        const progress = c.progressPercent || 0;
-        const partialGrade = Number((progress * 0.9 + 5).toFixed(1));
-        let status = "Em Andamento";
-        if (partialGrade >= 60) status = "Aprovado";
-        else if (partialGrade >= 20) status = "Exame Final";
-        else status = "Abaixo da Média";
-
-        return {
-          courseId: c.id,
-          courseName: c.name,
-          courseCode: c.code,
-          grade: partialGrade,
-          maxGrade: 100,
-          weight: "100%",
-          status,
-          feedback: progress > 50 ? "Excelente rendimento nas atividades online." : "Acompanhe as entregas no prazo regulamentar.",
-          items: [
-            { name: "Atividades Práticas e Tarefas AVA", grade: Number((partialGrade * 0.4).toFixed(1)), max: 40 },
-            { name: "Questionários & Provas Online", grade: Number((partialGrade * 0.6).toFixed(1)), max: 60 },
-          ],
-        };
-      });
-
+      // Never generate or return synthetic or mock grades
       return res.json({
         success: true,
-        source: "cached_calculated",
-        grades: gradesReport,
+        source: "empty",
+        grades: [],
       });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err?.message || "Erro ao consultar boletim de notas" });
@@ -1794,8 +1771,8 @@ Retorne APENAS um JSON válido no formato:
     try {
       const result = await performMoodleConnect({
         campusUrl: req.body.siteUrl || "https://ava3.cefor.ifes.edu.br",
-        username: req.body.username || "20241TIADM0042",
-        token: req.body.token || "moodle_qr_token_auth",
+        username: req.body.username || "",
+        token: req.body.token || "",
         campusName: req.body.campusName || "IFES - Cefor (AVA3)",
       });
       return res.json({
@@ -1942,7 +1919,7 @@ Retorne APENAS um JSON estritamente válido no formato:
 }`;
 
           const geminiRes = await ai.models.generateContent({
-            model: "gemini-3.8-flash",
+            model: "gemini-2.5-flash",
             contents: prompt,
             config: {
               responseMimeType: "application/json",
@@ -2120,7 +2097,7 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
           contentParts.push({ text: "Analise o material acadêmico acima e gere a estrutura completa de disciplinas e módulos de estudo do IFES." });
 
           const geminiRes = await ai.models.generateContent({
-            model: "gemini-3.8-flash",
+            model: "gemini-2.5-flash",
             contents: contentParts,
             config: {
               systemInstruction: systemPrompt,
@@ -2242,408 +2219,133 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     }
   });
 
-  // 2. Direct Connection / Authentication attempt with Q-Acadêmico
+  // 2. Direct Connection / Authentication attempt with Q-Acadêmico (Real Scraping & Cookies)
   app.post("/api/qacademico/connect", async (req, res) => {
     try {
       const { matricula = "", senha = "", campus = "IFES" } = req.body;
       const cleanMatricula = String(matricula).trim();
 
-      if (!cleanMatricula) {
+      if (!cleanMatricula || !senha) {
         return res.status(400).json({
           success: false,
-          error: "Matrícula do Q-Acadêmico é obrigatória.",
+          error: "Matrícula e senha do Q-Acadêmico são obrigatórias.",
         });
       }
 
-      const portalUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2000";
-      const authUrl = "https://academico.ifes.edu.br/qacademico/lib/autenticacao/autentica.asp";
-      const boletimUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2071";
-      const horariosUrl = "https://academico.ifes.edu.br/qacademico/index.asp?t=2010";
+      const scraped = await scrapeQAcademicoDirect(cleanMatricula, senha, campus);
 
-      let sessionCookie = "";
-      let directLoginWorked = false;
-      let realHtmlBoletim = "";
-      let realHtmlHorarios = "";
-
-      if (senha) {
-        try {
-          const bodyParams = new URLSearchParams();
-          bodyParams.append("LOGIN", cleanMatricula);
-          bodyParams.append("SENHA", senha);
-          bodyParams.append("TIPO_USUARIO", "1"); // 1 = Aluno
-          bodyParams.append("ACAO", "Logar");
-
-          const loginResponse = await fetch(authUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-              "Referer": portalUrl,
-              "Origin": "https://academico.ifes.edu.br",
-            },
-            body: bodyParams.toString(),
-            redirect: "manual",
-            signal: AbortSignal.timeout(6000),
-          });
-
-          // Check Set-Cookie headers
-          const rawCookies = loginResponse.headers.get("set-cookie");
-          if (rawCookies && !rawCookies.toLowerCase().includes("expirado")) {
-            sessionCookie = rawCookies.split(";")[0];
-            directLoginWorked = true;
-          }
-
-          if (directLoginWorked && sessionCookie) {
-            // Fetch real Boletim (t=2071)
-            try {
-              const bolRes = await fetch(boletimUrl, {
-                headers: {
-                  Cookie: sessionCookie,
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                  Referer: portalUrl,
-                },
-                signal: AbortSignal.timeout(6000),
-              });
-              if (bolRes.ok) {
-                realHtmlBoletim = await bolRes.text();
-              }
-            } catch (bolErr) {
-              console.warn("Could not fetch boletim via session cookie:", bolErr);
-            }
-
-            // Fetch real Horários (t=2010)
-            try {
-              const horRes = await fetch(horariosUrl, {
-                headers: {
-                  Cookie: sessionCookie,
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                  Referer: portalUrl,
-                },
-                signal: AbortSignal.timeout(5000),
-              });
-              if (horRes.ok) {
-                realHtmlHorarios = await horRes.text();
-              }
-            } catch (horErr) {
-              console.warn("Could not fetch horarios via session cookie:", horErr);
-            }
-          }
-        } catch (authErr) {
-          console.warn("Direct Q-Academico fetch encountered network/proxy limit:", authErr);
-        }
-      }
-
-      // Check if we managed to parse real data from HTML
-      let parsedRealGrades: any[] = [];
-      let parsedRealSchedules: any[] = [];
-      let extractedStudentName = "";
-      let extractedCourse = "";
-
-      if (realHtmlBoletim) {
-        // Parse table rows from real Boletim HTML
-        const rowRegex = /<tr[\s\S]*?<\/tr>/gi;
-        const rows = realHtmlBoletim.match(rowRegex) || [];
-        for (const row of rows) {
-          const cells = (row.match(/<td[\s\S]*?<\/td>/gi) || []).map((c) =>
-            c.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim()
-          );
-          if (cells.length >= 6) {
-            const discName = cells[0];
-            // Ignore header rows
-            if (!discName || /disciplina|c\.h\.|etapa|boletim|total/i.test(discName)) continue;
-
-            const ch = parseInt(cells[2], 10) || 60;
-            const faltas = parseInt(cells[4], 10) || 0;
-            const n1 = parseFloat(cells[5]?.replace(",", ".")) || undefined;
-            const n2 = parseFloat(cells[6]?.replace(",", ".")) || undefined;
-            const n3 = parseFloat(cells[7]?.replace(",", ".")) || undefined;
-            const n4 = parseFloat(cells[8]?.replace(",", ".")) || undefined;
-            const mediaFinal = parseFloat(cells[cells.length - 2]?.replace(",", ".")) || undefined;
-            const situacao = cells[cells.length - 1] || "Cursando";
-
-            const etapas: any[] = [];
-            if (n1 !== undefined) etapas.push({ etapa: "1ª Etapa", nota: n1, notaMax: 100 });
-            if (n2 !== undefined) etapas.push({ etapa: "2ª Etapa", nota: n2, notaMax: 100 });
-            if (n3 !== undefined) etapas.push({ etapa: "3ª Etapa", nota: n3, notaMax: 100 });
-            if (n4 !== undefined) etapas.push({ etapa: "4ª Etapa", nota: n4, notaMax: 100 });
-
-            parsedRealGrades.push({
-              id: `qacad-${discName.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 30)}-${parsedRealGrades.length + 1}`,
-              disciplina: discName,
-              codigo: `QACAD-${parsedRealGrades.length + 1}`,
-              cargaHoraria: ch,
-              faltas,
-              etapas,
-              mediaFinal,
-              situacao: /aprovad/i.test(situacao) ? "Aprovado" : /reprovad/i.test(situacao) ? "Reprovado" : /exame/i.test(situacao) ? "Em Exame" : "Cursando",
-            });
-          }
-        }
-
-        const nameMatch = realHtmlBoletim.match(/(?:aluno|estudante|nome)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ\s]{4,60})/i);
-        if (nameMatch) extractedStudentName = nameMatch[1].trim();
-
-        const cursoMatch = realHtmlBoletim.match(/(?:curso)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ0-9\s\-\.\(\)]+)/i);
-        if (cursoMatch) extractedCourse = cursoMatch[1].trim();
-      }
-
-      // Check if we have previously verified real synced data in cache
-      const cached = qacademicoSessions.get(cleanMatricula);
-      if (parsedRealGrades.length === 0 && cached?.grades && cached.grades.length > 0) {
-        parsedRealGrades = cached.grades;
-      }
-      if (parsedRealSchedules.length === 0 && cached?.schedules && cached.schedules.length > 0) {
-        parsedRealSchedules = cached.schedules;
-      }
-
-      // CRITICAL: NEVER serve fake mock grades!
-      // If we don't have real grades from scraping or verified cache, return an explicit error
-      if (parsedRealGrades.length === 0) {
-        return res.status(401).json({
-          success: false,
-          error:
-            "Não foi possível obter dados reais do Q-Acadêmico. Verifique sua matrícula e senha institucional. Caso o portal do IFES esteja com captcha ou restrição de proxy, use a opção 'Ponte Rápida / Importar Boletim' para sincronizar seu boletim oficial instantaneamente.",
-          authMethod: "failed",
-        });
-      }
-
-      const syncDate = new Date();
-      const accountData = {
-        connected: true,
-        matricula: cleanMatricula,
-        fullname: extractedStudentName || cached?.account?.fullname || `Estudante IFES (${cleanMatricula})`,
-        curso: extractedCourse || cached?.account?.curso || "Curso Técnico / Superior IFES",
-        campus: campus || "IFES",
-        periodo: "2026/1",
-        coeficienteRendimento: cached?.account?.coeficienteRendimento || 0,
-        portalUrl,
-        lastSync: syncDate.toLocaleDateString("pt-BR") + " às " + syncDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        lastRealSyncTimestamp: syncDate.toISOString(),
-        authMethod: "direct_session",
-      };
-
-      // Save into sessions map
+      // Cache session in memory
       qacademicoSessions.set(cleanMatricula, {
         matricula: cleanMatricula,
-        account: accountData,
-        grades: parsedRealGrades,
-        schedules: parsedRealSchedules,
-        courses: cached?.courses || [],
-        lastSync: syncDate.toISOString(),
+        account: scraped.account,
+        grades: scraped.grades,
+        schedules: scraped.schedules,
+        courses: scraped.courses,
+        lastSync: scraped.sincronizadoEm,
       });
 
       return res.json({
         success: true,
         authenticated: true,
-        account: accountData,
-        grades: parsedRealGrades,
-        schedules: parsedRealSchedules,
-        courses: cached?.courses || [],
-        lastSync: accountData.lastSync,
-        message: "Dados reais do Q-Acadêmico IFES sincronizados com sucesso!",
+        account: {
+          ...scraped.account,
+          connected: true,
+          portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
+          authMethod: "direct_session",
+        },
+        grades: scraped.grades,
+        schedules: scraped.schedules,
+        courses: scraped.courses,
+        sincronizadoEm: scraped.sincronizadoEm,
+        dataFormatada: scraped.dataFormatada,
+        message: scraped.message || "Dados do Q-Acadêmico IFES sincronizados com sucesso!",
       });
     } catch (err: any) {
-      return res.status(500).json({
+      console.warn("[Q-Acadêmico Connect Notice]:", err?.message);
+      const isAuthError =
+        err?.message?.includes("senha") ||
+        err?.message?.includes("usuário") ||
+        err?.message?.includes("login") ||
+        err?.message?.includes("autentica") ||
+        err?.status === 401;
+
+      const isUnavailable =
+        err?.message?.includes("indisponível") ||
+        err?.message?.includes("timeout") ||
+        err?.message?.includes("ECONNREFUSED") ||
+        err?.status === 503;
+
+      if (isAuthError) {
+        return res.status(401).json({
+          success: false,
+          error: "Matrícula ou senha incorretos no Q-Acadêmico.",
+        });
+      }
+
+      if (isUnavailable) {
+        return res.status(503).json({
+          success: false,
+          error: "Portal Q-Acadêmico IFES indisponível no momento. Tente novamente mais tarde.",
+        });
+      }
+
+      return res.status(400).json({
         success: false,
-        error: err?.message || "Erro ao conectar com Q-Acadêmico",
+        error:
+          err?.message ||
+          "Não foi possível sincronizar com o Q-Acadêmico. Verifique suas credenciais e tente novamente.",
       });
     }
   });
 
-  // 3. Intelligent Report / HTML Parser for Q-Acadêmico
+  // 3. Intelligent Report / HTML Parser for Q-Acadêmico (Deterministic Cheerio Extraction)
   app.post("/api/qacademico/parse-report", async (req, res) => {
     try {
-      const { rawContent = "", defaultCampus = "IFES" } = req.body;
+      const { rawContent = "", defaultCampus = "IFES", matricula = "" } = req.body;
       if (!rawContent || !rawContent.trim()) {
-        return res.status(400).json({ error: "Nenhum conteúdo do Q-Acadêmico fornecido para análise." });
+        return res.status(400).json({
+          success: false,
+          error: "Nenhum conteúdo do Q-Acadêmico fornecido para análise.",
+        });
       }
 
-      let parsedData: any = null;
-
-      // Try AI Semantic Extraction with Gemini Flash first if available
-      try {
-        const ai = getGeminiClient();
-        if (ai) {
-          const prompt = `Você é um extrator acadêmico do sistema Q-Acadêmico do Instituto Federal do Espírito Santo (IFES).
-O link oficial do portal é https://academico.ifes.edu.br/qacademico/index.asp?t=2000.
-Analise o texto ou código HTML abaixo (que pode ser a tela de Boletim t=2071 ou Horários t=2010 do Q-Acadêmico) e extraia de forma precisa:
-1. Dados do aluno: nome, matrícula, curso, campus (padrão "${defaultCampus}"), coeficiente de rendimento (CR), ano/período.
-2. Disciplinas e Notas do Boletim:
-   - Nome completo da disciplina
-   - Carga Horária (ex: 80h)
-   - Faltas totais
-   - Notas das etapas (1ª Etapa / N1, 2ª Etapa / N2, 3ª Etapa / N3, 4ª Etapa / N4)
-   - Média Parcial, Exame Final, Média Final
-   - Situação (Aprovado, Cursando, Reprovado, Em Exame)
-3. Horários das Aulas (se houver tabela de horário): dia da semana, horário (ex: 07:00 - 08:40), disciplina, sala e professor.
-
-Conteúdo do Q-Acadêmico:
-"""${rawContent.slice(0, 15000)}"""
-
-Retorne ESTRITAMENTE um JSON com esta estrutura:
-{
-  "account": {
-    "matricula": "string",
-    "fullname": "string",
-    "curso": "string",
-    "campus": "string",
-    "periodo": "string",
-    "coeficienteRendimento": 85.0
-  },
-  "grades": [
-    {
-      "id": "qacad-1",
-      "disciplina": "string",
-      "codigo": "string",
-      "cargaHoraria": 80,
-      "faltas": 0,
-      "etapas": [
-        { "etapa": "1ª Etapa", "nota": 85.0, "notaMax": 100 },
-        { "etapa": "2ª Etapa", "nota": 90.0, "notaMax": 100 }
-      ],
-      "mediaParcial": 87.5,
-      "mediaFinal": 87.5,
-      "situacao": "Aprovado"
-    }
-  ],
-  "schedules": [
-    {
-      "id": "sched-1",
-      "diaSemana": "Segunda",
-      "horario": "07:00 - 08:40",
-      "disciplina": "string",
-      "sala": "string"
-    }
-  ]
-}`;
-
-          const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-              responseMimeType: "application/json",
-            },
-          });
-
-          const aiText = response.text ? response.text.trim() : "";
-          if (aiText) {
-            parsedData = JSON.parse(aiText);
-          }
-        }
-      } catch (geminiErr) {
-        console.warn("Gemini Q-Acadêmico parse fallback to regex:", geminiErr);
-      }
-
-      // Regex / Deterministic Parser Fallback if Gemini wasn't available or empty
-      if (!parsedData || !Array.isArray(parsedData.grades) || parsedData.grades.length === 0) {
-        const text = rawContent.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-        const lines = rawContent.split(/\r?\n|<tr\b[^>]*>/gi);
-
-        const extractedGrades: any[] = [];
-        const extractedSchedules: any[] = [];
-
-        // Matricula & Student info
-        const matMatch = rawContent.match(/(?:matr[íi]cula|login)[:\s]+([0-9A-Za-z]+)/i);
-        const nameMatch = rawContent.match(/(?:aluno|estudante|nome)[:\s]+([A-Za-zÀ-ÖØ-öø-ÿ\s]{4,50})/i);
-        const crMatch = rawContent.match(/(?:coeficiente|c\.r\.|cr)[:\s]+(\d{1,3}(?:[,\.]\d{1,2})?)/i);
-
-        let studentMatricula = matMatch ? matMatch[1].trim() : (rawContent.match(/\b(20[12][0-9][12][A-Z0-9]{4,10})\b/i)?.[1] || "");
-        let studentName = nameMatch ? nameMatch[1].trim().replace(/\s+(?:matrícula|curso)[\s\S]*/i, "") : "Estudante IFES";
-        let studentCr = crMatch ? parseFloat(crMatch[1].replace(",", ".")) : undefined;
-
-        // Line-by-line inspection
-        for (const line of lines) {
-          const cleanLine = line.replace(/<[^>]+>/g, " ").trim();
-          if (cleanLine.length < 5) continue;
-
-          // Check for discipline with grades
-          const numbers = Array.from(cleanLine.matchAll(/\b(\d{1,3}(?:[,\.]\d{1,2})?)\b/g)).map((m: any) => parseFloat(m[1].replace(",", ".")));
-          if (numbers.length >= 2) {
-            const firstNum = numbers[0];
-            const discNameCandidate = cleanLine.substring(0, cleanLine.indexOf(String(firstNum))).replace(/^[0-9]+[\.\-\s]+/, "").trim();
-
-            if (discNameCandidate.length >= 4 && !discNameCandidate.toLowerCase().includes("boletim") && !discNameCandidate.toLowerCase().includes("total")) {
-              const etapas = numbers.slice(0, 4).map((n, idx) => ({
-                etapa: `${idx + 1}ª Etapa`,
-                nota: n <= 10 && numbers.every((x) => x <= 10) ? n * 10 : n,
-                notaMax: 100,
-              }));
-
-              const lastNum = numbers[numbers.length - 1];
-              const mediaFinal = lastNum <= 10 && numbers.every((x) => x <= 10) ? lastNum * 10 : lastNum;
-
-              let sit: "Aprovado" | "Cursando" | "Reprovado" | "Em Exame" = "Cursando";
-              if (/aprovad/i.test(cleanLine)) sit = "Aprovado";
-              else if (/reprovad/i.test(cleanLine)) sit = "Reprovado";
-              else if (/exame/i.test(cleanLine)) sit = "Em Exame";
-              else if (mediaFinal >= 60) sit = "Aprovado";
-
-              extractedGrades.push({
-                id: `qacad-${extractedGrades.length + 1}-${Date.now()}`,
-                disciplina: discNameCandidate,
-                codigo: `QACAD-${extractedGrades.length + 1}`,
-                cargaHoraria: 80,
-                faltas: 0,
-                etapas,
-                mediaParcial: mediaFinal,
-                mediaFinal,
-                situacao: sit,
-              });
-            }
-          }
-        }
-
-        parsedData = {
-          account: {
-            matricula: studentMatricula,
-            fullname: studentName,
-            curso: "Curso Técnico / Graduação IFES",
-            campus: defaultCampus,
-            coeficienteRendimento: studentCr,
-          },
-          grades: extractedGrades,
-          schedules: extractedSchedules,
-        };
-      }
-
-      // Convert grades to IfesCourse format
-      const mappedCourses = (parsedData.grades || []).map((g: any, idx: number) => ({
-        id: `qacad-disc-${idx + 1}-${Date.now()}`,
-        name: g.disciplina,
-        code: g.codigo || `QACAD-${idx + 1}`,
-        professor: g.docente || "Docente IFES",
-        campus: parsedData.account?.campus || defaultCampus,
-        progressPercent: g.mediaFinal ? Math.min(100, Math.round(g.mediaFinal)) : 75,
-      }));
+      // Parse deterministically with Cheerio using isolated official selectors
+      const parsed = parseQAcademicoCheerio(rawContent, rawContent, matricula, defaultCampus);
 
       // Cache session in memory
-      const finalMatricula = parsedData.account?.matricula || `qacad-${Date.now()}`;
+      const finalMatricula = parsed.account.matricula || matricula || `qacad-${Date.now()}`;
       qacademicoSessions.set(finalMatricula, {
         matricula: finalMatricula,
-        account: parsedData.account,
-        grades: parsedData.grades || [],
-        schedules: parsedData.schedules || [],
-        courses: mappedCourses,
-        lastSync: new Date().toISOString(),
+        account: parsed.account,
+        grades: parsed.grades,
+        schedules: parsed.schedules,
+        courses: parsed.courses,
+        lastSync: parsed.sincronizadoEm,
       });
 
       return res.json({
         success: true,
         account: {
-          ...parsedData.account,
+          ...parsed.account,
           connected: true,
           portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
-          lastSync: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           authMethod: "pasted_report",
         },
-        grades: parsedData.grades || [],
-        schedules: parsedData.schedules || [],
-        courses: mappedCourses,
-        message: `Ponte de dados concluída! ${mappedCourses.length} disciplinas e notas do Q-Acadêmico integradas.`,
+        grades: parsed.grades,
+        schedules: parsed.schedules,
+        courses: parsed.courses,
+        sincronizadoEm: parsed.sincronizadoEm,
+        dataFormatada: parsed.dataFormatada,
+        message: parsed.message,
       });
     } catch (err: any) {
-      console.error("Erro em /api/qacademico/parse-report:", err);
-      return res.status(500).json({ error: err?.message || "Falha ao processar relatório do Q-Acadêmico." });
+      console.warn("Aviso em /api/qacademico/parse-report:", err?.message || err);
+      return res.status(200).json({
+        success: false,
+        error:
+          err?.message ||
+          "Não foi possível extrair dados válidos do Boletim ou Horários do Q-Acadêmico. Certifique-se de copiar o conteúdo da página de Boletim Escolar (t=2071).",
+      });
     }
   });
 

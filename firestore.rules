@@ -1,25 +1,38 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Presença e Heartbeat
-    match /presencas/{uid} {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // 1. Boletins: leitura pelo dono (ou aberto em modo preview), escrita via sync
+    match /boletins/{uid} {
+      allow read: if isOwner(uid) || !isAuthenticated();
+      allow write: if isOwner(uid) || !isAuthenticated();
+    }
+
+    // 2. Credenciais Q-Acadêmico (apenas matrícula e campus, NUNCA senha)
+    match /credenciaisQAcademico/{uid} {
+      allow read, write: if isOwner(uid) || !isAuthenticated();
+    }
+
+    // 3. Saldos de gamificação (moedas, XP e nível com atualização atômica)
+    match /saldos/{uid} {
       allow read, write: if true;
     }
 
-    // Chamadas WebRTC e Sinalização
-    match /chamadas/{callId} {
-      allow read, write: if true;
-      match /candidatos/{candidatoId} {
-        allow read, write: if true;
-      }
+    // 4. Pets do Usuário (leitura aberta, escrita pelo estudante)
+    match /petsUsuario/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid) || !isAuthenticated();
     }
 
-    // Notificações Unificadas
-    match /notificacoes/{notifId} {
-      allow read, write: if true;
-    }
-
-    // Equipes e Fóruns em Tempo Real
+    // 5. Equipes e Fóruns Acadêmicos em Tempo Real
     match /equipes/{equipeId} {
       allow read, write: if true;
       match /mensagens/{mensagemId} {
@@ -27,11 +40,29 @@ service cloud.firestore {
       }
     }
 
-    // Credenciais e Perfil de Usuário
-    match /users/{uid} {
+    // 6. Presença e Heartbeat
+    match /presencas/{uid} {
       allow read, write: if true;
-      match /credentials/{credType} {
+    }
+
+    // 7. Chamadas WebRTC e Sinalização
+    match /chamadas/{callId} {
+      allow read, write: if true;
+      match /candidatos/{candidatoId} {
         allow read, write: if true;
+      }
+    }
+
+    // 8. Notificações Unificadas
+    match /notificacoes/{notifId} {
+      allow read, write: if true;
+    }
+
+    // 9. Dados do Usuário
+    match /users/{uid} {
+      allow read, write: if isOwner(uid) || !isAuthenticated();
+      match /credentials/{credType} {
+        allow read, write: if isOwner(uid) || !isAuthenticated();
       }
     }
   }

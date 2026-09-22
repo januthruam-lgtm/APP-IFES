@@ -26,8 +26,8 @@ export const BrandLogoBanner: React.FC<BrandLogoBannerProps> = ({
       role="button"
       tabIndex={0}
       title="Brain Studio - Clique para ver animação 3D da logo ✨"
-      className={`rounded-2xl overflow-hidden shadow-lg border border-indigo-950/60 flex flex-col items-center justify-center transition-all cursor-pointer group hover:border-emerald-500/50 ${className}`}
-      style={{ backgroundColor: '#050512', textAlign: 'center', padding: compact ? '12px 16px' : '20px' }}
+      className={`rounded-2xl overflow-hidden shadow-lg border border-[var(--app-border)] flex flex-col items-center justify-center transition-all cursor-pointer group hover:border-[var(--app-primary)]/50 ${className}`}
+      style={{ backgroundColor: 'var(--app-card)', textAlign: 'center', padding: compact ? '12px 16px' : '20px' }}
     >
       <img
         id="brand-logo-img"

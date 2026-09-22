@@ -78,43 +78,43 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
       {/* Back button & Room header */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-xs font-bold text-neutral-400 hover:text-white transition cursor-pointer"
+        className="flex items-center gap-2 text-xs font-bold text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Voltar ao Painel Geral de Cursos</span>
       </button>
 
       {/* Course Room Banner */}
-      <div className="bg-[#141414] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-4 relative overflow-hidden">
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 sm:p-8 space-y-4 relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30 rounded-full text-[10px] font-bold uppercase font-mono">
+              <span className="px-2.5 py-0.5 bg-[var(--app-primary)]/15 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-full text-[10px] font-bold uppercase font-mono">
                 {course.code}
               </span>
-              <span className="text-xs text-neutral-400">{course.campus || "IFES"}</span>
+              <span className="text-xs text-[var(--app-text-muted)]">{course.campus || "IFES"}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--app-text)] tracking-tight">
               {course.name}
             </h1>
-            <p className="text-xs text-neutral-400 flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-[#10b981]" /> Docente:{" "}
-              <span className="text-white font-medium">{course.professor}</span>
+            <p className="text-xs text-[var(--app-text-muted)] flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-[var(--app-primary)]" /> Docente:{" "}
+              <span className="text-[var(--app-text)] font-medium">{course.professor}</span>
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onGenerateQuizFromTopic(`${course.name} (${course.code})`)}
-              className="px-4 py-2 bg-[#e2ff31] hover:bg-[#d4f220] text-black font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md cursor-pointer"
+              className="px-4 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 fill-black" /> Gerar 10 Questões
+              <Sparkles className="w-4 h-4 fill-white" /> Gerar 10 Questões
             </button>
             <button
               onClick={() => onOpenSocraticWithTopic(`${course.name} (${course.code})`)}
-              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-neutral-200 border border-white/10 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
             >
-              <Brain className="w-4 h-4 text-[#10b981]" /> Estudo Socrático
+              <Brain className="w-4 h-4 text-[var(--app-primary)]" /> Estudo Socrático
             </button>
           </div>
         </div>
@@ -123,29 +123,29 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
       {/* Assignments of this course */}
       {courseAssignments.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#10b981]" />
+          <h3 className="text-sm font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-[var(--app-primary)]" />
             Atividades Avaliativas desta Disciplina ({courseAssignments.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {courseAssignments.map((assign) => (
               <div
                 key={assign.id}
-                className="bg-[#141414] border border-white/5 hover:border-white/20 rounded-2xl p-4 transition space-y-3"
+                className="bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/30 rounded-2xl p-4 transition space-y-3"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase text-[#10b981] bg-[#10b981]/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold uppercase text-[var(--app-primary)] bg-[var(--app-primary)]/10 px-2 py-0.5 rounded-full">
                     {assign.type}
                   </span>
-                  <span className="text-xs font-mono text-neutral-400">
+                  <span className="text-xs font-mono text-[var(--app-text-muted)]">
                     Prazo: {new Date(assign.dueDate).toLocaleDateString("pt-BR")}
                   </span>
                 </div>
-                <h4 className="text-sm font-bold text-white">{assign.title}</h4>
-                <p className="text-xs text-neutral-400 line-clamp-2">{assign.description}</p>
+                <h4 className="text-sm font-bold text-[var(--app-text)]">{assign.title}</h4>
+                <p className="text-xs text-[var(--app-text-muted)] line-clamp-2">{assign.description}</p>
                 <button
                   onClick={() => onOpenSubmitModal(assign)}
-                  className="w-full py-2 bg-[#10b981] hover:bg-[#059669] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Entregar no AVA</span>
@@ -158,27 +158,27 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
 
       {/* Sections and Course Syllabus */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Layers className="w-4 h-4 text-[#e2ff31]" />
+        <h3 className="text-sm font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-2">
+          <Layers className="w-4 h-4 text-[var(--app-primary)]" />
           Conteúdos, Aulas e Semanas da Disciplina
         </h3>
 
         {isLoading ? (
-          <div className="p-8 text-center bg-[#141414] rounded-2xl border border-white/5 space-y-2">
-            <div className="w-6 h-6 border-2 border-[#10b981] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-neutral-400">Carregando sala virtual do Moodle...</p>
+          <div className="p-8 text-center bg-[var(--app-card)] rounded-2xl border border-[var(--app-border)] space-y-2">
+            <div className="w-6 h-6 border-2 border-[var(--app-primary)] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs text-[var(--app-text-muted)]">Carregando sala virtual do Moodle...</p>
           </div>
         ) : (
           <div className="space-y-4">
             {sections.map((section, idx) => (
               <div
                 key={section.id || idx}
-                className="bg-[#141414] border border-white/5 rounded-2xl p-5 space-y-3"
+                className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-5 space-y-3"
               >
-                <div className="border-b border-white/5 pb-3">
-                  <h4 className="text-base font-bold text-white">{section.name}</h4>
+                <div className="border-b border-[var(--app-border)] pb-3">
+                  <h4 className="text-base font-bold text-[var(--app-text)]">{section.name}</h4>
                   {section.summary && (
-                    <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                    <p className="text-xs text-[var(--app-text-muted)] mt-1 leading-relaxed">
                       {section.summary}
                     </p>
                   )}
@@ -188,7 +188,7 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
                   {Array.isArray(section.modules) &&
                     section.modules.map((mod: any, mIdx: number) => {
                       let IconComponent = FileText;
-                      let tagColor = "text-neutral-400 bg-white/5";
+                      let tagColor = "text-[var(--app-text-muted)] bg-[var(--app-card-secondary)]";
 
                       if (mod.modname === "resource") {
                         IconComponent = BookOpen;
@@ -201,20 +201,20 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
                         tagColor = "text-amber-400 bg-amber-500/10";
                       } else if (mod.modname === "assign") {
                         IconComponent = FileText;
-                        tagColor = "text-emerald-400 bg-emerald-500/10";
+                        tagColor = "text-[var(--app-primary)] bg-[var(--app-primary)]/10";
                       }
 
                       return (
                         <div
                           key={mod.id || mIdx}
-                          className="flex items-center justify-between p-3 bg-black/30 hover:bg-white/[0.03] border border-white/5 rounded-xl transition"
+                          className="flex items-center justify-between p-3 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] rounded-xl transition"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white shrink-0">
-                              <IconComponent className="w-4 h-4 text-[#10b981]" />
+                            <div className="w-8 h-8 rounded-lg bg-[var(--app-card)] flex items-center justify-center text-[var(--app-text)] shrink-0 border border-[var(--app-border)]">
+                              <IconComponent className="w-4 h-4 text-[var(--app-primary)]" />
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-white">{mod.name}</p>
+                              <p className="text-xs font-semibold text-[var(--app-text)]">{mod.name}</p>
                               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${tagColor}`}>
                                 {mod.modname?.toUpperCase() || "MATERIAL"}
                               </span>
@@ -227,7 +227,7 @@ export const AvaCourseRoomView: React.FC<AvaCourseRoomViewProps> = ({
                                 href={mod.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white rounded-lg text-xs font-medium transition flex items-center gap-1"
+                                className="px-3 py-1.5 bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-lg text-xs font-medium transition flex items-center gap-1 border border-[var(--app-border)]"
                               >
                                 <span>Acessar</span>
                                 <ExternalLink className="w-3 h-3" />

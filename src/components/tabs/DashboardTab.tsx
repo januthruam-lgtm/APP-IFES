@@ -36,6 +36,8 @@ import {
   calculateOverallProgress,
 } from "../../utils/courseSync";
 import confetti from "canvas-confetti";
+import { getPetDefinition } from "../../features/gamificacao/petCatalog";
+import { creditXp } from "../../features/gamificacao/economyService";
 
 interface DashboardTabProps {
   user: UserProfile;
@@ -85,6 +87,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     setAssignments(updated);
     saveSyncedAssignments(updated);
 
+    // Persistência atômica no Firestore via economyService
+    const userId = user.email || user.name || "aluno";
+    creditXp(userId, 50, "Tarefa AVA IFES Concluída").catch((err) => {
+      console.warn("Erro ao persistir XP da tarefa:", err);
+    });
+
     if (onRewardXp) {
       onRewardXp(50);
     }
@@ -105,14 +113,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
 
   const pet = user.pet;
-  const petEmoji =
-    pet?.type === "bunny"
-      ? "🐰"
-      : pet?.type === "bird"
-      ? "🐦"
-      : pet?.type === "elephant"
-      ? "🐘"
-      : "🐯";
+  const petDef = getPetDefinition(pet?.activePetId || pet?.id);
+  const petEmoji = pet?.customSpeciesEmoji || petDef.emoji;
 
   return (
     <section id="tab-dashboard" className="p-4 sm:p-8 space-y-6 max-w-7xl mx-auto">

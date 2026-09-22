@@ -9,8 +9,6 @@ import {
   Clipboard,
   RefreshCw,
   Search,
-  Key,
-  ShieldCheck,
   Radio,
   ExternalLink,
   GraduationCap,
@@ -66,7 +64,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
 
   const handleClearAll = () => {
     setCurrentCourses([]);
-    setFeedbackMessage("Todas as disciplinas foram limpas. Sincronize com a API para obter as matérias reais.");
+    setFeedbackMessage("Todas as disciplinas foram limpas. Sincronize com o AVA ou Q-Acadêmico para carregar sua grade.");
     setFeedbackType("success");
   };
 
@@ -101,7 +99,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
       if (res.courses && Array.isArray(res.courses)) {
         const real = res.courses.filter((c) => !isMockOrPlaceholderCourse(c));
         setCurrentCourses(real);
-        setFeedbackMessage(`Sincronização via API Moodle concluída! ${real.length} disciplina(s) real(is) carregada(s).`);
+        setFeedbackMessage(`Sincronização via API Moodle concluída! ${real.length} disciplina(s) carregada(s).`);
         setFeedbackType("success");
         setActiveTab("manage");
       } else {
@@ -209,7 +207,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
           campusUrl: "https://academico.ifes.edu.br/qacademico",
           portalUrl: finalAccount.portalUrl || "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
           lastSync: finalAccount.lastSync || new Date().toISOString(),
-          matricula: finalAccount.matricula || "20241TIADM0042",
+          matricula: finalAccount.matricula || "",
           fullname: finalAccount.fullname || "Estudante IFES",
           ...finalAccount,
         });
@@ -260,18 +258,18 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#111111] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-2xl bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-border)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#161616]">
+        <div className="p-5 border-b border-[var(--app-border)] flex items-center justify-between bg-[var(--app-card-secondary)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#10b981]/20 border border-[#10b981]/30 flex items-center justify-center text-[#10b981]">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--app-primary)]/15 border border-[var(--app-primary)]/30 flex items-center justify-center text-[var(--app-primary)]">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight">
+              <h3 className="text-base font-bold text-[var(--app-text)] tracking-tight">
                 Gerenciador de Disciplinas do AVA IFES
               </h3>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-[var(--app-text-muted)]">
                 Sincronização estrita via API Moodle do IFES (sem matérias fictícias)
               </p>
             </div>
@@ -280,21 +278,21 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-xl transition"
+            className="p-2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)] rounded-xl transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-white/10 bg-[#141414] px-4 pt-2 gap-2 overflow-x-auto text-xs">
+        <div className="flex border-b border-[var(--app-border)] bg-[var(--app-card-secondary)] px-4 pt-2 gap-2 overflow-x-auto text-xs">
           <button
             type="button"
             onClick={() => setActiveTab("manage")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "manage"
-                ? "border-[#10b981] text-[#10b981]"
-                : "border-transparent text-neutral-400 hover:text-white"
+                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
+                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -306,8 +304,8 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("apiSync")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "apiSync"
-                ? "border-[#10b981] text-[#10b981]"
-                : "border-transparent text-neutral-400 hover:text-white"
+                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
+                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             <Radio className="w-4 h-4" />
@@ -319,8 +317,8 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("paste")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "paste"
-                ? "border-[#10b981] text-[#10b981]"
-                : "border-transparent text-neutral-400 hover:text-white"
+                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
+                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             <Clipboard className="w-4 h-4" />
@@ -332,8 +330,8 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("qacademico")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "qacademico"
-                ? "border-[#2563eb] text-[#60a5fa]"
-                : "border-transparent text-neutral-400 hover:text-white"
+                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
+                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             <GraduationCap className="w-4 h-4" />
@@ -345,12 +343,12 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("addManual")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "addManual"
-                ? "border-[#10b981] text-[#10b981]"
-                : "border-transparent text-neutral-400 hover:text-white"
+                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
+                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
             }`}
           >
             <Plus className="w-4 h-4" />
-            Cadastrar Matéria Real
+            Cadastrar Disciplina
           </button>
         </div>
 
@@ -360,8 +358,8 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             <div
               className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
                 feedbackType === "success"
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  ? "bg-[var(--app-success)]/10 text-[var(--app-success)] border border-[var(--app-success)]/20"
+                  : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
               }`}
             >
               {feedbackType === "success" ? (
@@ -378,13 +376,13 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
+                  <Search className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3 top-2.5" />
                   <input
                     type="text"
                     placeholder="Filtrar matérias por nome ou código..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-[#161616] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981]"
+                    className="w-full pl-9 pr-4 py-2 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
                   />
                 </div>
 
@@ -392,7 +390,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
                   <button
                     type="button"
                     onClick={handleClearAll}
-                    className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
+                    className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Limpar Grade
                   </button>
@@ -402,19 +400,19 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
               {/* Course Items List */}
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {filteredCurrentCourses.length === 0 ? (
-                  <div className="text-center py-10 bg-[#161616] rounded-2xl border border-white/5 space-y-2 p-4">
-                    <BookOpen className="w-8 h-8 text-neutral-500 mx-auto" />
-                    <p className="text-xs font-bold text-neutral-300">
-                      Nenhuma matéria fictícia cadastrada
+                  <div className="text-center py-10 bg-[var(--app-card-secondary)] rounded-2xl border border-[var(--app-border)] space-y-2 p-4">
+                    <BookOpen className="w-8 h-8 text-[var(--app-text-muted)] mx-auto" />
+                    <p className="text-xs font-bold text-[var(--app-text)]">
+                      Nenhuma matéria cadastrada
                     </p>
-                    <p className="text-[11px] text-neutral-500 max-w-md mx-auto">
+                    <p className="text-[11px] text-[var(--app-text-muted)] max-w-md mx-auto">
                       Todas as matérias de exemplo foram removidas. Utilize a aba{" "}
-                      <strong className="text-emerald-400">"Sincronização Direta API"</strong> para conectar ao Moodle do seu campus ou importe seu histórico real.
+                      <strong className="text-[var(--app-primary)]">"Sincronização Direta API"</strong> para conectar ao Moodle do seu campus ou importe seu histórico pelo Q-Acadêmico.
                     </p>
                     <button
                       type="button"
                       onClick={() => setActiveTab("apiSync")}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#10b981] hover:bg-[#059669] text-black text-xs font-extrabold rounded-xl transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-extrabold rounded-xl transition cursor-pointer"
                     >
                       <Radio className="w-3.5 h-3.5" /> Sincronizar via API Moodle
                     </button>
@@ -423,28 +421,28 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
                   filteredCurrentCourses.map((c) => (
                     <div
                       key={c.id}
-                      className="p-3 bg-[#161616] hover:bg-[#1c1c1c] border border-white/5 hover:border-white/15 rounded-xl flex items-center justify-between gap-3 transition"
+                      className="p-3 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] rounded-xl flex items-center justify-between gap-3 transition"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="w-8 h-8 rounded-lg bg-[#10b981]/20 text-[#10b981] flex items-center justify-center text-xs font-mono font-bold shrink-0">
+                        <span className="w-8 h-8 rounded-lg bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center text-xs font-mono font-bold shrink-0">
                           {c.code ? c.code.substring(0, 3) : "IF"}
                         </span>
                         <div>
-                          <p className="text-xs font-bold text-white leading-snug">{c.name}</p>
-                          <p className="text-[10px] text-neutral-400 font-mono">
+                          <p className="text-xs font-bold text-[var(--app-text)] leading-snug">{c.name}</p>
+                          <p className="text-[10px] text-[var(--app-text-muted)] font-mono">
                             {c.code || "IFES"} {c.professor ? `• ${c.professor}` : ""}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-emerald-400 font-mono">
+                        <span className="text-xs font-bold text-[var(--app-primary)] font-mono">
                           {c.progressPercent || 0}%
                         </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveCourse(c.id)}
-                          className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                          className="p-1.5 text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                           title="Remover da grade"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -459,24 +457,24 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
 
           {/* TAB 2: DIRECT API SYNC */}
           {activeTab === "apiSync" && (
-            <div className="space-y-4 bg-[#161616] p-5 rounded-2xl border border-white/5">
+            <div className="space-y-4 bg-[var(--app-card-secondary)] p-5 rounded-2xl border border-[var(--app-border)]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center">
                   <Radio className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Sincronização Direta com o AVA IFES</h4>
-                  <p className="text-xs text-neutral-400">
+                  <h4 className="text-sm font-bold text-[var(--app-text)]">Sincronização Direta com o AVA IFES</h4>
+                  <p className="text-xs text-[var(--app-text-muted)]">
                     Conexão oficial com WebServices REST do Moodle do IFES
                   </p>
                 </div>
               </div>
 
-              <div className="text-xs text-neutral-300 space-y-2 border-t border-white/10 pt-3">
+              <div className="text-xs text-[var(--app-text-muted)] space-y-2 border-t border-[var(--app-border)] pt-3">
                 <p>
                   O aplicativo faz chamadas diretas aos endpoints do Moodle:
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-neutral-400 text-[11px] font-mono">
+                <ul className="list-disc list-inside space-y-1 text-[var(--app-text-muted)] text-[11px] font-mono">
                   <li>core_enrol_get_users_courses (Minhas Disciplinas)</li>
                   <li>core_calendar_get_action_events_by_timesort (Prazos e Tarefas)</li>
                   <li>gradereport_user_get_grades_table (Quadro de Notas)</li>
@@ -488,7 +486,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
                   type="button"
                   onClick={handleSyncFromApi}
                   disabled={isSyncingApi}
-                  className="w-full py-3 bg-[#10b981] hover:bg-[#059669] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-[#10b981]/20 disabled:opacity-50"
+                  className="w-full py-3 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${isSyncingApi ? "animate-spin" : ""}`} />
                   {isSyncingApi ? "Consultando API Moodle IFES..." : "Sincronizar Agora com a API"}
@@ -501,11 +499,11 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
           {activeTab === "paste" && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-white flex items-center gap-2">
-                  <Clipboard className="w-4 h-4 text-[#10b981]" />
+                <label className="text-xs font-bold text-[var(--app-text)] flex items-center gap-2">
+                  <Clipboard className="w-4 h-4 text-[var(--app-primary)]" />
                   Importar do AVA Moodle (Texto ou Meus Cursos)
                 </label>
-                <p className="text-[11px] text-neutral-400">
+                <p className="text-[11px] text-[var(--app-text-muted)]">
                   Acesse seu AVA Moodle no navegador, vá em <strong>Meus Cursos</strong> ou <strong>Painel</strong>, selecione os nomes das disciplinas e cole abaixo:
                 </p>
                 <textarea
@@ -513,7 +511,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   placeholder={`Cole aqui as disciplinas do seu perfil do AVA IFES...`}
-                  className="w-full p-3 bg-[#161616] border border-white/10 rounded-2xl text-xs text-white outline-none focus:border-[#10b981] font-mono"
+                  className="w-full p-3 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
                 />
               </div>
 
@@ -521,7 +519,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
                 type="button"
                 onClick={handleExtractFromPastedText}
                 disabled={isExtracting || !pasteText.trim()}
-                className="w-full py-2.5 bg-[#10b981] hover:bg-[#059669] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {isExtracting ? (
                   <>
@@ -536,42 +534,39 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             </div>
           )}
 
-          {/* TAB 3.5: IMPORT FROM Q-ACADÊMICO (URL: https://academico.ifes.edu.br/qacademico/index.asp?t=2000) */}
+          {/* TAB 3.5: IMPORT FROM Q-ACADÊMICO */}
           {activeTab === "qacademico" && (
             <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-r from-[#2563eb]/20 to-transparent border border-[#2563eb]/30 rounded-2xl space-y-2">
+              <div className="p-4 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-[#60a5fa]" /> Ponte de Dados Q-Acadêmico Web IFES
+                  <span className="text-xs font-bold text-[var(--app-text)] flex items-center gap-1.5">
+                    <GraduationCap className="w-4 h-4 text-[var(--app-primary)]" /> Ponte de Dados Q-Acadêmico Web IFES
                   </span>
                   <a
                     href="https://academico.ifes.edu.br/qacademico/index.asp?t=2000"
                     target="_blank"
                     rel="noreferrer"
-                    className="px-2.5 py-1 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 transition"
+                    className="px-2.5 py-1 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 transition"
                   >
                     <span>Abrir Portal</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
-                <p className="text-xs text-neutral-300">
-                  Acesse o Q-Acadêmico (<code>index.asp?t=2000</code>), abra a tela de <strong>Boletim Escolar (t=2071)</strong> ou <strong>Horários (t=2010)</strong>, copie o conteúdo e cole abaixo. As matérias reais e notas por etapa serão sincronizadas com o seu perfil!
+                <p className="text-xs text-[var(--app-text-muted)]">
+                  Acesse o Q-Acadêmico (<code>index.asp?t=2000</code>), abra a tela de <strong>Boletim Escolar (t=2071)</strong> ou <strong>Horários (t=2010)</strong>, copie o conteúdo e cole abaixo. As matérias e notas por etapa serão sincronizadas com o seu perfil!
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-neutral-300">
+                <label className="text-xs font-bold text-[var(--app-text)]">
                   Texto ou Tabela copiada do Q-Acadêmico IFES:
                 </label>
                 <textarea
                   rows={6}
                   value={qacadText}
                   onChange={(e) => setQacadText(e.target.value)}
-                  placeholder={`Cole aqui o boletim ou a página do Q-Acadêmico... Ex:
-Componente Curricular | Carga Horária | 1ª Etapa | 2ª Etapa | Média Final
-Algoritmos e Estrutura de Dados | 80h | 85.0 | 90.0 | 87.5
-Banco de Dados e Modelagem | 80h | 80.0 | 85.0 | 82.5`}
-                  className="w-full p-3 bg-[#161616] border border-white/10 rounded-2xl text-xs text-white outline-none focus:border-[#2563eb] font-mono"
+                  placeholder="Cole aqui o conteúdo copiado da tela de Boletim Escolar ou Horários do Q-Acadêmico IFES..."
+                  className="w-full p-3 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
                 />
               </div>
 
@@ -580,11 +575,11 @@ Banco de Dados e Modelagem | 80h | 80.0 | 85.0 | 82.5`}
                   type="button"
                   onClick={handleExtractFromQAcademico}
                   disabled={isExtracting || !qacadText.trim()}
-                  className="flex-1 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
+                  className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isExtracting ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando com Q-Acadêmico Bridge...
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando dados...
                     </>
                   ) : (
                     <>
@@ -592,70 +587,52 @@ Banco de Dados e Modelagem | 80h | 80.0 | 85.0 | 82.5`}
                     </>
                   )}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQacadText(`INSTITUTO FEDERAL DO ESPÍRITO SANTO - IFES
-Q-ACADÊMICO WEB - BOLETIM ESCOLAR 2026/1
-Componente Curricular | C.H. | Faltas | 1ª Etapa | 2ª Etapa | Média Final | Situação
-Algoritmos e Estrutura de Dados | 80 | 2 | 85,0 | 90,0 | 87,5 | Aprovado
-Banco de Dados e Modelagem SQL | 80 | 0 | 88,0 | 85,0 | 86,5 | Aprovado
-Redes de Computadores e Protocolos | 60 | 0 | 75,0 | 80,0 | 77,5 | Cursando
-Língua Portuguesa e Literatura II | 80 | 2 | 82,0 | 85,0 | 83,5 | Aprovado
-Matemática Aplicada e Cálculo II | 80 | 0 | 78,0 | 80,0 | 79,0 | Aprovado`);
-                  }}
-                  className="px-3 py-2.5 bg-white/5 hover:bg-white/10 text-neutral-300 rounded-xl text-xs font-semibold border border-white/10 cursor-pointer"
-                  title="Carregar exemplo"
-                >
-                  Exemplo
-                </button>
               </div>
             </div>
           )}
 
           {/* TAB 4: MANUAL ENTRY OF REAL SUBJECT */}
           {activeTab === "addManual" && (
-            <form onSubmit={handleAddCourse} className="space-y-3 bg-[#161616] p-4 rounded-2xl border border-white/5">
+            <form onSubmit={handleAddCourse} className="space-y-3 bg-[var(--app-card-secondary)] p-4 rounded-2xl border border-[var(--app-border)]">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-white">Nome da Disciplina Oficial</label>
+                <label className="text-xs font-bold text-[var(--app-text)]">Nome da Disciplina Oficial</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Introdução à Administração, Cálculo I, etc."
                   value={newCourseName}
                   onChange={(e) => setNewCourseName(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#1f1f1f] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981]"
+                  className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-white">Código no AVA (Opcional)</label>
+                  <label className="text-xs font-bold text-[var(--app-text)]">Código no AVA (Opcional)</label>
                   <input
                     type="text"
                     placeholder="Ex: ADM-001"
                     value={newCourseCode}
                     onChange={(e) => setNewCourseCode(e.target.value)}
-                    className="w-full px-3 py-2 bg-[#1f1f1f] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] font-mono"
+                    className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-white">Professor(a) (Opcional)</label>
+                  <label className="text-xs font-bold text-[var(--app-text)]">Professor(a) (Opcional)</label>
                   <input
                     type="text"
                     placeholder="Ex: Prof. João Silva"
                     value={newCourseProfessor}
                     onChange={(e) => setNewCourseProfessor(e.target.value)}
-                    className="w-full px-3 py-2 bg-[#1f1f1f] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981]"
+                    className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-[#10b981] hover:bg-[#059669] text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Plus className="w-4 h-4" /> Adicionar à Minha Grade
               </button>
@@ -664,8 +641,8 @@ Matemática Aplicada e Cálculo II | 80 | 0 | 78,0 | 80,0 | 79,0 | Aprovado`);
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-white/10 flex items-center justify-between bg-[#141414]">
-          <span className="text-xs text-neutral-400 font-mono">
+        <div className="p-4 sm:p-5 border-t border-[var(--app-border)] flex items-center justify-between bg-[var(--app-card-secondary)]">
+          <span className="text-xs text-[var(--app-text-muted)] font-mono">
             {currentCourses.length} disciplina(s) ativa(s)
           </span>
 
@@ -673,14 +650,14 @@ Matemática Aplicada e Cálculo II | 80 | 0 | 78,0 | 80,0 | 79,0 | Aprovado`);
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-transparent hover:bg-white/5 text-neutral-300 rounded-xl text-xs font-semibold transition"
+              className="px-4 py-2 bg-transparent hover:bg-[var(--app-card)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-xl text-xs font-semibold transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSaveAndClose}
-              className="px-5 py-2 bg-[#10b981] hover:bg-[#059669] text-black rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-[#10b981]/20"
+              className="px-5 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" /> Salvar Grade no Perfil
             </button>

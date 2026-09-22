@@ -53,7 +53,7 @@ export const Splash3DIntro: React.FC<Splash3DIntroProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.05, filter: "blur(6px)" }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#050512] text-white overflow-hidden select-none cursor-default"
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[var(--app-bg)] text-[var(--app-text)] overflow-hidden select-none cursor-default"
           id="splash-3d-intro"
         >
           {/* Ambient Deep Space Background Glow */}
@@ -69,14 +69,14 @@ export const Splash3DIntro: React.FC<Splash3DIntroProps> = ({
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[650px] h-[500px] sm:h-[650px] bg-gradient-to-r from-emerald-500/30 via-teal-400/20 to-indigo-600/25 rounded-full blur-3xl"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[650px] h-[500px] sm:h-[650px] bg-gradient-to-r from-[var(--app-primary)]/25 via-[var(--app-primary)]/15 to-[var(--app-primary)]/10 rounded-full blur-3xl"
             />
 
             {/* Subtle Neural Matrix Dots */}
             <div 
               className="absolute inset-0 opacity-[0.06]" 
               style={{
-                backgroundImage: 'radial-gradient(circle at 1px 1px, #10b981 1px, transparent 0)',
+                backgroundImage: 'radial-gradient(circle at 1px 1px, var(--app-primary) 1px, transparent 0)',
                 backgroundSize: '32px 32px'
               }} 
             />
@@ -87,10 +87,10 @@ export const Splash3DIntro: React.FC<Splash3DIntroProps> = ({
             <button
               onClick={triggerExit}
               id="splash-skip-btn"
-              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 text-xs font-semibold text-neutral-300 hover:text-white transition flex items-center gap-1.5 shadow-md cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] active:scale-95 border border-[var(--app-border)] text-xs font-semibold text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition flex items-center gap-1.5 shadow-md cursor-pointer"
             >
               <span>Entrar</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+              <ArrowRight className="w-3.5 h-3.5 text-[var(--app-primary)]" />
             </button>
           </div>
 
@@ -109,7 +109,7 @@ export const Splash3DIntro: React.FC<Splash3DIntroProps> = ({
                 times: [0, 0.45, 0.7, 0.88, 1],
                 ease: [0.34, 1.56, 0.64, 1],
               }}
-              className="relative p-6 sm:p-7 rounded-[2.5rem] bg-[#0a0a1a]/95 border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_40px_rgba(16,185,129,0.25)] cursor-pointer group"
+              className="relative p-6 sm:p-7 rounded-[2.5rem] bg-[var(--app-card)] border border-[var(--app-border)] shadow-2xl cursor-pointer group"
               onClick={triggerExit}
             >
               {/* Shimmer light sweep across logo plate */}
@@ -178,12 +178,12 @@ export const Splash3DIntro: React.FC<Splash3DIntroProps> = ({
             <div className="mt-5 w-48 sm:w-56 flex flex-col items-center gap-2">
               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/10 backdrop-blur-sm">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-full transition-all duration-100 shadow-[0_0_8px_#10b981]"
+                  className="h-full bg-[var(--app-primary)] rounded-full transition-all duration-100 shadow-[0_0_8px_var(--app-primary)]"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
-                <Sparkles className="w-3 h-3 text-emerald-400 animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="flex items-center gap-1.5 text-[10px] text-[var(--app-text-muted)] font-mono">
+                <Sparkles className="w-3 h-3 text-[var(--app-primary)] animate-spin" style={{ animationDuration: '3s' }} />
                 <span>Iniciando ambiente {progress}%</span>
               </div>
             </div>

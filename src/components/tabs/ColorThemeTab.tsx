@@ -357,7 +357,7 @@ export const ColorThemeTab: React.FC<ColorThemeTabProps> = ({
                 className="px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"
                 style={{
                   backgroundColor: activeTheme.colorPrimary,
-                  color: "#ffffff",
+                  color: "var(--btn-primary-text)",
                 }}
               >
                 Entregar Atividade

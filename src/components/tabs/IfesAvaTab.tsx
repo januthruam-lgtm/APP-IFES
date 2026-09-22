@@ -259,7 +259,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
   const handleSaveCustomCourses = (updatedCourses: IfesCourse[]) => {
     setCourses(updatedCourses);
     saveSyncedCourses(updatedCourses);
-    setSuccessMessage(`${updatedCourses.length} matérias reais foram salvas e sincronizadas!`);
+    setSuccessMessage(`${updatedCourses.length} matérias foram salvas e sincronizadas!`);
     setTimeout(() => setSuccessMessage(null), 5000);
   };
 
@@ -390,7 +390,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 <button
                   onClick={() => setShowCoursesManager(true)}
                   className="px-3 py-2 bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] rounded-xl text-xs transition border border-[var(--app-border)] flex items-center justify-center gap-1.5 cursor-pointer"
-                  title="Gerenciar matérias reais do seu perfil"
+                  title="Gerenciar matérias do seu perfil"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--app-primary)]" />
                   <span>Matérias ({courses.length})</span>
@@ -440,13 +440,13 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
       )}
 
       {/* Official AVA IFES Navigation Tabs */}
-      <div className="flex items-center gap-1 bg-[#141414] p-1.5 rounded-2xl border border-white/5 overflow-x-auto">
+      <div className="flex items-center gap-1 bg-[var(--app-card-secondary)] p-1.5 rounded-2xl border border-[var(--app-border)] overflow-x-auto">
         <button
           onClick={() => setAvaSubTab("courses")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "courses"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -457,8 +457,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("timeline")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "timeline"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -469,8 +469,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("grades")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "grades"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <Award className="w-4 h-4" />
@@ -481,8 +481,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("calendar")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "calendar"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <Calendar className="w-4 h-4" />
@@ -493,8 +493,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("messages")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "messages"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <Bell className="w-4 h-4" />
@@ -505,8 +505,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("connection")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "connection"
-              ? "bg-[#10b981] text-black shadow-md shadow-[#10b981]/15"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
@@ -517,49 +517,49 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           onClick={() => setAvaSubTab("qacademico")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             avaSubTab === "qacademico"
-              ? "bg-[#2563eb] text-white shadow-md shadow-[#2563eb]/20"
-              : "text-neutral-400 hover:text-white hover:bg-white/5"
+              ? "bg-[var(--app-primary)] text-white shadow-xs"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
           }`}
         >
-          <GraduationCap className="w-4 h-4 text-[#60a5fa]" />
+          <GraduationCap className="w-4 h-4 text-[var(--app-primary)]" />
           <span>Ponte Q-Acadêmico IFES</span>
         </button>
       </div>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
             Disciplinas do Perfil
           </span>
-          <p className="text-2xl font-black text-white font-mono">{courses.length}</p>
-          <p className="text-[11px] text-neutral-500">Matriculado no AVA IFES</p>
+          <p className="text-2xl font-black text-[var(--app-text)] font-mono">{courses.length}</p>
+          <p className="text-[11px] text-[var(--app-text-muted)]">Matriculado no AVA IFES</p>
         </div>
 
-        <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
             Tarefas & Questionários
           </span>
-          <p className="text-2xl font-black text-[#10b981] font-mono">{assignments.length}</p>
-          <p className="text-[11px] text-neutral-500">No Calendário Oficial</p>
+          <p className="text-2xl font-black text-[var(--app-primary)] font-mono">{assignments.length}</p>
+          <p className="text-[11px] text-[var(--app-text-muted)]">No Calendário Oficial</p>
         </div>
 
-        <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
             Prazos Iminentes
           </span>
-          <p className="text-2xl font-black text-amber-400 font-mono">{urgentCount}</p>
-          <p className="text-[11px] text-neutral-500">Vencem em menos de 3 dias</p>
+          <p className="text-2xl font-black text-amber-500 font-mono">{urgentCount}</p>
+          <p className="text-[11px] text-[var(--app-text-muted)]">Vencem em menos de 3 dias</p>
         </div>
 
-        <div className="bg-[#141414] border border-white/5 rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
             Progresso Acadêmico
           </span>
-          <p className="text-2xl font-black text-[#e2ff31] font-mono">
+          <p className="text-2xl font-black text-[var(--app-primary)] font-mono">
             {dynamicOverallProgress}%
           </p>
-          <p className="text-[11px] text-neutral-500">Lições & Entregas Concluídas</p>
+          <p className="text-[11px] text-[var(--app-text-muted)]">Lições & Entregas Concluídas</p>
         </div>
       </div>
 
@@ -568,21 +568,21 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
         <div className="space-y-4 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
+              <Search className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
               <input
                 type="text"
                 value={courseSearchQuery}
                 onChange={(e) => setCourseSearchQuery(e.target.value)}
                 placeholder="Buscar disciplina por nome, sigla ou professor..."
-                className="w-full pl-10 pr-4 py-2 bg-[#141414] border border-white/10 rounded-xl text-xs text-white placeholder:text-neutral-500 outline-none focus:border-[#10b981] transition"
+                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition"
               />
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowCoursesManager(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#10b981]/15 hover:bg-[#10b981]/25 text-[#10b981] border border-[#10b981]/30 rounded-xl text-xs font-bold transition cursor-pointer"
-                title="Sincronizar via API ou gerenciar matérias reais"
+                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--app-primary)]/15 hover:bg-[var(--app-primary)]/25 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition cursor-pointer"
+                title="Sincronizar via API ou gerenciar matérias"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>Gerenciar Matérias</span>
@@ -605,20 +605,20 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           </div>
 
           {filteredCourses.length === 0 ? (
-            <div className="p-12 text-center bg-[#141414] border border-white/5 rounded-3xl space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-[#10b981]/10 border border-[#10b981]/20 flex items-center justify-center text-[#10b981] mx-auto">
+            <div className="p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20 flex items-center justify-center text-[var(--app-primary)] mx-auto">
                 <BookOpen className="w-8 h-8" />
               </div>
               <div className="space-y-1 max-w-md mx-auto">
-                <h3 className="text-base font-bold text-white">Nenhuma matéria sincronizada no momento</h3>
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                  Todas as matérias fictícias foram totalmente removidas. Para exibir estritamente as matérias do seu perfil real do AVA IFES, clique em <span className="text-[#10b981] font-semibold">Sincronizar via API</span> ou utilize o botão <span className="text-[#10b981] font-semibold">Gerenciar Matérias</span>.
+                <h3 className="text-base font-bold text-[var(--app-text)]">Nenhuma matéria sincronizada no momento</h3>
+                <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
+                  Todas as matérias fictícias foram totalmente removidas. Para exibir estritamente as matérias do seu perfil real do AVA IFES, clique em <span className="text-[var(--app-primary)] font-semibold">Sincronizar via API</span> ou utilize o botão <span className="text-[var(--app-primary)] font-semibold">Gerenciar Matérias</span>.
                 </p>
               </div>
               <div className="flex justify-center gap-3">
                 <button
                   onClick={() => setAvaSubTab("connection")}
-                  className="px-5 py-2.5 bg-[#10b981] hover:bg-[#059669] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-lg shadow-[#10b981]/20 cursor-pointer"
+                  className="px-5 py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" /> Sincronizar via API Moodle
                 </button>
@@ -632,15 +632,15 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 return (
                   <div
                     key={course.id}
-                    className="bg-[#141414] border border-white/5 hover:border-white/20 rounded-2xl p-5 transition space-y-4 flex flex-col justify-between group"
+                    className="bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/40 rounded-2xl p-5 transition space-y-4 flex flex-col justify-between group"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-neutral-400 bg-white/5 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-mono text-[var(--app-text-muted)] bg-[var(--app-card-secondary)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
                           {course.code}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#e2ff31] font-mono">
+                          <span className="text-xs font-bold text-[var(--app-primary)] font-mono">
                             {singleProgress}%
                           </span>
                           <button
@@ -650,7 +650,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                                 handleDeleteCourse(course.id);
                               }
                             }}
-                            className="p-1 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition cursor-pointer"
+                            className="p-1 text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                             title={`Excluir ${course.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -658,24 +658,24 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                         </div>
                       </div>
 
-                      <h4 className="text-base font-bold text-white group-hover:text-[#10b981] transition">
+                      <h4 className="text-base font-bold text-[var(--app-text)] group-hover:text-[var(--app-primary)] transition">
                         {course.name}
                       </h4>
-                      <p className="text-xs text-neutral-400 flex items-center gap-1.5">
-                        <GraduationCap className="w-3.5 h-3.5 text-[#10b981]" />
+                      <p className="text-xs text-[var(--app-text-muted)] flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-[var(--app-primary)]" />
                         {course.professor}
                       </p>
                     </div>
 
-                    <div className="space-y-3 pt-2 border-t border-white/5">
+                    <div className="space-y-3 pt-2 border-t border-[var(--app-border)]">
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-neutral-400">
+                        <div className="flex justify-between text-[10px] text-[var(--app-text-muted)]">
                           <span>Conclusão no AVA</span>
                           <span>{singleProgress}%</span>
                         </div>
-                        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-[var(--app-card-secondary)] rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#10b981] rounded-full transition-all duration-500"
+                            className="h-full bg-[var(--app-primary)] rounded-full transition-all duration-500"
                             style={{ width: `${singleProgress}%` }}
                           />
                         </div>
@@ -684,7 +684,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                       <div className="space-y-2">
                         <button
                           onClick={() => setSelectedCourseRoom(course)}
-                          className="w-full py-2.5 bg-[#10b981] hover:bg-[#059669] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-[#10b981]/15 cursor-pointer"
+                          className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-[var(--app-primary)]/15 cursor-pointer"
                         >
                           <LogIn className="w-4 h-4" />
                           <span>Entrar na Sala da Matéria</span>
@@ -693,18 +693,18 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                         <div className="flex gap-2">
                           <button
                             onClick={() => onGenerateQuizFromTopic(`${course.name} (${course.code})`)}
-                            className="flex-1 py-2 bg-[#1a1a1a] hover:bg-[#242424] text-neutral-200 hover:text-white border border-white/10 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                            className="flex-1 py-2 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
                             title="Gera 10 questões e flashcards com base no conteúdo desta disciplina"
                           >
-                            <Sparkles className="w-3.5 h-3.5 text-[#e2ff31]" /> 10 Questões
+                            <Sparkles className="w-3.5 h-3.5 text-[var(--app-primary)]" /> 10 Questões
                           </button>
 
                           <button
                             onClick={() => onOpenSocraticWithTopic(`${course.name} (${course.code})`)}
-                            className="p-2 bg-[#1a1a1a] hover:bg-[#242424] text-neutral-300 hover:text-white border border-white/10 rounded-xl transition cursor-pointer"
+                            className="p-2 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl transition cursor-pointer"
                             title="Tutoria Socrática desta disciplina"
                           >
-                            <Brain className="w-4 h-4 text-[#10b981]" />
+                            <Brain className="w-4 h-4 text-[var(--app-primary)]" />
                           </button>
                         </div>
                       </div>
@@ -722,20 +722,20 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
         <div className="space-y-4 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#10b981]" />
-              <h2 className="text-lg font-bold text-white tracking-tight">
+              <Calendar className="w-5 h-5 text-[var(--app-primary)]" />
+              <h2 className="text-lg font-bold text-[var(--app-text)] tracking-tight">
                 Tarefas & Questionários do AVA Moodle
               </h2>
             </div>
 
             {/* Filter Pills */}
-            <div className="flex flex-wrap gap-1.5 bg-[#141414] p-1 rounded-xl border border-white/5 text-xs font-semibold">
+            <div className="flex flex-wrap gap-1.5 bg-[var(--app-card-secondary)] p-1 rounded-xl border border-[var(--app-border)] text-xs font-semibold">
               <button
                 onClick={() => setActiveFilter("all")}
                 className={`px-3 py-1 rounded-lg transition cursor-pointer ${
                   activeFilter === "all"
-                    ? "bg-white/10 text-white font-bold"
-                    : "text-neutral-400 hover:text-white"
+                    ? "bg-[var(--app-card)] text-[var(--app-text)] font-bold shadow-xs border border-[var(--app-border)]"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
                 }`}
               >
                 Todas ({assignments.length})
@@ -775,10 +775,10 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
 
           <div className="space-y-3">
             {filteredAssignments.length === 0 ? (
-              <div className="p-10 text-center bg-[#141414] border border-white/5 rounded-3xl space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                <p className="text-sm font-bold text-white">Nenhuma atividade com este filtro</p>
-                <p className="text-xs text-neutral-400">Você está em dia com os prazos selecionados!</p>
+              <div className="p-10 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-[var(--app-success)] mx-auto" />
+                <p className="text-sm font-bold text-[var(--app-text)]">Nenhuma atividade com este filtro</p>
+                <p className="text-xs text-[var(--app-text-muted)]">Você está em dia com os prazos selecionados!</p>
               </div>
             ) : (
               filteredAssignments.map((assign) => {
@@ -789,16 +789,16 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 return (
                   <div
                     key={assign.id}
-                    className={`bg-[#141414] rounded-2xl border p-5 transition space-y-3 ${
+                    className={`bg-[var(--app-card)] rounded-2xl border p-5 transition space-y-3 ${
                       isUrgent
                         ? "border-red-500/30 bg-red-950/10 hover:border-red-500/50"
-                        : "border-white/5 hover:border-white/20"
+                        : "border-[var(--app-border)] hover:border-[var(--app-primary)]/30"
                     }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-[#10b981] uppercase tracking-wider">
+                          <span className="text-[11px] font-bold text-[var(--app-primary)] uppercase tracking-wider">
                             {assign.courseName}
                           </span>
                           {isUrgent ? (
@@ -806,51 +806,51 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                               <AlertTriangle className="w-3 h-3" /> Prazo Iminente ({diffDays}d)
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 bg-white/5 text-neutral-300 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-neutral-400" /> Entrega em {diffDays}d
+                            <span className="px-2 py-0.5 bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] border border-[var(--app-border)] rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-[var(--app-text-muted)]" /> Entrega em {diffDays}d
                             </span>
                           )}
                         </div>
-                        <h3 className="text-base font-bold text-white">{assign.title}</h3>
+                        <h3 className="text-base font-bold text-[var(--app-text)]">{assign.title}</h3>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-mono font-bold text-neutral-300">
+                        <span className="text-xs font-mono font-bold text-[var(--app-text-muted)]">
                           {assign.weight}
                         </span>
-                        <p className="text-[11px] text-neutral-400">
+                        <p className="text-[11px] text-[var(--app-text-muted)]">
                           Entrega: {dueDateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às{" "}
                           {dueDateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                     </div>
 
-                    <p className="text-xs text-neutral-400 leading-relaxed">
+                    <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
                       {assign.description}
                     </p>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--app-border)]">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSubmissionModalAssignment(assign)}
-                          className="px-3.5 py-1.5 bg-[#10b981] hover:bg-[#059669] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-md shadow-[#10b981]/20 cursor-pointer"
+                          className="px-3.5 py-1.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
                         >
                           <FileText className="w-3.5 h-3.5" /> Entregar no AVA IFES
                         </button>
 
                         <button
                           onClick={() => onGenerateQuizFromTopic(`${assign.courseName} - ${assign.title}`)}
-                          className="px-3.5 py-1.5 bg-[#e2ff31] hover:bg-[#d4f220] text-black rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-[#e2ff31]/10 cursor-pointer"
+                          className="px-3.5 py-1.5 bg-[var(--app-primary)]/20 hover:bg-[var(--app-primary)]/30 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                           title="Gera 10 questões e flashcards para treinar esta tarefa"
                         >
-                          <Zap className="w-3.5 h-3.5 fill-black" /> Gerar 10 Questões
+                          <Zap className="w-3.5 h-3.5 fill-[var(--app-primary)]" /> Gerar 10 Questões
                         </button>
 
                         <button
                           onClick={() => onOpenSocraticWithTopic(`${assign.courseName}: ${assign.title}`)}
-                          className="px-3.5 py-1.5 bg-[#1f1f1f] hover:bg-[#282828] text-white border border-white/10 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                          className="px-3.5 py-1.5 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                         >
-                          <Brain className="w-3.5 h-3.5 text-[#e2ff31]" /> Estudo Socrático
+                          <Brain className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Estudo Socrático
                         </button>
                       </div>
 
@@ -859,7 +859,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                           href={assign.link}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 font-medium transition"
+                          className="text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] flex items-center gap-1 font-medium transition"
                         >
                           Abrir no AVA IFES <ExternalLink className="w-3 h-3" />
                         </a>
@@ -893,30 +893,30 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
 
       {/* SUB-TAB 6: CONEXÃO API & CONFIGURAÇÕES */}
       {avaSubTab === "connection" && (
-        <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 space-y-5 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-6 space-y-5 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-4">
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[#10b981]" />
+              <h3 className="text-base font-bold text-[var(--app-text)] flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[var(--app-primary)]" />
                 Conexão Direta com a API WebService do Moodle IFES
               </h3>
-              <p className="text-xs text-neutral-400 mt-0.5">
+              <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
                 Autenticação direta com os servidores oficiais do Instituto Federal do Espírito Santo
               </p>
             </div>
-            <span className="text-xs text-[#10b981] font-mono">+150 XP de Bônus</span>
+            <span className="text-xs text-[var(--app-primary)] font-mono">+150 XP de Bônus</span>
           </div>
 
           <form onSubmit={handleLoginIfes} className="space-y-4 pt-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#10b981]" /> Selecione seu Campus / AVA IFES
+                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Selecione seu Campus / AVA IFES
                 </label>
                 <select
                   value={selectedCampusPreset}
                   onChange={(e) => handleCampusPresetChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] transition cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition cursor-pointer"
                 >
                   {CAMPUS_OPTIONS.map((c) => (
                     <option key={c.url} value={c.url}>
@@ -927,7 +927,7 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
                   URL do Moodle
                 </label>
                 <input
@@ -935,19 +935,19 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                   value={campusUrl}
                   onChange={(e) => setCampusUrl(e.target.value)}
                   placeholder="https://ava3.cefor.ifes.edu.br"
-                  className="w-full px-3.5 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] font-mono transition"
+                  className="w-full px-3.5 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono transition"
                 />
               </div>
             </div>
 
-            <div className="flex gap-2 p-1 bg-[#1a1a1a] rounded-xl border border-white/5 w-fit">
+            <div className="flex gap-2 p-1 bg-[var(--app-card-secondary)] rounded-xl border border-[var(--app-border)] w-fit">
               <button
                 type="button"
                 onClick={() => setAuthMode("credentials")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   authMode === "credentials"
-                    ? "bg-[#10b981] text-black"
-                    : "text-neutral-400 hover:text-white"
+                    ? "bg-[var(--app-primary)] text-white shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
                 }`}
               >
                 <User className="w-3.5 h-3.5" /> Matrícula / CPF e Senha
@@ -957,8 +957,8 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 onClick={() => setAuthMode("token")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   authMode === "token"
-                    ? "bg-[#10b981] text-black"
-                    : "text-neutral-400 hover:text-white"
+                    ? "bg-[var(--app-primary)] text-white shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
                 }`}
               >
                 <Key className="w-3.5 h-3.5" /> Token Moodle (WebServices)
@@ -968,38 +968,38 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
             {authMode === "credentials" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
                     Usuário / Matrícula / CPF
                   </label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
+                    <User className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
                     <input
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Ex: 20241IFES0482 ou seu usuário"
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] transition font-mono"
+                      className="w-full pl-10 pr-4 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition font-mono"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
                     Senha do AVA IFES
                   </label>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
+                    <Lock className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Sua senha institucional"
-                      className="w-full pl-10 pr-10 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] transition"
+                      className="w-full pl-10 pr-10 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-neutral-400 hover:text-white cursor-pointer"
+                      className="absolute right-3 top-3 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -1008,32 +1008,32 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">
+                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
                   Chave Token de Acesso WebService Moodle
                 </label>
                 <div className="relative">
-                  <Key className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
+                  <Key className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
                   <input
                     type="text"
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     placeholder="Cole seu token Moodle gerado em Preferências > Chaves de Segurança"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-[#10b981] font-mono transition"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono transition"
                   />
                 </div>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-white/5">
-              <div className="text-[11px] text-neutral-400 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-[#10b981]" />
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-[var(--app-border)]">
+              <div className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[var(--app-primary)]" />
                 Conexão criptografada direta com a API do Moodle IFES.
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full sm:w-auto px-6 py-3 bg-[#10b981] hover:bg-[#059669] text-black font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-[#10b981]/20 disabled:opacity-50 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-[var(--app-primary)]/20 disabled:opacity-50 cursor-pointer"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
                 {isLoading ? "Autenticando no IFES..." : "Entrar e Sincronizar AVA IFES"}

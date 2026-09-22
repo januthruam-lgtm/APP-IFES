@@ -1,8 +1,12 @@
 import { UserProfile, UserPet, CourseDefinition } from "../types";
 
 export const INITIAL_PET: UserPet = {
-  name: "Corujinha Byte",
+  id: "coruja",
+  activePetId: "coruja",
+  name: "Coruja Erudita",
   type: "owl",
+  customSpeciesName: "Coruja Erudita",
+  customSpeciesEmoji: "🦉",
   level: 1,
   exp: 0,
   experience: 0,
@@ -13,7 +17,7 @@ export const INITIAL_PET: UserPet = {
   totalMeals: 3,
   lastFedTimestamp: new Date().toISOString(),
   lastFed: new Date().toISOString(),
-  unlockedPets: ["owl", "bunny"],
+  unlockedPets: ["coruja"],
 };
 
 export function createBlankUser(name?: string, email?: string): UserProfile {

@@ -80,6 +80,59 @@
         "createdAt": { "type": "number" }
       },
       "required": ["id", "equipeId", "autorId", "autorNome", "conteudo", "createdAt"]
+    },
+    "Saldo": {
+      "title": "Saldo",
+      "description": "Saldo econômico atômico do aluno (moedas, XP e nível)",
+      "type": "object",
+      "properties": {
+        "moedas": { "type": "number" },
+        "xp": { "type": "number" },
+        "nivel": { "type": "number" },
+        "atualizadoEm": { "type": "number" }
+      },
+      "required": ["moedas", "xp", "nivel", "atualizadoEm"]
+    },
+    "PetUsuario": {
+      "title": "PetUsuario",
+      "description": "Pet acadêmico ativo equipado e pets desbloqueados pelo aluno",
+      "type": "object",
+      "properties": {
+        "petAtivo": { "type": "object" },
+        "petsDesbloqueados": { "type": "array" },
+        "atualizadoEm": { "type": "number" }
+      },
+      "required": ["petAtivo", "petsDesbloqueados", "atualizadoEm"]
+    },
+    "Boletim": {
+      "title": "Boletim",
+      "description": "Boletim escolar oficial semestral extraído do Q-Acadêmico",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "matricula": { "type": "string" },
+        "nome": { "type": "string" },
+        "curso": { "type": "string" },
+        "campus": { "type": "string" },
+        "periodo": { "type": "string" },
+        "disciplinas": { "type": "array" },
+        "schedules": { "type": "array" },
+        "sincronizadoEm": { "type": "number" },
+        "dataFormatada": { "type": "string" }
+      },
+      "required": ["uid", "matricula", "disciplinas", "sincronizadoEm"]
+    },
+    "CredenciaisQAcademico": {
+      "title": "CredenciaisQAcademico",
+      "description": "Matrícula armazenada para facilitar re-sincronização (SEM SENHA)",
+      "type": "object",
+      "properties": {
+        "matricula": { "type": "string" },
+        "campus": { "type": "string" },
+        "lastSync": { "type": "number" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["matricula", "lastSync"]
     }
   },
   "firestore": {
@@ -106,6 +159,22 @@
     "/equipes/{equipeId}/mensagens/{mensagemId}": {
       "schema": "MensagemEquipe",
       "description": "Fórum em tempo real da equipe"
+    },
+    "/saldos/{uid}": {
+      "schema": "Saldo",
+      "description": "Saldos atômicos de moedas e XP do aluno"
+    },
+    "/petsUsuario/{uid}": {
+      "schema": "PetUsuario",
+      "description": "Pet ativo e inventário de mascotes do aluno"
+    },
+    "/boletins/{uid}": {
+      "schema": "Boletim",
+      "description": "Boletim real semestral do estudante"
+    },
+    "/credenciaisQAcademico/{uid}": {
+      "schema": "CredenciaisQAcademico",
+      "description": "Matrícula do aluno sem senha"
     },
     "/users/{uid}/credentials/{credType}": {
       "schema": { "$ref": "#/entities/Presenca" },

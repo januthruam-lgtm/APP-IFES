@@ -554,11 +554,13 @@ export function subscribeTeamForumMessages(
 // ==========================================
 // 5. SEPARATE CREDENTIALS STORE
 // ==========================================
+import { encryptPassword, decryptPassword } from "../utils/cryptoUtils";
+
 export interface StoredQAcademicoCreds {
   matricula: string;
-  senha?: string;
   campus?: string;
-  lastUpdated: number;
+  lastSync?: number;
+  lastUpdated?: number;
 }
 
 export interface StoredMoodleCreds {
@@ -569,18 +571,30 @@ export interface StoredMoodleCreds {
   lastUpdated: number;
 }
 
+/**
+ * Salva apenas a matrícula e campus em credenciaisQAcademico/{uid}.
+ * A SENHA NUNCA É SALVA NO BANCO (nem em texto puro, nem criptografada).
+ */
 export async function saveUserQAcademicoCreds(uid: string, creds: StoredQAcademicoCreds) {
   try {
-    const ref = doc(db, "users", uid, "credentials", "qacademico");
-    await setDoc(ref, { ...creds, lastUpdated: Date.now() });
+    const ref = doc(db, "credenciaisQAcademico", uid);
+    await setDoc(ref, {
+      matricula: creds.matricula.trim(),
+      campus: creds.campus || "IFES",
+      lastSync: Date.now(),
+      lastUpdated: Date.now(),
+    });
   } catch (err) {
     console.warn("[Firebase Creds] Save Q-Acadêmico error:", err);
   }
 }
 
+/**
+ * Recupera apenas a matrícula armazenada para facilitar a próxima sincronização.
+ */
 export async function getUserQAcademicoCreds(uid: string): Promise<StoredQAcademicoCreds | null> {
   try {
-    const ref = doc(db, "users", uid, "credentials", "qacademico");
+    const ref = doc(db, "credenciaisQAcademico", uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       return snap.data() as StoredQAcademicoCreds;
@@ -592,10 +606,52 @@ export async function getUserQAcademicoCreds(uid: string): Promise<StoredQAcadem
   }
 }
 
+/**
+ * Escuta em tempo real o boletim oficial real armazenado em boletins/{uid}
+ */
+export function subscribeBoletim(
+  uid: string,
+  onUpdate: (boletim: any | null) => void
+): () => void {
+  const ref = doc(db, "boletins", uid);
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (snap.exists()) {
+        onUpdate(snap.data());
+      } else {
+        onUpdate(null);
+      }
+    },
+    (err) => {
+      console.warn("[Firebase Boletim] Erro ao carregar boletim:", err);
+      onUpdate(null);
+    }
+  );
+}
+
+/**
+ * Grava o boletim estruturado no Firestore em boletins/{uid}
+ */
+export async function saveBoletim(uid: string, data: any): Promise<void> {
+  const ref = doc(db, "boletins", uid);
+  await setDoc(ref, data, { merge: true });
+}
+
 export async function saveUserMoodleCreds(uid: string, creds: StoredMoodleCreds) {
   try {
     const ref = doc(db, "users", uid, "credentials", "moodle");
-    await setDoc(ref, { ...creds, lastUpdated: Date.now() });
+    let encryptedPass = "";
+    if (creds.password) {
+      encryptedPass = await encryptPassword(creds.password, uid);
+    }
+    await setDoc(ref, {
+      username: creds.username,
+      password: encryptedPass,
+      campusUrl: creds.campusUrl,
+      token: creds.token || "",
+      lastUpdated: Date.now(),
+    });
   } catch (err) {
     console.warn("[Firebase Creds] Save Moodle error:", err);
   }
@@ -606,7 +662,15 @@ export async function getUserMoodleCreds(uid: string): Promise<StoredMoodleCreds
     const ref = doc(db, "users", uid, "credentials", "moodle");
     const snap = await getDoc(ref);
     if (snap.exists()) {
-      return snap.data() as StoredMoodleCreds;
+      const data = snap.data() as StoredMoodleCreds;
+      let decryptedPass = "";
+      if (data.password) {
+        decryptedPass = await decryptPassword(data.password, uid);
+      }
+      return {
+        ...data,
+        password: decryptedPass,
+      };
     }
     return null;
   } catch (err) {

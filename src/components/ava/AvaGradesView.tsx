@@ -33,32 +33,10 @@ export const AvaGradesView: React.FC<AvaGradesViewProps> = ({ courses, user }) =
       );
       if (Array.isArray(data) && data.length > 0) {
         setGrades(data);
+      } else if (data && Array.isArray(data.grades) && data.grades.length > 0) {
+        setGrades(data.grades);
       } else {
-        // Compute from current courses
-        const defaultGrades = courses.map((c) => {
-          const progress = c.progressPercent || 0;
-          const score = Number((progress * 0.9 + 10).toFixed(1));
-          let status = "Em Andamento";
-          if (score >= 60) status = "Aprovado";
-          else if (score >= 20) status = "Exame Final";
-          else status = "Abaixo da Média";
-
-          return {
-            courseId: c.id,
-            courseName: c.name,
-            courseCode: c.code,
-            grade: score,
-            maxGrade: 100,
-            weight: "100%",
-            status,
-            feedback: score >= 60 ? "Rendimento satisfatório nas avaliações do AVA." : "Acompanhe os prazos para atingir a média 60.",
-            items: [
-              { name: "Atividades Práticas e Tarefas Online", grade: Number((score * 0.4).toFixed(1)), max: 40 },
-              { name: "Questionários Diagnósticos & Provas", grade: Number((score * 0.6).toFixed(1)), max: 60 },
-            ],
-          };
-        });
-        setGrades(defaultGrades);
+        setGrades([]);
       }
     } catch (e) {
       console.warn("Erro ao buscar boletim de notas:", e);

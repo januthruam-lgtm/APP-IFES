@@ -276,7 +276,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                     Credenciais AVA Moodle IFES
                   </h4>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
                   Moodle Oficial
                 </span>
               </div>
@@ -366,7 +366,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                     Credenciais Q-Acadêmico IFES
                   </h4>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-500/10 text-[var(--app-primary)] border border-indigo-500/20">
+                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
                   Boletim & Histórico
                 </span>
               </div>
@@ -435,18 +435,18 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleInviteFriends}
-                  className="w-full py-2.5 px-3 bg-[#0d1127] hover:bg-[#151c3d] text-[#00f0ff] border border-[#00f0ff]/40 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95"
+                  className="w-full py-2.5 px-3 bg-[var(--app-primary)]/10 hover:bg-[var(--app-primary)]/20 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
                 >
-                  <Share2 className="w-4 h-4 text-[#00f0ff]" />
+                  <Share2 className="w-4 h-4 text-[var(--app-primary)]" />
                   <span>{inviteCopiedToast ? "Link Copiado!" : "Convidar Amigos"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleFullReset}
-                  className="w-full py-2.5 px-3 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  className="w-full py-2.5 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <RotateCcw className="w-4 h-4 text-red-400" />
+                  <RotateCcw className="w-4 h-4 text-rose-500" />
                   <span>Resetar Aplicativo</span>
                 </button>
               </div>
@@ -463,7 +463,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                       onClose();
                     }
                   }}
-                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Limpar Matérias</span>

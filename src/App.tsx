@@ -48,6 +48,7 @@ import {
   clearAllSyncedAcademicData,
   purgeAnyFictitiousCourses,
 } from "./utils/courseSync";
+import { purgeMockQAcademicoGrades } from "./utils/qacademicoStorage";
 import { speakText, stopSpeaking } from "./utils/speech";
 import {
   seedDefaultOfflineCache,
@@ -57,6 +58,16 @@ import {
 } from "./utils/indexedDB";
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
 import confetti from "canvas-confetti";
+import {
+  subscribeBalance,
+  creditCoins,
+  debitCoins,
+  creditXp,
+} from "./features/gamificacao/economyService";
+import {
+  subscribeUserPet,
+  equipUserPet,
+} from "./features/gamificacao/petService";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -68,6 +79,7 @@ export default function App() {
 
   // Purge any fictitious/mock courses immediately on mount so only real IFES data exists
   useEffect(() => {
+    purgeMockQAcademicoGrades();
     const { courses: realCourses } = purgeAnyFictitiousCourses();
     setIfesCourses(realCourses);
     const tracks = convertIfesCoursesToTracks(realCourses);
@@ -133,8 +145,8 @@ export default function App() {
       icon: "📚",
       category: "Geral",
       description: "Faça login com sua matrícula IFES para carregar suas matérias.",
-      color: "#5D5CDE",
-      accentBg: "rgba(93, 92, 222, 0.15)",
+      color: "var(--app-primary)",
+      accentBg: "var(--app-card-secondary)",
       tags: [],
       modules: [],
     };
@@ -232,6 +244,46 @@ export default function App() {
     };
   }, []);
 
+  // Synchronize coins, XP and level with Firestore saldos/{uid} and petsUsuario/{uid}
+  useEffect(() => {
+    const userId = user.email || user.name || "aluno_ifes";
+
+    const unsubscribeBalance = subscribeBalance(userId, (balance) => {
+      setUser((prev) => {
+        if (
+          prev.coins === balance.moedas &&
+          prev.xp === balance.xp &&
+          prev.level === balance.nivel
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          coins: balance.moedas,
+          xp: balance.xp,
+          level: balance.nivel,
+        };
+      });
+    });
+
+    const unsubscribePet = subscribeUserPet(userId, (activePet) => {
+      setUser((prev) => {
+        if (prev.pet?.id === activePet.id && prev.pet?.name === activePet.name) {
+          return prev;
+        }
+        return {
+          ...prev,
+          pet: activePet,
+        };
+      });
+    });
+
+    return () => {
+      unsubscribeBalance();
+      unsubscribePet();
+    };
+  }, [user.email, user.name]);
+
   // Sync courses whenever updated via CustomEvent or function
   const handleUpdateCourses = useCallback((newIfesCourses: IfesCourse[]) => {
     setIfesCourses(newIfesCourses);
@@ -262,8 +314,8 @@ export default function App() {
         icon: "📚",
         category: "Geral",
         description: "Importe suas matérias do AVA IFES.",
-        color: "#5D5CDE",
-        accentBg: "rgba(93, 92, 222, 0.15)",
+        color: "var(--app-primary)",
+        accentBg: "var(--app-card-secondary)",
         tags: [],
         modules: [],
       };
@@ -282,8 +334,8 @@ export default function App() {
       icon: "📚",
       category: "Geral",
       description: "Importe suas matérias do AVA IFES.",
-      color: "#5D5CDE",
-      accentBg: "rgba(93, 92, 222, 0.15)",
+      color: "var(--app-primary)",
+      accentBg: "var(--app-card-secondary)",
       tags: [],
       modules: [],
     });
@@ -319,8 +371,8 @@ export default function App() {
           icon: "📚",
           category: "Geral",
           description: "Importe suas matérias do AVA IFES.",
-          color: "#5D5CDE",
-          accentBg: "rgba(93, 92, 222, 0.15)",
+          color: "var(--app-primary)",
+          accentBg: "var(--app-card-secondary)",
           tags: [],
           modules: [],
         };
@@ -414,6 +466,9 @@ export default function App() {
   };
 
   const handleRewardXp = (amount: number) => {
+    const userId = user.email || user.name || "aluno_ifes";
+    creditXp(userId, amount, "Progresso Acadêmico").catch(console.warn);
+
     setUser((prev) => {
       const newXp = Math.max(0, prev.xp + amount);
       const newLevel = Math.floor(newXp / 500) + 1;
@@ -426,6 +481,9 @@ export default function App() {
   };
 
   const handleRewardCoins = (amount: number) => {
+    const userId = user.email || user.name || "aluno_ifes";
+    creditCoins(userId, amount, "Recompensa de Moedas").catch(console.warn);
+
     setUser((prev) => ({
       ...prev,
       coins: Math.max(0, (prev.coins ?? 250) + amount),
@@ -437,6 +495,10 @@ export default function App() {
       alert("⚡ Energia insuficiente! Visite a Loja para comprar uma Poção de Energia (🪙 50).");
       return;
     }
+    const userId = user.email || user.name || "aluno_ifes";
+    creditCoins(userId, 30, "Sessão de estudos AVA").catch(console.warn);
+    creditXp(userId, 25, "Sessão de estudos AVA").catch(console.warn);
+
     setUser((prev) => {
       const newCoins = (prev.coins ?? 250) + 30;
       const newXp = prev.xp + 25;
@@ -485,6 +547,9 @@ export default function App() {
     if ((user.coins ?? 0) < cost) {
       return false;
     }
+    const userId = user.email || user.name || "aluno_ifes";
+    debitCoins(userId, cost, "Upgrade Permanente de Energia").catch(console.warn);
+
     setUser((prev) => {
       const currentMax = prev.maxEnergy || 50;
       const newMax = currentMax + 10;
@@ -525,6 +590,9 @@ export default function App() {
     if ((user.coins ?? 0) < price) {
       return false;
     }
+    const userId = user.email || user.name || "aluno_ifes";
+    debitCoins(userId, price, `Emblema: ${badgeId}`).catch(console.warn);
+
     setUser((prev) => ({
       ...prev,
       coins: Math.max(0, (prev.coins ?? 0) - price),
@@ -658,8 +726,8 @@ export default function App() {
       icon: "📚",
       category: "Geral",
       description: "Faça login com sua matrícula IFES para carregar suas matérias.",
-      color: "#5D5CDE",
-      accentBg: "rgba(93, 92, 222, 0.15)",
+      color: "var(--app-primary)",
+      accentBg: "var(--app-card-secondary)",
       tags: [],
       modules: [],
     });

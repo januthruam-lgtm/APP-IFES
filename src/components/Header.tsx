@@ -253,16 +253,16 @@ export const Header: React.FC<HeaderProps> = ({
           <div
             className="w-full rounded-t-3xl sm:rounded-b-3xl border-t sm:border shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             style={{
-              backgroundColor: "var(--app-card, #1e293b)",
-              color: "var(--app-text, #f8fafc)",
-              borderColor: "var(--app-border, rgba(255, 255, 255, 0.15))",
+              backgroundColor: "var(--app-card)",
+              color: "var(--app-text)",
+              borderColor: "var(--app-border)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Apenas a Logo do app e o botão fechar X */}
             <div
               className="flex justify-between items-center pb-3 border-b"
-              style={{ borderColor: "var(--app-border, rgba(255, 255, 255, 0.12))" }}
+              style={{ borderColor: "var(--app-border)" }}
             >
               <div className="flex items-center gap-2.5">
                 <img
@@ -275,7 +275,7 @@ export const Header: React.FC<HeaderProps> = ({
                 />
                 <span
                   className="text-xs font-black tracking-wider uppercase font-mono"
-                  style={{ color: "var(--app-primary, #6366f1)" }}
+                  style={{ color: "var(--app-primary)" }}
                 >
                   Navegação
                 </span>
@@ -284,9 +284,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-2 rounded-xl cursor-pointer border active:scale-95 transition"
                 style={{
-                  backgroundColor: "var(--app-bg, #0f172a)",
-                  color: "var(--app-text, #f8fafc)",
-                  borderColor: "var(--app-border, rgba(255, 255, 255, 0.15))",
+                  backgroundColor: "var(--app-bg)",
+                  color: "var(--app-text)",
+                  borderColor: "var(--app-border)",
                 }}
                 aria-label="Fechar menu"
               >
@@ -312,12 +312,12 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     style={{
                       backgroundColor: active
-                        ? "var(--app-primary, #6366f1)"
-                        : "var(--app-bg, #0f172a)",
-                      color: active ? "#ffffff" : "var(--app-text, #f8fafc)",
+                        ? "var(--app-primary)"
+                        : "var(--app-bg)",
+                      color: active ? "var(--btn-primary-text)" : "var(--app-text)",
                       borderColor: active
-                        ? "var(--app-primary, #6366f1)"
-                        : "var(--app-border, rgba(255, 255, 255, 0.18))",
+                        ? "var(--app-primary)"
+                        : "var(--app-border)",
                     }}
                     className={`flex items-center gap-2.5 p-3 rounded-2xl text-xs font-extrabold transition-all select-none cursor-pointer border shadow-sm active:scale-95 ${
                       active ? "shadow-md ring-2 ring-[var(--app-primary)]/40" : "hover:brightness-110"
@@ -325,7 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Icon
                       className="w-4 h-4 shrink-0"
-                      style={{ color: active ? "#ffffff" : "var(--app-primary, #6366f1)" }}
+                      style={{ color: active ? "var(--btn-primary-text)" : "var(--app-primary)" }}
                     />
                     <span className="truncate">{t.label}</span>
                   </button>
@@ -340,13 +340,13 @@ export const Header: React.FC<HeaderProps> = ({
                   setMobileMenuOpen(false);
                 }}
                 style={{
-                  backgroundColor: "var(--app-bg, #0f172a)",
-                  color: "var(--app-text, #f8fafc)",
-                  borderColor: "var(--app-border, rgba(255, 255, 255, 0.18))",
+                  backgroundColor: "var(--app-bg)",
+                  color: "var(--app-text)",
+                  borderColor: "var(--app-border)",
                 }}
                 className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
-                <Settings className="w-4 h-4" style={{ color: "var(--app-primary, #6366f1)" }} />
+                <Settings className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
                 <span>Editar Matrícula & Perfil</span>
               </button>
             )}

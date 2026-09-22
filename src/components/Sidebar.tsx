@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Organizador de Tarefas",
           icon: ListTodo,
           badge: "Foco",
-          badgeColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+          badgeColor: "text-[var(--app-accent)] bg-[var(--app-accent)]/10 border-[var(--app-accent)]/20",
         },
         {
           id: "agenda" as TabId,
@@ -101,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Grupo de Estudos Virtual",
           icon: Video,
           badge: "Ao Vivo",
-          badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+          badgeColor: "text-[var(--app-success)] bg-[var(--app-success)]/10 border-[var(--app-success)]/20",
         },
       ],
     },
@@ -113,8 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "AVA Moodle IFES",
           badge: user.ifesAccount?.connected ? "Sincronizado" : "Conectar",
           badgeColor: user.ifesAccount?.connected
-            ? "text-emerald-700 bg-emerald-100 border-emerald-300"
-            : "text-amber-700 bg-amber-100 border-amber-300",
+            ? "text-[var(--app-success)] bg-[var(--app-success)]/10 border-[var(--app-success)]/30"
+            : "text-amber-600 bg-amber-500/10 border-amber-500/30",
           icon: Building2,
         },
         {
@@ -122,8 +122,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: "Q-Acadêmico IFES",
           badge: user.qacademicoAccount?.connected ? "Sincronizado" : "Boletim",
           badgeColor: user.qacademicoAccount?.connected
-            ? "text-blue-700 bg-blue-100 border-blue-300"
-            : "text-neutral-700 bg-neutral-100 border-neutral-300",
+            ? "text-[var(--app-primary)] bg-[var(--app-primary)]/10 border-[var(--app-primary)]/30"
+            : "text-[var(--app-text-muted)] bg-[var(--app-card-secondary)] border-[var(--app-border)]",
           icon: GraduationCap,
         },
         {
@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--app-primary)] font-black">
                 IFES CEFOR
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--app-success)]" />
             </div>
 
             <button
@@ -321,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex items-center justify-between text-[11px] px-2 text-[var(--app-text-muted)]">
           <div className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-amber-500"}`} />
+            <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-[var(--app-success)]" : "bg-amber-500"}`} />
             <span>{isOnline ? "Conectado IFES" : "Modo Offline"}</span>
           </div>
           <span className="font-mono text-[10px]">v3.2</span>
@@ -329,7 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition border border-transparent hover:border-red-200 cursor-pointer"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition border border-transparent hover:border-rose-500/20 cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Sair da Conta</span>

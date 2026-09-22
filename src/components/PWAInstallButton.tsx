@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, CheckCircle2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { PlayStoreInstallModal } from './PlayStoreInstallModal';
 
@@ -60,16 +60,16 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter') handleOpenPlayStore(); }}
-          className={`w-full flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-[#01875f]/20 via-[var(--app-primary)]/15 to-emerald-500/15 border-2 border-[#01875f]/50 hover:border-[#01875f] transition cursor-pointer text-left shadow-sm select-none ${className}`}
+          className={`w-full flex items-center justify-between p-3 rounded-2xl bg-[var(--app-primary)]/10 border-2 border-[var(--app-primary)]/40 hover:border-[var(--app-primary)] transition cursor-pointer text-left shadow-xs select-none ${className}`}
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#01875f] text-white flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[var(--app-primary)] text-white flex items-center justify-center shadow-xs shrink-0">
               <GooglePlayIcon className="w-4 h-4" />
             </div>
             <div>
               <div className="text-xs font-black text-[var(--app-text)] flex items-center gap-1.5">
                 <span>{isInstalled ? "App Instalado ✓" : "Baixar na Play Store"}</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] bg-[#01875f] text-white font-extrabold">PLAY</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-[var(--app-primary)] text-white font-extrabold">PLAY</span>
               </div>
               <div className="text-[10px] text-[var(--app-text-muted)]">
                 {isInstalled ? "Pronto no celular" : "Instalar como app nativo"}
@@ -94,7 +94,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
         <button
           onClick={handleOpenPlayStore}
           id="pwa-install-pill-btn"
-          className={`px-3 py-1.5 rounded-xl bg-[#01875f] hover:bg-[#017250] text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer ${className}`}
+          className={`px-3 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer ${className}`}
         >
           <GooglePlayIcon className="w-3.5 h-3.5" />
           <span>{isInstalled ? "Instalado ✓" : "Play Store"}</span>
@@ -112,15 +112,15 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
   if (variant === 'card') {
     return (
       <>
-        <div className="bg-[var(--app-bg)] border-2 border-[#01875f]/40 hover:border-[#01875f] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition shadow-xs">
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#191919] border border-neutral-700 text-white flex items-center justify-center shrink-0 shadow-md">
+            <div className="w-11 h-11 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-white flex items-center justify-center shrink-0 shadow-xs">
               <GooglePlayIcon className="w-6 h-6" />
             </div>
             <div>
               <h4 className="text-xs font-black text-[var(--app-text)] flex items-center gap-1.5">
                 <span>Instalar App do Brain Studio</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] bg-[#01875f] text-white font-bold">Google Play</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] bg-[var(--app-primary)] text-white font-bold">Google Play</span>
               </h4>
               <p className="text-[11px] text-[var(--app-text-muted)]">
                 Instale como um aplicativo do Play Store direto na tela do seu celular Android.
@@ -131,7 +131,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           <button
             onClick={handleOpenPlayStore}
             id="pwa-install-card-btn"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#01875f] hover:bg-[#017250] text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
           >
             <GooglePlayIcon className="w-4 h-4" />
             <span>{isInstalled ? "App Instalado (Abrir)" : "Instalar como no Play Store"}</span>
@@ -152,10 +152,10 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
       <button
         onClick={handleOpenPlayStore}
         id="pwa-install-header-btn"
-        className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-sm hover:scale-[1.03] active:scale-[0.97] transition cursor-pointer border ${
+        className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs hover:scale-[1.03] active:scale-[0.97] transition cursor-pointer border ${
           isInstalled
-            ? "bg-[#01875f]/15 text-[#01875f] border-[#01875f]/30 hover:bg-[#01875f]/25"
-            : "bg-[#01875f] hover:bg-[#017250] text-white border-transparent shadow-[#01875f]/30"
+            ? "bg-[var(--app-primary)]/15 text-[var(--app-primary)] border-[var(--app-primary)]/30 hover:bg-[var(--app-primary)]/25"
+            : "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white border-transparent"
         } ${className}`}
         title="Instalar Brain Studio no seu celular como app do Play Store"
       >

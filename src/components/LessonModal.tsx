@@ -204,7 +204,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         onRewardXp(15);
       }
     } catch (err) {
-      console.error("Erro verificando resposta socrática:", err);
+      console.warn("Aviso verificando resposta socrática:", err);
     } finally {
       setIsVerifyingNote(false);
     }
@@ -253,27 +253,27 @@ export const LessonModal: React.FC<LessonModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-[#111111] rounded-[2.5rem] shadow-2xl border border-white/10 w-full max-w-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] text-white">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[var(--app-card)] rounded-3xl shadow-2xl border border-[var(--app-border)] w-full max-w-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] text-[var(--app-text)]">
         
         {/* Header */}
-        <div className="p-5 sm:p-7 bg-[#161616] border-b border-white/5 flex justify-between items-center shrink-0">
+        <div className="p-5 sm:p-7 bg-[var(--app-card-secondary)] border-b border-[var(--app-border)] flex justify-between items-center shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold tracking-widest uppercase text-[#e2ff31] bg-[#e2ff31]/10 px-3 py-1 rounded-full border border-[#e2ff31]/20">
+              <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--app-primary)] bg-[var(--app-primary)]/10 px-3 py-1 rounded-full border border-[var(--app-primary)]/20">
                 {module.category} • Etapa {currentStepIndex + 1} de {module.lessons.length}
               </span>
               {currentStep.quizSubmitted && currentStep.isCorrect && (
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-[var(--app-success)]/10 text-[var(--app-success)] border border-[var(--app-success)]/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> Verificada
                 </span>
               )}
             </div>
-            <h3 className="text-lg sm:text-xl font-bold mt-2 text-white">{currentLesson.title}</h3>
+            <h3 className="text-lg sm:text-xl font-bold mt-2 text-[var(--app-text)]">{currentLesson.title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-white/5 rounded-full transition"
+            className="p-2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)] rounded-full transition cursor-pointer"
             title="Fechar"
           >
             <X className="w-6 h-6" />
@@ -281,8 +281,8 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         {/* Step Indicator Pills */}
-        <div className="px-6 py-2.5 bg-[#0e0e0e] border-b border-white/5 flex items-center gap-2 overflow-x-auto text-xs shrink-0">
-          <span className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider shrink-0">
+        <div className="px-6 py-2.5 bg-[var(--app-card-secondary)] border-b border-[var(--app-border)] flex items-center gap-2 overflow-x-auto text-xs shrink-0">
+          <span className="text-[10px] text-[var(--app-text-muted)] uppercase font-bold tracking-wider shrink-0">
             Etapas:
           </span>
           {module.lessons.map((les, idx) => {
@@ -300,20 +300,20 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                     setValidationWarning("Complete a etapa atual antes de pular para as seguintes.");
                   }
                 }}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+                className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   isCurrent
-                    ? "bg-[#e2ff31] text-black ring-2 ring-[#e2ff31]/40"
+                    ? "bg-[var(--app-primary)] text-white ring-2 ring-[var(--app-primary)]/40"
                     : isDone
-                    ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
-                    : "bg-[#181818] text-neutral-500 border border-white/5"
+                    ? "bg-[var(--app-success)]/20 text-[var(--app-success)] border border-[var(--app-success)]/30"
+                    : "bg-[var(--app-card)] text-[var(--app-text-muted)] border border-[var(--app-border)]"
                 }`}
               >
                 {isDone ? (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                  <CheckCircle2 className="w-3 h-3 text-[var(--app-success)]" />
                 ) : isCurrent ? (
-                  <span className="w-2 h-2 rounded-full bg-black animate-ping" />
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                 ) : (
-                  <Lock className="w-3 h-3 text-neutral-600" />
+                  <Lock className="w-3 h-3 text-[var(--app-text-muted)]" />
                 )}
                 <span>Etapa {idx + 1}</span>
               </button>
@@ -321,36 +321,35 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           })}
         </div>
 
-        {/* Modal Body */}
+        {/* Modal Scrollable Body */}
         <div className="p-5 sm:p-7 overflow-y-auto space-y-6 flex-1">
-          
-          {/* Validation Warning Alert */}
+          {/* Validation Error Alert Banner */}
           {validationWarning && (
-            <div className="p-4 bg-amber-950/70 border border-amber-500/50 rounded-2xl flex items-start gap-3 text-amber-200 text-xs sm:text-sm animate-pulse">
+            <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs sm:text-sm flex items-start gap-3 animate-in fade-in duration-200">
               <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-bold text-white">Verificação Obrigatória na Trilha</p>
-                <p className="mt-0.5 text-amber-100/90 leading-relaxed">{validationWarning}</p>
+                <p className="font-bold text-[var(--app-text)]">Verificação Obrigatória na Trilha</p>
+                <p className="mt-0.5 text-amber-200/90 leading-relaxed">{validationWarning}</p>
               </div>
             </div>
           )}
 
           {/* Theory / Concept Card */}
-          <div className="p-5 bg-[#161616] border border-white/5 rounded-2xl space-y-2">
-            <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
-              <BookOpen className="w-4 h-4 text-[#e2ff31]" />
+          <div className="p-5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-2">
+            <div className="flex items-center gap-2 text-[var(--app-text)] font-bold text-xs uppercase tracking-wider">
+              <BookOpen className="w-4 h-4 text-[var(--app-primary)]" />
               <span>Conceito Fundamental</span>
             </div>
-            <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-normal">
+            <p className="text-xs sm:text-sm text-[var(--app-text-muted)] leading-relaxed font-normal">
               {currentLesson.conceptText}
             </p>
           </div>
 
           {/* Socratic Reflection & Answer Verification Box */}
-          <div className="p-5 bg-[#181818] border border-white/10 rounded-2xl space-y-4">
+          <div className="p-5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-[#e2ff31]" />
+              <div className="flex items-center gap-2 text-[var(--app-text)] font-bold text-xs uppercase tracking-wider">
+                <Sparkles className="w-4 h-4 text-[var(--app-primary)]" />
                 <span>Reflexão e Síntese com Lumina</span>
               </div>
               <button
@@ -358,13 +357,13 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                   onAskLumina(currentLesson.socraticPrompt);
                   onClose();
                 }}
-                className="text-xs font-semibold text-[#e2ff31] hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-[var(--app-primary)] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 Debater no Chat Lumina ➔
               </button>
             </div>
 
-            <p className="text-xs sm:text-sm font-medium text-neutral-200 italic">
+            <p className="text-xs sm:text-sm font-medium text-[var(--app-text)] italic">
               "{currentLesson.socraticPrompt}"
             </p>
 
@@ -383,22 +382,22 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                   }));
                 }}
                 placeholder="Escreva sua resposta ou hipótese explicativa para verificação..."
-                className="w-full text-xs bg-[#121212] border border-white/10 rounded-2xl p-3 text-white outline-none focus:border-[#e2ff31] resize-none"
+                className="w-full text-xs bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-3 text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] resize-none"
               />
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] text-neutral-500 font-medium">
+                <span className="text-[11px] text-[var(--app-text-muted)] font-medium">
                   {currentStep.verificationResult ? "Resposta verificada pela Lumina AI" : "Digite sua hipótese e valide com IA para ganhar XP bônus."}
                 </span>
 
                 <button
                   onClick={handleVerifySocraticAnswer}
                   disabled={!currentStep.socraticNote.trim() || isVerifyingNote}
-                  className="bg-[#e2ff31] hover:bg-[#d4f222] disabled:bg-neutral-800 disabled:text-neutral-500 text-black text-xs font-bold px-5 py-2 rounded-full uppercase tracking-wider transition flex items-center gap-1.5 shadow-md"
+                  className="bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] disabled:opacity-50 text-white text-xs font-bold px-5 py-2 rounded-full uppercase tracking-wider transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   {isVerifyingNote ? (
                     <>
-                      <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Verificando Resposta...</span>
                     </>
                   ) : (
@@ -416,10 +415,10 @@ export const LessonModal: React.FC<LessonModalProps> = ({
               <div
                 className={`p-4 rounded-2xl border transition-all space-y-3 ${
                   currentStep.verificationResult.score >= 70
-                    ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-100"
+                    ? "bg-[var(--app-success)]/10 border-[var(--app-success)]/30 text-[var(--app-text)]"
                     : currentStep.verificationResult.score >= 40
-                    ? "bg-amber-950/40 border-amber-500/40 text-amber-100"
-                    : "bg-red-950/40 border-red-500/40 text-red-100"
+                    ? "bg-amber-500/10 border-amber-500/30 text-[var(--app-text)]"
+                    : "bg-rose-500/10 border-rose-500/30 text-[var(--app-text)]"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -427,10 +426,10 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                     <span
                       className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
                         currentStep.verificationResult.score >= 70
-                          ? "bg-emerald-500 text-black"
+                          ? "bg-[var(--app-success)] text-white"
                           : currentStep.verificationResult.score >= 40
-                          ? "bg-amber-400 text-black"
-                          : "bg-red-500 text-white"
+                          ? "bg-amber-500 text-white"
+                          : "bg-rose-500 text-white"
                       }`}
                     >
                       {currentStep.verificationResult.verdict === "Correta"
@@ -439,14 +438,14 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                         ? "⚠️ Parcialmente Correta"
                         : "❌ Resposta Incorreta"}
                     </span>
-                    <span className="font-mono text-xs font-bold text-white">
+                    <span className="font-mono text-xs font-bold text-[var(--app-text)]">
                       Nota: {currentStep.verificationResult.score}/100
                     </span>
                   </div>
 
                   {currentStep.verificationResult.xpEarned > 0 && (
-                    <span className="bg-[#e2ff31] text-black text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1">
-                      <Zap className="w-3 h-3 fill-black" /> +{currentStep.verificationResult.xpEarned} XP
+                    <span className="bg-[var(--app-primary)] text-white text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1">
+                      <Zap className="w-3 h-3 fill-white" /> +{currentStep.verificationResult.xpEarned} XP
                     </span>
                   )}
                 </div>
@@ -455,11 +454,11 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                   {currentStep.verificationResult.feedback}
                 </p>
 
-                <div className="text-xs space-y-1.5 pt-2 border-t border-white/10 text-neutral-300">
-                  <p className="font-bold text-white flex items-center gap-1">
-                    <Brain className="w-3.5 h-3.5 text-[#e2ff31]" /> Explicação Científica Completa:
+                <div className="text-xs space-y-1.5 pt-2 border-t border-[var(--app-border)] text-[var(--app-text-muted)]">
+                  <p className="font-bold text-[var(--app-text)] flex items-center gap-1">
+                    <Brain className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Explicação Científica Completa:
                   </p>
-                  <p className="text-neutral-300 leading-relaxed font-normal">
+                  <p className="text-[var(--app-text-muted)] leading-relaxed font-normal">
                     {currentStep.verificationResult.detailedExplanation}
                   </p>
                 </div>
@@ -469,50 +468,50 @@ export const LessonModal: React.FC<LessonModalProps> = ({
 
           {/* Interactive Check Quiz (MANDATORY VERIFICATION) */}
           {currentLesson.quizQuestion && (
-            <div className="p-5 bg-[#161616] border border-white/10 rounded-2xl space-y-4 relative">
+            <div className="p-5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-4 relative">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
-                  <HelpCircle className="w-4 h-4 text-[#e2ff31]" />
+                <div className="flex items-center gap-2 text-[var(--app-text)] font-bold text-xs uppercase tracking-wider">
+                  <HelpCircle className="w-4 h-4 text-[var(--app-primary)]" />
                   <span>Desafio de Fixação (Obrigatório na Trilha)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {currentStep.quizSubmitted ? (
                     currentStep.isCorrect ? (
-                      <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 px-3 py-0.5 rounded-full border border-emerald-500/40 flex items-center gap-1">
+                      <span className="text-xs font-bold text-[var(--app-success)] bg-[var(--app-success)]/10 px-3 py-0.5 rounded-full border border-[var(--app-success)]/30 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Verificado: Correto
                       </span>
                     ) : (
-                      <span className="text-xs font-bold text-red-400 bg-red-950/60 px-3 py-0.5 rounded-full border border-red-500/40 flex items-center gap-1">
+                      <span className="text-xs font-bold text-rose-500 bg-rose-500/10 px-3 py-0.5 rounded-full border border-rose-500/30 flex items-center gap-1">
                         <AlertCircle className="w-3.5 h-3.5" /> Verificado: Incorreto
                       </span>
                     )
                   ) : (
-                    <span className="text-xs text-[#e2ff31] font-bold bg-[#e2ff31]/10 px-3 py-0.5 rounded-full border border-[#e2ff31]/20">
+                    <span className="text-xs text-[var(--app-primary)] font-bold bg-[var(--app-primary)]/10 px-3 py-0.5 rounded-full border border-[var(--app-primary)]/20">
                       🟡 Pendente de Verificação
                     </span>
                   )}
                 </div>
               </div>
 
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-[var(--app-text)]">
                 {currentLesson.quizQuestion.question}
               </p>
 
               <div className="space-y-2">
                 {currentLesson.quizQuestion.options.map((opt, idx) => {
-                  let optStyle = "border-white/5 bg-[#1c1c1c] hover:border-white/20 text-neutral-300";
+                  let optStyle = "border-[var(--app-border)] bg-[var(--app-card)] hover:border-[var(--app-primary)]/40 text-[var(--app-text)]";
                   
                   if (currentStep.selectedOption === idx) {
-                    optStyle = "border-[#e2ff31] bg-[#222] text-white font-bold ring-1 ring-[#e2ff31]/40";
+                    optStyle = "border-[var(--app-primary)] bg-[var(--app-card-hover)] text-[var(--app-text)] font-bold ring-1 ring-[var(--app-primary)]/40";
                   }
 
                   if (currentStep.quizSubmitted) {
                     if (idx === currentLesson.quizQuestion?.correctIndex) {
-                      optStyle = "border-emerald-500 bg-emerald-950/70 text-emerald-200 font-bold ring-2 ring-emerald-500/60";
+                      optStyle = "border-[var(--app-success)] bg-[var(--app-success)]/15 text-[var(--app-success)] font-bold ring-2 ring-[var(--app-success)]/40";
                     } else if (currentStep.selectedOption === idx && !currentStep.isCorrect) {
-                      optStyle = "border-red-500 bg-red-950/70 text-red-200 font-bold ring-2 ring-red-500/60";
+                      optStyle = "border-rose-500 bg-rose-500/15 text-rose-500 font-bold ring-2 ring-rose-500/40";
                     } else {
-                      optStyle = "border-transparent bg-[#141414] text-neutral-600 opacity-40";
+                      optStyle = "border-transparent bg-[var(--app-card)] text-[var(--app-text-muted)] opacity-40";
                     }
                   }
 
@@ -521,23 +520,23 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                       key={idx}
                       onClick={() => handleSelectOption(idx)}
                       disabled={currentStep.quizSubmitted && currentStep.isCorrect}
-                      className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition flex items-center justify-between ${optStyle}`}
+                      className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${optStyle}`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="w-6 h-6 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
+                        <span className="w-6 h-6 rounded-lg bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
                           {String.fromCharCode(65 + idx)}
                         </span>
                         <span>{opt}</span>
                       </div>
                       
                       {currentStep.quizSubmitted && idx === currentLesson.quizQuestion?.correctIndex && (
-                        <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold shrink-0">
+                        <div className="flex items-center gap-1 text-[var(--app-success)] text-xs font-bold shrink-0">
                           <CheckCircle2 className="w-4 h-4" />
                           <span>Gabarito Correto</span>
                         </div>
                       )}
                       {currentStep.quizSubmitted && currentStep.selectedOption === idx && !currentStep.isCorrect && (
-                        <div className="flex items-center gap-1 text-red-400 text-xs font-bold shrink-0">
+                        <div className="flex items-center gap-1 text-rose-500 text-xs font-bold shrink-0">
                           <AlertCircle className="w-4 h-4" />
                           <span>Sua Escolha</span>
                         </div>
@@ -551,7 +550,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                 <button
                   onClick={() => handleCheckQuiz()}
                   disabled={currentStep.selectedOption === null}
-                  className="w-full bg-[#e2ff31] hover:bg-[#d4f222] disabled:bg-neutral-800 disabled:text-neutral-500 text-black py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] disabled:opacity-50 text-white py-3.5 rounded-full font-bold text-xs uppercase tracking-wider transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Verificar Resposta da Questão</span>
@@ -561,27 +560,27 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                   <div
                     className={`p-4 rounded-xl text-xs sm:text-sm font-medium ${
                       currentStep.isCorrect
-                        ? "bg-emerald-950/40 text-emerald-200 border border-emerald-500/40"
-                        : "bg-red-950/40 text-red-200 border border-red-500/40"
+                        ? "bg-[var(--app-success)]/10 text-[var(--app-success)] border border-[var(--app-success)]/30"
+                        : "bg-rose-500/10 text-rose-500 border border-rose-500/30"
                     }`}
                   >
-                    <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
-                      <p className="font-bold text-white flex items-center gap-1.5">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-[var(--app-border)]">
+                      <p className="font-bold text-[var(--app-text)] flex items-center gap-1.5">
                         {currentStep.isCorrect ? (
                           <>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <CheckCircle2 className="w-4 h-4 text-[var(--app-success)]" />
                             <span>Parabéns! Resposta Correta Verificada (+25 XP)</span>
                           </>
                         ) : (
                           <>
-                            <AlertCircle className="w-4 h-4 text-red-400" />
+                            <AlertCircle className="w-4 h-4 text-rose-500" />
                             <span>Resposta Incorreta — Não é possível avançar sem corrigir</span>
                           </>
                         )}
                       </p>
                     </div>
-                    <p className="mt-2 text-xs leading-relaxed text-neutral-200">
-                      <span className="font-bold text-white">Explicação do Gabarito: </span>
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--app-text)]">
+                      <span className="font-bold text-[var(--app-text)]">Explicação do Gabarito: </span>
                       {currentLesson.quizQuestion.explanation}
                     </p>
                   </div>
@@ -589,7 +588,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
                   {!currentStep.isCorrect && (
                     <button
                       onClick={handleRetryQuiz}
-                      className="w-full bg-[#1e1e1e] hover:bg-[#282828] text-[#e2ff31] border border-[#e2ff31]/40 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-sm"
+                      className="w-full bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-primary)] border border-[var(--app-primary)]/40 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                     >
                       <RotateCcw className="w-4 h-4" />
                       <span>Tentar Novamente esta Questão</span>
@@ -602,31 +601,31 @@ export const LessonModal: React.FC<LessonModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="p-5 sm:p-6 bg-[#161616] border-t border-white/5 flex flex-wrap justify-between items-center gap-3 shrink-0">
+        <div className="p-5 sm:p-6 bg-[var(--app-card-secondary)] border-t border-[var(--app-border)] flex flex-wrap justify-between items-center gap-3 shrink-0">
           <button
             onClick={() => {
               setCurrentStepIndex((prev) => Math.max(0, prev - 1));
               setValidationWarning(null);
             }}
             disabled={currentStepIndex === 0}
-            className="px-4 py-2.5 text-xs font-bold text-neutral-400 hover:text-white disabled:opacity-30 transition"
+            className="px-4 py-2.5 text-xs font-bold text-[var(--app-text-muted)] hover:text-[var(--app-text)] disabled:opacity-30 transition cursor-pointer"
           >
             ← Voltar
           </button>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-[#e2ff31] hidden sm:flex items-center gap-1">
+            <span className="text-xs font-bold text-[var(--app-primary)] hidden sm:flex items-center gap-1">
               <Trophy className="w-4 h-4" /> +{module.xpReward} XP ao concluir
             </span>
             
             <button
               onClick={handleNextStep}
-              className={`px-7 py-3 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md transition ${
+              className={`px-7 py-3 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer ${
                 currentStep.quizSubmitted && currentStep.isCorrect
-                  ? "bg-[#e2ff31] hover:bg-[#d4f222] text-black ring-2 ring-[#e2ff31]/30"
+                  ? "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white ring-2 ring-[var(--app-primary)]/30"
                   : currentStep.selectedOption !== null
-                  ? "bg-[#e2ff31] hover:bg-[#d4f222] text-black"
-                  : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
+                  ? "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white"
+                  : "bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] border border-[var(--app-border)] hover:text-[var(--app-text)]"
               }`}
             >
               <span>{isLastStep ? "Finalizar Módulo" : "Próxima Etapa"}</span>
@@ -638,5 +637,3 @@ export const LessonModal: React.FC<LessonModalProps> = ({
     </div>
   );
 };
-
-

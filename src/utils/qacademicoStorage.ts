@@ -122,3 +122,31 @@ export const clearAllQAcademicoData = (): void => {
     console.warn("Erro ao limpar dados do Q-Acadêmico:", e);
   }
 };
+
+/**
+ * Purgar qualquer registro residual de boletim mock/exemplo gerado em versões anteriores
+ */
+export const purgeMockQAcademicoGrades = (): void => {
+  try {
+    const raw = localStorage.getItem(QACADEMICO_GRADES_KEY);
+    if (raw) {
+      const grades = JSON.parse(raw);
+      if (Array.isArray(grades)) {
+        const hasMock = grades.some((g: any) => {
+          const disc = String(g.disciplina || "").toLowerCase();
+          return (
+            disc.includes("algoritmos e estrutura de dados") ||
+            disc.includes("banco de dados e modelagem sql") ||
+            disc.includes("redes de computadores e protocolos")
+          );
+        });
+        if (hasMock) {
+          localStorage.removeItem(QACADEMICO_GRADES_KEY);
+          localStorage.removeItem(QACADEMICO_SCHEDULES_KEY);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Erro ao purgar dados de exemplo do Q-Acadêmico:", e);
+  }
+};

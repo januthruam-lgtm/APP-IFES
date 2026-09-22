@@ -27,6 +27,7 @@
   --border-subtle: var(--app-border);
   --btn-primary: var(--app-primary);
   --btn-primary-hover: var(--app-primary-hover);
+  --btn-primary-text: #ffffff;
   --color-success: var(--app-success);
   --color-accent: var(--app-accent);
 }

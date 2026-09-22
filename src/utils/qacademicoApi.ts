@@ -18,6 +18,8 @@ export interface QAcademicoApiResponse {
   success: boolean;
   authenticated?: boolean;
   requiresManualSync?: boolean;
+  requiresBridge?: boolean;
+  isWafNotice?: boolean;
   account?: QAcademicoAccountInfo;
   grades?: QAcademicoGradeItem[];
   schedules?: QAcademicoScheduleItem[];
@@ -63,7 +65,7 @@ class QAcademicoApiClient {
       };
     } catch (err: any) {
       const latencyMs = Math.round(performance.now() - start);
-      console.error("[Q-Acadêmico] Erro de rede ao verificar status:", err);
+      console.warn("[Q-Acadêmico] Aviso de rede ao verificar status:", err?.message || err);
       console.groupEnd();
 
       return {
@@ -98,7 +100,7 @@ class QAcademicoApiClient {
       console.groupEnd();
       return data;
     } catch (err: any) {
-      console.error("[Q-Acadêmico] Erro inesperado na chamada /api/qacademico/connect:", err);
+      console.warn("[Q-Acadêmico] Aviso na chamada /api/qacademico/connect:", err?.message || err);
       console.groupEnd();
       return {
         success: false,
@@ -112,7 +114,7 @@ class QAcademicoApiClient {
   /**
    * Envia o texto ou código HTML copiado da tela do Q-Acadêmico para processamento no servidor ou parser
    */
-  async parseReport(rawContent: string, defaultCampus: string = "IFES"): Promise<QAcademicoApiResponse> {
+  async parseReport(rawContent: string, defaultCampus: string = "IFES", matricula: string = ""): Promise<QAcademicoApiResponse> {
     console.group("[Q-Acadêmico] Processando boletim/relatório acadêmico copiado");
     console.log(`Tamanho do conteúdo bruto: ${rawContent.length} caracteres`);
     console.log("Campus padrão:", defaultCampus);
@@ -121,7 +123,7 @@ class QAcademicoApiClient {
       const res = await fetch("/api/qacademico/parse-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawContent, defaultCampus }),
+        body: JSON.stringify({ rawContent, defaultCampus, matricula }),
       });
 
       const data: QAcademicoApiResponse = await res.json();
@@ -136,7 +138,7 @@ class QAcademicoApiClient {
       console.groupEnd();
       return data;
     } catch (err: any) {
-      console.error("[Q-Acadêmico] Erro na requisição /api/qacademico/parse-report:", err);
+      console.warn("[Q-Acadêmico] Aviso na requisição /api/qacademico/parse-report:", err?.message || err);
       console.groupEnd();
       return {
         success: false,
@@ -163,7 +165,7 @@ class QAcademicoApiClient {
       console.groupEnd();
       return data;
     } catch (err: any) {
-      console.error("[Q-Acadêmico] Erro ao sincronizar sessão:", err);
+      console.warn("[Q-Acadêmico] Aviso ao sincronizar sessão:", err?.message || err);
       console.groupEnd();
       return {
         success: false,
