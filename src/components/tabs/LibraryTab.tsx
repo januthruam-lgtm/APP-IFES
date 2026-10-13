@@ -1,161 +1,192 @@
 import React, { useState } from "react";
 import {
-  Library,
-  Upload,
+  BookMarked,
   FileText,
-  Bot,
+  Search,
+  Upload,
+  Brain,
   Gamepad2,
   Trash2,
+  ExternalLink,
   Sparkles,
-  Download,
+  Plus,
 } from "lucide-react";
-import { UserProfile } from "../../types";
+import { UserProfile, SavedDocument } from "../../types";
 
 interface LibraryTabProps {
   user: UserProfile;
-  onOpenSocraticWithContext: (topic: string) => void;
-  onOpenDeckWithDocument: () => void;
+  onOpenSocraticWithContext?: (topic: string) => void;
+  onOpenDeckWithDocument?: () => void;
 }
-
-interface DocItem {
-  id: string;
-  title: string;
-  category: string;
-  size: string;
-  addedAt: string;
-}
-
-const INITIAL_DOCS: DocItem[] = [
-  {
-    id: "doc-1",
-    title: "Apostila de Estruturas de Dados e Algoritmos - IFES.pdf",
-    category: "Informática",
-    size: "4.2 MB",
-    addedAt: "Ontem",
-  },
-  {
-    id: "doc-2",
-    title: "Tabela de Derivadas e Integrais Imediatas.pdf",
-    category: "Matemática",
-    size: "1.1 MB",
-    addedAt: "Há 3 dias",
-  },
-  {
-    id: "doc-3",
-    title: "Resumo Arquitetura Camadas TCP-IP e Roteamento.pdf",
-    category: "Redes",
-    size: "2.8 MB",
-    addedAt: "Semana passada",
-  },
-];
 
 export const LibraryTab: React.FC<LibraryTabProps> = ({
+  user,
   onOpenSocraticWithContext,
   onOpenDeckWithDocument,
 }) => {
-  const [docs, setDocs] = useState<DocItem[]>(INITIAL_DOCS);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [search, setSearch] = useState("");
+  const [documents, setDocuments] = useState<SavedDocument[]>([
+    {
+      id: "doc-1",
+      title: "Teoria Clássica e Científica da Administração",
+      fileName: "apostila_adm_unidade_1.pdf",
+      fileType: "pdf",
+      uploadDate: "18/09/2026",
+      timestamp: Date.now() - 86400000 * 5,
+      courseTag: "Teorias da Administração",
+      textContent: "A administração científica, fundada por Frederick Winslow Taylor...",
+      fileSizeFormatted: "2.4 MB",
+      extractedConcepts: ["Estudo de Tempos e Movimentos", "Padronização", "Homo Economicus"],
+    },
+    {
+      id: "doc-2",
+      title: "Guia Prático de Estruturas de Dados em C",
+      fileName: "estruturas_de_dados_ifes.pdf",
+      fileType: "pdf",
+      uploadDate: "20/09/2026",
+      timestamp: Date.now() - 86400000 * 3,
+      courseTag: "Algoritmos e Lógica",
+      textContent: "Vetores unidimensionais, matrizes e alocação dinâmica de memória...",
+      fileSizeFormatted: "3.8 MB",
+      extractedConcepts: ["Vetores", "Ponteiros", "Complexidade O(n)"],
+    },
+  ]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [newTitle, setNewTitle] = useState("");
+  const [newTag, setNewTag] = useState("");
+  const [newText, setNewText] = useState("");
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
-    const newDoc: DocItem = {
+  const filteredDocs = documents.filter(
+    (d) =>
+      d.title.toLowerCase().includes(search.toLowerCase()) ||
+      d.courseTag.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleAddDocument = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || !newText.trim()) return;
+
+    const newDoc: SavedDocument = {
       id: `doc-${Date.now()}`,
-      title: file.name,
-      category: "Material do Aluno",
-      size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      addedAt: "Agora",
+      title: newTitle.trim(),
+      fileName: `${newTitle.toLowerCase().replace(/\s+/g, "_")}.txt`,
+      fileType: "txt",
+      uploadDate: new Date().toLocaleDateString("pt-BR"),
+      timestamp: Date.now(),
+      courseTag: newTag.trim() || "Geral",
+      textContent: newText.trim(),
+      fileSizeFormatted: `${Math.round(newText.length / 1024 * 10) / 10 || 1.2} KB`,
+      extractedConcepts: ["Conceito Central", "Prática Acadêmica"],
     };
 
-    setDocs((prev) => [newDoc, ...prev]);
-    setUploadSuccess(true);
-    setTimeout(() => setUploadSuccess(false), 2500);
+    setDocuments((prev) => [newDoc, ...prev]);
+    setNewTitle("");
+    setNewTag("");
+    setNewText("");
+    setShowUploadModal(false);
   };
 
-  const handleDelete = (docId: string) => {
-    setDocs((prev) => prev.filter((d) => d.id !== docId));
+  const handleDelete = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <Library className="w-3.5 h-3.5" />
-            <span>Biblioteca Acadêmica & Acervo</span>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
+      {/* Top Header Card */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-md">
+            <BookMarked className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text-primary,#f8fafc)]">
-            Apostilas, PDFs & Documentos
-          </h1>
-          <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-            Envie materiais didáticos para gerar quizzes ou estudar com a tutora Lumina
-          </p>
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)]">Biblioteca & Repositório de Documentos</h2>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Centralize PDFs, anotações de aulas e resumos sincronizados com sua conta.
+            </p>
+          </div>
         </div>
 
-        <label className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg transition self-start sm:self-auto">
-          <Upload className="w-4 h-4" />
-          <span>Upload de Material</span>
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </label>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Adicionar Material</span>
+        </button>
       </div>
 
-      {uploadSuccess && (
-        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold text-center animate-in slide-in-from-top-2">
-          Material acadêmico indexado com sucesso na biblioteca!
-        </div>
-      )}
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Pesquisar nos documentos por título ou disciplina..."
+          className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--app-card)] border border-[var(--app-border)] text-xs text-[var(--app-text)] outline-none focus:ring-1 focus:ring-[var(--app-primary)]"
+        />
+      </div>
 
-      {/* Docs list */}
-      <div className="space-y-3">
-        {docs.map((doc) => (
+      {/* Documents Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {filteredDocs.map((doc) => (
           <div
             key={doc.id}
-            className="p-5 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-md hover:border-indigo-500/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            className="p-5 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs space-y-4 flex flex-col justify-between"
           >
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5" />
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[var(--app-bg)] text-[var(--app-primary)] border border-[var(--app-border)]">
+                  {doc.courseTag}
+                </span>
+                <span className="text-[10px] text-[var(--app-text-muted)] font-mono">
+                  {doc.fileSizeFormatted}
+                </span>
               </div>
-              <div className="min-w-0">
-                <h4 className="font-bold text-sm text-[var(--text-primary,#f8fafc)] truncate">
-                  {doc.title}
-                </h4>
-                <p className="text-xs text-[var(--text-muted,#94a3b8)] mt-0.5">
-                  {doc.category} • {doc.size} • Adicionado {doc.addedAt}
-                </p>
-              </div>
+
+              <h3 className="text-base font-bold text-[var(--app-text)]">{doc.title}</h3>
+              <p className="text-xs text-[var(--app-text-muted)] line-clamp-2">{doc.textContent}</p>
+
+              {doc.extractedConcepts && doc.extractedConcepts.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {doc.extractedConcepts.map((c, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded-md text-[9px] bg-[var(--app-bg)] text-[var(--app-text-muted)] border border-[var(--app-border)]"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-center">
-              <button
-                onClick={() => onOpenSocraticWithContext(doc.title)}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                title="Debater este conteúdo com Lumina"
-              >
-                <Bot className="w-3.5 h-3.5" />
-                <span>Debater</span>
-              </button>
+            <div className="pt-3 border-t border-[var(--app-border)] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onOpenSocraticWithContext && onOpenSocraticWithContext(doc.title)}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-bold flex items-center gap-1 hover:bg-amber-500/20 transition cursor-pointer"
+                  title="Analisar com Tutora Lumina"
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  <span>Socrático</span>
+                </button>
 
-              <button
-                onClick={onOpenDeckWithDocument}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                title="Gerar quiz gamificado a partir deste documento"
-              >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                <span>Gerar Quiz</span>
-              </button>
+                <button
+                  onClick={() => onOpenDeckWithDocument && onOpenDeckWithDocument()}
+                  className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-xs font-bold flex items-center gap-1 hover:bg-purple-500/20 transition cursor-pointer"
+                  title="Gerar Quiz ou Game"
+                >
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <span>Quiz Game</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => handleDelete(doc.id)}
-                className="p-2 rounded-xl text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                title="Remover documento"
+                className="p-1.5 rounded-xl text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                title="Excluir documento"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -163,6 +194,68 @@ export const LibraryTab: React.FC<LibraryTabProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 w-full max-w-lg shadow-xl space-y-4 animate-in zoom-in-95">
+            <h3 className="text-base font-black text-[var(--app-text)]">Adicionar Material de Estudo</h3>
+
+            <form onSubmit={handleAddDocument} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-[var(--app-text)] block mb-1">Título do Documento</label>
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Ex: Resumo Aula 03 - Funções de Fayol"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--app-text)] block mb-1">Disciplina / Tag</label>
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Ex: Administração Geral"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[var(--app-text)] block mb-1">Conteúdo do Texto</label>
+                <textarea
+                  rows={5}
+                  required
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  placeholder="Cole aqui o texto ou anotações..."
+                  className="w-full p-3 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--app-text-muted)] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[var(--app-primary)] text-white text-xs font-bold cursor-pointer"
+                >
+                  Salvar no Repositório
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   MapPin,
+  Users,
   Video,
-  Download,
-  BookOpen,
   ChevronRight,
+  Plus,
+  BookOpen,
 } from "lucide-react";
-import { CourseTrack, UserProfile } from "../../types";
-import { loadQAcademicoSchedules } from "../../utils/qacademicoStorage";
+import { UserProfile, CourseTrack, AgendaEvent, IfesClassSchedule } from "../../types";
+import { loadSyncedSchedules } from "../../utils/courseSync";
 
 interface AgendaTabProps {
   user: UserProfile;
@@ -17,183 +18,172 @@ interface AgendaTabProps {
   onNavigateToStudyRoom: () => void;
 }
 
-interface ScheduleSlot {
-  id: string;
-  day: string;
-  time: string;
-  courseTitle: string;
-  room: string;
-  instructor: string;
-}
+const STORAGE_KEY_AGENDA = "brain_studio_agenda_events_v2";
+
+const DEFAULT_EVENTS: AgendaEvent[] = [
+  {
+    id: "ev-1",
+    title: "Seminário de Apresentação: Taylorismo vs Fordismo",
+    date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+    startTime: "09:30",
+    endTime: "11:00",
+    type: "trabalho",
+    courseName: "Teorias da Administração",
+    locationOrLink: "Sala 204 - IFES Campus Vitória",
+  },
+  {
+    id: "ev-2",
+    title: "Plantão de Dúvidas & Monitoria de Algoritmos",
+    date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+    startTime: "14:00",
+    endTime: "15:30",
+    type: "reuniao",
+    courseName: "Algoritmos e Lógica",
+    locationOrLink: "Sala Virtual Brain Studio",
+  },
+  {
+    id: "ev-3",
+    title: "Avaliação Escrita: Ciclo PDCA e Ferramentas 5S",
+    date: new Date(Date.now() + 86400000 * 6).toISOString().split("T")[0],
+    startTime: "08:00",
+    endTime: "10:00",
+    type: "prova",
+    courseName: "Gestão da Qualidade",
+    locationOrLink: "Auditório Setorial",
+  },
+];
 
 export const AgendaTab: React.FC<AgendaTabProps> = ({
   user,
   courses,
   onNavigateToStudyRoom,
 }) => {
-  const [selectedDay, setSelectedDay] = useState("Todos");
-  const [scheduleSlots, setScheduleSlots] = useState<ScheduleSlot[]>(() => {
-    const rawSchedules = loadQAcademicoSchedules();
-    return rawSchedules.map((s, idx) => ({
-      id: `slot-${idx + 1}`,
-      day: s.diaSemana || "Segunda",
-      time: s.horario || "A definir",
-      courseTitle: s.disciplina,
-      room: s.sala || "Campus IFES",
-      instructor: s.docente || "Docente IFES",
-    }));
+  const [schedules] = useState<IfesClassSchedule[]>(() => loadSyncedSchedules());
+  const [events, setEvents] = useState<AgendaEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_AGENDA);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_EVENTS;
   });
 
-  useEffect(() => {
-    const handleUpdate = () => {
-      const rawSchedules = loadQAcademicoSchedules();
-      setScheduleSlots(
-        rawSchedules.map((s, idx) => ({
-          id: `slot-${idx + 1}`,
-          day: s.diaSemana || "Segunda",
-          time: s.horario || "A definir",
-          courseTitle: s.disciplina,
-          room: s.sala || "Campus IFES",
-          instructor: s.docente || "Docente IFES",
-        }))
-      );
-    };
-
-    window.addEventListener("brainstudio:qacademico-schedules-updated", handleUpdate);
-    return () => {
-      window.removeEventListener("brainstudio:qacademico-schedules-updated", handleUpdate);
-    };
-  }, []);
-
-  const days = ["Todos", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-
-  const filtered = selectedDay === "Todos"
-    ? scheduleSlots
-    : scheduleSlots.filter((s) => s.day.toLowerCase().includes(selectedDay.toLowerCase()));
-
-  const handleExportICS = () => {
-    if (scheduleSlots.length === 0) return;
-    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//IFES BrainStudio//PT\n";
-    scheduleSlots.forEach((slot) => {
-      icsContent += `BEGIN:VEVENT\nSUMMARY:${slot.courseTitle}\nDESCRIPTION:Sala: ${slot.room} - Docente: ${slot.instructor}\nLOCATION:${slot.room}\nSTATUS:CONFIRMED\nEND:VEVENT\n`;
+  const updateEvents = (newEvents: AgendaEvent[] | ((prev: AgendaEvent[]) => AgendaEvent[])) => {
+    setEvents((prev) => {
+      const updated = typeof newEvents === "function" ? newEvents(prev) : newEvents;
+      try {
+        localStorage.setItem(STORAGE_KEY_AGENDA, JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
-    icsContent += "END:VCALENDAR";
-
-    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "horarios_ifes.ics";
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="p-6 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Agenda & Grade Semanal de Aulas</span>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Top Banner */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-600 text-white flex items-center justify-center shadow-md">
+            <CalendarIcon className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--app-text)]">
-            Horários & Encontros IFES
-          </h1>
-          <p className="text-xs text-[var(--app-text-muted)]">
-            Consulte horários de salas presenciais e organize suas sessões de estudo
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={handleExportICS}
-            className="px-4 py-2.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-[var(--app-text)] hover:opacity-80 text-xs font-bold flex items-center gap-2 transition"
-            title="Exportar calendário para Google Agenda / Outlook"
-          >
-            <Download className="w-4 h-4 text-[var(--app-primary)]" />
-            <span>Exportar .ICS</span>
-          </button>
-
-          <button
-            onClick={onNavigateToStudyRoom}
-            className="px-4 py-2.5 rounded-2xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center gap-2 transition shadow-xs"
-          >
-            <Video className="w-4 h-4" />
-            <span>Sala de Estudos</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Day Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {days.map((d) => (
-          <button
-            key={d}
-            onClick={() => setSelectedDay(d)}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold transition shrink-0 cursor-pointer ${
-              selectedDay === d
-                ? "bg-[var(--app-primary)] text-white shadow-xs"
-                : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-            }`}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-
-      {/* Schedule slots */}
-      <div className="space-y-3">
-        {filtered.length === 0 ? (
-          <div className="p-10 text-center rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] space-y-3">
-            <Calendar className="w-10 h-10 text-[var(--app-text-muted)] mx-auto opacity-40" />
-            <h3 className="text-sm font-bold text-[var(--app-text)]">
-              {selectedDay === "Todos"
-                ? "Nenhum horário cadastrado no momento"
-                : `Nenhuma aula registrada para ${selectedDay}`}
-            </h3>
-            <p className="text-xs text-[var(--app-text-muted)] max-w-sm mx-auto">
-              Sincronize seus horários importando seu boletim ou grade na aba Q-Acadêmico.
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)]">Agenda & Cronograma de Aulas</h2>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Horários presenciais, avaliações agendadas e sessões de monitoria em grupo.
             </p>
           </div>
-        ) : (
-          filtered.map((slot) => (
+        </div>
+
+        <button
+          onClick={onNavigateToStudyRoom}
+          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition flex items-center gap-2 shadow-xs cursor-pointer"
+        >
+          <Video className="w-4 h-4" />
+          <span>Entrar na Sala Virtual</span>
+        </button>
+      </div>
+
+      {/* Grade de Horários Oficiais do Semestre */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-text-muted)] flex items-center gap-1.5">
+          <Clock className="w-4 h-4 text-[var(--app-primary)]" />
+          Grade Semanal Oficial IFES
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {schedules.map((sch, i) => (
             <div
-              key={slot.id}
-              className="p-5 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs hover:border-[var(--app-primary)]/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              key={i}
+              className="p-4 rounded-2xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs space-y-2"
             >
-              <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase text-[var(--app-primary)]">
+                  {sch.dayOfWeek}
+                </span>
+                <span className="text-[10px] font-mono text-[var(--app-text-muted)] font-bold">
+                  {sch.timeSlot}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-[var(--app-text)] line-clamp-2">{sch.courseName}</p>
+              <p className="text-[10px] text-[var(--app-text-muted)] flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> {sch.room || "Campus"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Próximos Eventos & Provas */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-text-muted)] flex items-center gap-1.5">
+          <BookOpen className="w-4 h-4 text-[var(--app-primary)]" />
+          Próximos Compromissos & Avaliações
+        </h3>
+
+        <div className="space-y-3">
+          {events.map((ev) => (
+            <div
+              key={ev.id}
+              className="p-5 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            >
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[var(--app-primary)]/15 text-[var(--app-primary)]">
-                    {slot.day}
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      ev.type === "prova"
+                        ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                        : ev.type === "trabalho"
+                        ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                        : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                    }`}
+                  >
+                    {ev.type}
                   </span>
-                  <span className="text-xs font-semibold text-[var(--app-text-muted)] flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-amber-500" />
-                    {slot.time}
+                  <span className="text-xs font-mono font-bold text-[var(--app-primary)]">
+                    {ev.date} às {ev.startTime}
                   </span>
                 </div>
-                <h4 className="font-bold text-sm sm:text-base text-[var(--app-text)] truncate">
-                  {slot.courseTitle}
-                </h4>
-                <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--app-text-muted)]">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-                    {slot.room}
-                  </span>
-                  <span>• {slot.instructor}</span>
-                </div>
+
+                <h4 className="text-sm font-bold text-[var(--app-text)]">{ev.title}</h4>
+                <p className="text-xs text-[var(--app-text-muted)]">
+                  {ev.courseName} • Local: {ev.locationOrLink}
+                </p>
               </div>
 
-              <button
-                onClick={onNavigateToStudyRoom}
-                className="px-4 py-2 rounded-xl bg-[var(--app-card-secondary)] hover:bg-[var(--app-primary)] hover:text-white text-[var(--app-text)] text-xs font-bold transition flex items-center gap-1.5 self-end sm:self-center"
-              >
-                <span>Abrir Sessão</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              {ev.locationOrLink?.includes("Virtual") && (
+                <button
+                  onClick={onNavigateToStudyRoom}
+                  className="px-4 py-2 rounded-xl bg-[var(--app-primary)] text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Acessar Chamada</span>
+                </button>
+              )}
             </div>
-          ))
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );

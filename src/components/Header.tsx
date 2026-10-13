@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { TabId } from "./Sidebar";
 import { UserProfile, CustomThemeColors } from "../types";
-import { PWAInstallButton } from "./PWAInstallButton";
+import { NativeAppButton } from "./NativeAppButton";
 import { BrandLogoBanner } from "./BrandLogoBanner";
 
 interface HeaderProps {
@@ -41,6 +41,9 @@ interface HeaderProps {
   onOpenOfflineModal?: () => void;
   onOpenProfileSettings?: () => void;
   onOpenNotificationSettings?: () => void;
+  onOpenOnlineUsers?: () => void;
+  onOpenAvaConnect?: () => void;
+  onlineCount?: number;
   isOnline?: boolean;
   currentTheme?: CustomThemeColors;
 }
@@ -57,6 +60,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOfflineModal,
   onOpenProfileSettings,
   onOpenNotificationSettings,
+  onOpenOnlineUsers,
+  onOpenAvaConnect,
+  onlineCount = 1,
   isOnline = true,
 }) => {
   useEffect(() => {
@@ -66,8 +72,11 @@ export const Header: React.FC<HeaderProps> = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            userId: user.email || user.name || "user-id",
             userName: user.name,
             level: user.level,
+            matricula: user.ifesAccount?.matricula || "",
+            campus: user.ifesAccount?.campusName || "IFES",
           }),
         });
       } catch {
@@ -78,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
     sendHeartbeat();
     const interval = setInterval(sendHeartbeat, 15000);
     return () => clearInterval(interval);
-  }, [user.name, user.level]);
+  }, [user.name, user.level, user.email, user.ifesAccount?.matricula, user.ifesAccount?.campusName]);
 
   const titles: Record<TabId, { title: string; subtitle: string; category: string }> = {
     dashboard: {
@@ -136,11 +145,6 @@ export const Header: React.FC<HeaderProps> = ({
       title: "AVA Moodle IFES",
       subtitle: "Sincronização de disciplinas, prazos e simulados com o Instituto Federal",
     },
-    qacademico: {
-      category: "Sistema Acadêmico Oficial",
-      title: "Q-Acadêmico IFES",
-      subtitle: "Boletim escolar, notas por etapa, histórico e grade horária de aulas",
-    },
     store: {
       category: "Recompensas & Pets",
       title: "Loja de Pets & Upgrades",
@@ -165,7 +169,6 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "flashcards" as TabId, label: "Anki", icon: Layers },
     { id: "study_room" as TabId, label: "Sala Virtual", icon: Video },
     { id: "ifes" as TabId, label: "AVA IFES", icon: Building2 },
-    { id: "qacademico" as TabId, label: "Q-Acadêmico", icon: GraduationCap },
     { id: "sequence" as TabId, label: "Disciplinas", icon: GitBranch },
     { id: "dashboard" as TabId, label: "Dashboard", icon: LayoutDashboard },
     { id: "lumina" as TabId, label: "Lumina IA", icon: Brain },
@@ -228,6 +231,52 @@ export const Header: React.FC<HeaderProps> = ({
               {user.energy}/{user.maxEnergy || 50}
             </span>
           </button>
+
+          {/* AVA IFES CONNECTION STATUS PILL */}
+          {onOpenAvaConnect && (
+            <button
+              id="header-ava-status-pill"
+              onClick={onOpenAvaConnect}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition group cursor-pointer border ${
+                user.ifesAccount?.connected
+                  ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                  : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 animate-pulse"
+              }`}
+              title={
+                user.ifesAccount?.connected
+                  ? `AVA IFES Conectado e Estável: ${user.ifesAccount?.campusName || "IFES"}. Clique para gerenciar.`
+                  : "Conectar ao AVA IFES com suas credenciais."
+              }
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  user.ifesAccount?.connected ? "bg-emerald-500" : "bg-amber-500"
+                }`}
+              />
+              <Building2
+                className={`w-3.5 h-3.5 ${
+                  user.ifesAccount?.connected ? "text-emerald-500" : "text-amber-500"
+                } group-hover:scale-110 transition-transform`}
+              />
+              <span className="hidden sm:inline font-mono">
+                {user.ifesAccount?.connected ? "AVA IFES" : "Conectar AVA"}
+              </span>
+            </button>
+          )}
+
+          {/* REAL ONLINE USERS DRAWER TRIGGER */}
+          {onOpenOnlineUsers && (
+            <button
+              id="header-online-users-btn"
+              onClick={onOpenOnlineUsers}
+              title="Ver colegas conectados"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-emerald-500 border-[var(--app-border)] hover:border-emerald-500/40 group"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <Users className="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold">{onlineCount} Online</span>
+            </button>
+          )}
 
           {/* NOTIFICATION SETTINGS TRIGGER */}
           {onOpenNotificationSettings && (
@@ -295,7 +344,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="w-full">
-              <PWAInstallButton variant="sidebar" />
+              <NativeAppButton variant="sidebar" />
             </div>
 
             {/* Grid dos botões: todos visíveis com excelente contraste e cores do tema */}

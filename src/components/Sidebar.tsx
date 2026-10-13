@@ -28,7 +28,7 @@ import {
 import { UserProfile, CustomThemeColors } from "../types";
 import { getPetStageInfo } from "../utils/petEvolution";
 import { PuppetPetView } from "./PuppetPetView";
-import { PWAInstallButton } from "./PWAInstallButton";
+import { NativeAppButton } from "./NativeAppButton";
 import { BrandLogoBanner } from "./BrandLogoBanner";
 
 export type TabId =
@@ -43,7 +43,6 @@ export type TabId =
   | "games"
   | "teams"
   | "ifes"
-  | "qacademico"
   | "store"
   | "library"
   | "theme";
@@ -116,15 +115,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ? "text-[var(--app-success)] bg-[var(--app-success)]/10 border-[var(--app-success)]/30"
             : "text-amber-600 bg-amber-500/10 border-amber-500/30",
           icon: Building2,
-        },
-        {
-          id: "qacademico" as TabId,
-          label: "Q-Acadêmico IFES",
-          badge: user.qacademicoAccount?.connected ? "Sincronizado" : "Boletim",
-          badgeColor: user.qacademicoAccount?.connected
-            ? "text-[var(--app-primary)] bg-[var(--app-primary)]/10 border-[var(--app-primary)]/30"
-            : "text-[var(--app-text-muted)] bg-[var(--app-card-secondary)] border-[var(--app-border)]",
-          icon: GraduationCap,
         },
         {
           id: "sequence" as TabId,
@@ -217,6 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div
           onClick={onOpenProfileSettings}
           className="p-3.5 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] space-y-2.5 cursor-pointer hover:border-[var(--app-primary)]/40 transition group"
+          style={{ marginRight: "-10px", paddingTop: "25px" }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -227,8 +218,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <h4 className="text-xs font-bold truncate text-[var(--app-text)] group-hover:text-[var(--app-primary)] transition">
                   {user.name}
                 </h4>
-                <p className="text-[10px] font-mono text-[var(--app-text-muted)] truncate">
-                  {user.ifesAccount?.matricula || "20241IFES0482"}
+                <p className="text-[10px] font-mono text-[var(--app-text-muted)] truncate flex items-center gap-1">
+                  <span>{user.ifesAccount?.matricula || "20241IFES0482"}</span>
+                  {user.pet?.name && (
+                    <span className="text-[var(--app-primary)] font-bold truncate">• 🐾 {user.pet.name}</span>
+                  )}
                 </p>
               </div>
             </div>
@@ -238,7 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 e.stopPropagation();
                 onTabChange("store");
               }}
-              title="Abrir Loja de Pets & Upgrades"
+              title={`Mascote: ${user.pet?.name || "Mascote"} (Clique para abrir Loja de Pets)`}
               className="hover:scale-110 transition cursor-pointer"
             >
               <PuppetPetView
@@ -246,6 +240,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 size="sm"
                 interactive={false}
                 className="w-9 h-9"
+                avatarEmojiStyle={{ marginLeft: "-7px", marginTop: "-19px" }}
+                accessoryBadgeStyle={{ fontSize: "0px" }}
+                stageBadgeStyle={{ marginLeft: "-32px", marginTop: "-4px" }}
               />
             </div>
           </div>
@@ -315,9 +312,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Footer / Offline status, PWA Install & Logout */}
+      {/* Footer / Offline status, Native App & Logout */}
       <div className="pt-3 border-t border-[var(--app-border)] space-y-2.5">
-        <PWAInstallButton variant="sidebar" />
+        <NativeAppButton variant="sidebar" />
 
         <div className="flex items-center justify-between text-[11px] px-2 text-[var(--app-text-muted)]">
           <div className="flex items-center gap-1.5">

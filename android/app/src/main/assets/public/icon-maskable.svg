@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6E6DF2" />
+      <stop offset="50%" stop-color="#5D5CDE" />
+      <stop offset="100%" stop-color="#4140B8" />
+    </linearGradient>
+    <linearGradient id="brainGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <linearGradient id="accentGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="glowMask" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Full-bleed background for maskable -->
+  <rect width="512" height="512" fill="url(#bgGradMask)" />
+
+  <!-- Scaled content inside safe zone (75% scale centered at 256, 256) -->
+  <g transform="translate(256, 256) scale(0.72) translate(-256, -256)">
+    <g filter="url(#glowMask)" transform="translate(256, 256)">
+      <!-- Left Hemisphere -->
+      <path d="M -16 -90 C -65 -90 -115 -60 -125 -10 C -150 -5 -165 25 -155 65 C -165 105 -135 145 -100 150 C -85 175 -50 180 -16 170 Z" 
+            fill="url(#brainGradMask)" opacity="0.95" />
+      
+      <!-- Right Hemisphere -->
+      <path d="M 16 -90 C 65 -90 115 -60 125 -10 C 150 -5 165 25 155 65 C 165 105 135 145 100 150 C 85 175 50 180 16 170 Z" 
+            fill="url(#brainGradMask)" opacity="0.95" />
+
+      <!-- Center Energy Core / Lightning Bolt -->
+      <path d="M 10 -120 L -30 -15 L 5 -15 L -10 90 L 35 -15 L 0 -15 Z" 
+            fill="url(#accentGradMask)" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" />
+
+      <!-- Neural connection dots -->
+      <circle cx="-70" cy="-30" r="10" fill="#5D5CDE" />
+      <circle cx="-100" cy="45" r="9" fill="#5D5CDE" />
+      <circle cx="-50" cy="105" r="8" fill="#5D5CDE" />
+      <circle cx="70" cy="-30" r="10" fill="#5D5CDE" />
+      <circle cx="100" cy="45" r="9" fill="#5D5CDE" />
+      <circle cx="50" cy="105" r="8" fill="#5D5CDE" />
+
+      <!-- Synapse lines -->
+      <line x1="-70" y1="-30" x2="-100" y2="45" stroke="#5D5CDE" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+      <line x1="-100" y1="45" x2="-50" y2="105" stroke="#5D5CDE" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+      <line x1="70" y1="-30" x2="100" y2="45" stroke="#5D5CDE" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+      <line x1="100" y1="45" x2="50" y2="105" stroke="#5D5CDE" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+
+      <!-- Academic Cap Accent at Top -->
+      <path d="M 0 -145 L 85 -115 L 0 -85 L -85 -115 Z" fill="#1E1B4B" />
+      <polygon points="50,-102 50,-70 56,-70 56,-100" fill="#F59E0B" />
+      <circle cx="53" cy="-66" r="4" fill="#F59E0B" />
+    </g>
+  </g>
+</svg>

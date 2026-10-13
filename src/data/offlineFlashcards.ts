@@ -1,60 +1,88 @@
+import { FlashcardItem } from "../types";
+
 export interface DeckInfo {
   id: string;
   title: string;
-  category: string;
-  cardsCount: number;
-  cardCount?: number;
-  icon?: string;
-  subjectName?: string;
   description: string;
-  cards: {
-    question: string;
-    answer: string;
-  }[];
+  courseName: string;
+  subjectName?: string;
+  cardCount: number;
+  icon?: string;
+  category?: string;
 }
 
-export const OFFLINE_DECKS: DeckInfo[] = [
+export const DEFAULT_OFFLINE_DECKS: DeckInfo[] = [
   {
-    id: "deck-alg-1",
-    title: "Estruturas de Dados e Algoritmos",
-    category: "Informática",
-    cardsCount: 12,
+    id: "deck-adm-geral",
+    title: "Teorias da Administração & Taylorismo",
+    description: "Conceitos fundamentais da Teoria Clássica, Científica e Burocracia de Weber.",
+    courseName: "Introdução à Administração",
+    subjectName: "Introdução à Administração",
     cardCount: 12,
+    icon: "📈",
+    category: "Administração",
+  },
+  {
+    id: "deck-logica-prog",
+    title: "Estruturas de Dados & Algoritmos IFES",
+    description: "Vetores, matrizes, funções, recursividade e complexidade assintótica.",
+    courseName: "Lógica de Programação",
+    subjectName: "Lógica de Programação",
+    cardCount: 15,
     icon: "💻",
-    subjectName: "Algoritmos e Dados",
-    description: "Conceitos de Pilhas, Filas, Listas Encadeadas, Árvores Binárias e Complexidade Big-O.",
-    cards: [
-      { question: "O que é uma Pilha (Stack) e qual sua política de acesso?", answer: "É uma estrutura LIFO (Last In, First Out). O último elemento inserido é o primeiro a ser removido." },
-      { question: "Qual a diferença de complexidade entre busca binária e linear?", answer: "Busca linear tem complexidade O(n), enquanto a busca binária em vetor ordenado tem complexidade O(log n)." },
-      { question: "O que caracteriza uma Fila (Queue)?", answer: "Política FIFO (First In, First Out) onde elementos entram no fim e saem do início." },
-    ],
-  },
-  {
-    id: "deck-calc-1",
-    title: "Cálculo Diferencial e Integral",
-    category: "Matemática",
-    cardsCount: 14,
-    cardCount: 14,
-    icon: "📐",
-    subjectName: "Cálculo I",
-    description: "Derivadas, Regra da Cadeia, Limites fundamentais e Integrais imediatas.",
-    cards: [
-      { question: "Qual é a derivada de f(x) = e^(2x)?", answer: "Pela regra da cadeia: f'(x) = 2 * e^(2x)." },
-      { question: "O que representa geometricamente a derivada em um ponto?", answer: "Representa a inclinação da reta tangente à curva da função naquele ponto." },
-    ],
-  },
-  {
-    id: "deck-redes-1",
-    title: "Redes e Protocolos de Comunicação",
     category: "Informática",
-    cardsCount: 10,
+  },
+  {
+    id: "deck-portugues-inst",
+    title: "Comunicação Oficial & Coesão Textual",
+    description: "Normas de redação técnica, concordância e conectivos argumentativos.",
+    courseName: "Português Instrumental",
+    subjectName: "Português Instrumental",
     cardCount: 10,
-    icon: "🌐",
-    subjectName: "Redes de Computadores",
-    description: "Modelo OSI, TCP/IP, DNS, HTTP/HTTPS e roteamento.",
-    cards: [
-      { question: "Quantas camadas tem o modelo OSI?", answer: "Possui 7 camadas: Física, Enlace, Rede, Transporte, Sessão, Apresentação e Aplicação." },
-      { question: "Qual a diferença principal entre TCP e UDP?", answer: "TCP é orientado a conexão e garante entrega; UDP é não orientado a conexão, priorizando baixa latência." },
-    ],
+    icon: "✍️",
+    category: "Comunicação",
+  },
+  {
+    id: "deck-gestao-qualidade",
+    title: "Ciclo PDCA, 5S e Ferramentas da Qualidade",
+    description: "Diagrama de Ishikawa, Pareto, Diagrama de Dispersão e Filosofia Kaizen.",
+    courseName: "Gestão da Qualidade",
+    subjectName: "Gestão da Qualidade",
+    cardCount: 14,
+    icon: "🎯",
+    category: "Gestão",
+  },
+];
+
+export const DEFAULT_OFFLINE_FLASHCARDS: FlashcardItem[] = [
+  {
+    id: "fc-adm-1",
+    deckId: "deck-adm-geral",
+    front: "O que preconiza a Teoria da Administração Científica de Taylor?",
+    back: "Foco na eficiência operacional através da divisão do trabalho, padronização de tarefas e estudo dos tempos e movimentos.",
+    intervalDays: 1,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: new Date().toISOString().split("T")[0],
+  },
+  {
+    id: "fc-adm-2",
+    deckId: "deck-adm-geral",
+    front: "Quais são as 4 funções administrativas clássicas segundo Fayol?",
+    back: "Planejar, Organizar, Dirigir (Comandar/Coordenar) e Controlar (PODC).",
+    intervalDays: 1,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: new Date().toISOString().split("T")[0],
+  },
+  {
+    id: "fc-prog-1",
+    deckId: "deck-logica-prog",
+    front: "Qual a diferença entre uma variável e uma constante?",
+    back: "A variável armazena valores mutáveis durante a execução do programa, enquanto uma constante tem valor imutável após sua inicialização.",
+    intervalDays: 1,
+    easeFactor: 2.5,
+    repetitions: 0,
+    nextReviewDate: new Date().toISOString().split("T")[0],
   },
 ];

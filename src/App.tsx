@@ -20,18 +20,24 @@ import { AgendaTab } from "./components/tabs/AgendaTab";
 import { FlashcardsAnkiTab } from "./components/tabs/FlashcardsAnkiTab";
 import { StudyMethodsCentralTab } from "./components/tabs/StudyMethodsCentralTab";
 import { StudyRoomVirtualTab } from "./components/tabs/StudyRoomVirtualTab";
-import { QAcademicoView } from "./components/qacademico/QAcademicoView";
+import { ActiveCallModal } from "./components/calls/ActiveCallModal";
+import { WhatsAppChatModal } from "./components/chat/WhatsAppChatModal";
+import { OnlineUsersDrawer } from "./components/users/OnlineUsersDrawer";
+import { realtimeCallService } from "./services/realtimeCallService";
 import { OfflineIndicator } from "./components/OfflineIndicator";
-import { PWAInstallBanner } from "./components/PWAInstallBanner";
-import { Splash3DIntro } from "./components/Splash3DIntro";
+import { NativeTitleBar } from "./components/NativeTitleBar";
+import { NativeAppModal } from "./components/NativeAppModal";
+import { SplashScreen } from "./components/SplashScreen";
 import { FirstLaunchTutorial } from "./components/FirstLaunchTutorial";
+import { AvaConnectModal } from "./components/ava/AvaConnectModal";
+import { avaConnectionManager } from "./utils/avaConnectionManager";
+import { initializeCapacitorApp } from "./utils/capacitorInit";
 import {
   UserProfile,
   TrackModule,
   ThemeId,
   CourseTrack,
   IfesAccountInfo,
-  QAcademicoAccountInfo,
   IfesCourse,
   IfesAssignment,
   IfesClassSchedule,
@@ -48,8 +54,8 @@ import {
   clearAllSyncedAcademicData,
   purgeAnyFictitiousCourses,
 } from "./utils/courseSync";
-import { purgeMockQAcademicoGrades } from "./utils/qacademicoStorage";
 import { speakText, stopSpeaking } from "./utils/speech";
+import { renameUserPet } from "./features/gamificacao/petService";
 import {
   seedDefaultOfflineCache,
   cacheStudyTracks,
@@ -57,17 +63,8 @@ import {
   clearOfflineCache,
 } from "./utils/indexedDB";
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
+import { saveUserProfileToFirestore, getUserProfileFromFirestore } from "./lib/firebase";
 import confetti from "canvas-confetti";
-import {
-  subscribeBalance,
-  creditCoins,
-  debitCoins,
-  creditXp,
-} from "./features/gamificacao/economyService";
-import {
-  subscribeUserPet,
-  equipUserPet,
-} from "./features/gamificacao/petService";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -79,7 +76,6 @@ export default function App() {
 
   // Purge any fictitious/mock courses immediately on mount so only real IFES data exists
   useEffect(() => {
-    purgeMockQAcademicoGrades();
     const { courses: realCourses } = purgeAnyFictitiousCourses();
     setIfesCourses(realCourses);
     const tracks = convertIfesCoursesToTracks(realCourses);
@@ -91,14 +87,56 @@ export default function App() {
 
   const [user, setUser] = useState<UserProfile>(() => {
     try {
-      const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
       const saved = localStorage.getItem("brain_studio_user_v3");
-      if (isLoggedIn && saved) {
+      if (saved) {
         const parsed = JSON.parse(saved);
         if (!parsed.maxEnergy) {
           parsed.maxEnergy = 50;
         }
+        // Se a conta AVA não estiver marcada como conectada mas temos dados do AVA salvos, restaura automaticamente
+        if (!parsed.ifesAccount?.connected) {
+          const avaStatusStr = localStorage.getItem("brain_studio_ava_status_v2");
+          if (avaStatusStr) {
+            try {
+              const statusObj = JSON.parse(avaStatusStr);
+              if (statusObj && statusObj.isConnected) {
+                parsed.ifesAccount = {
+                  connected: true,
+                  username: statusObj.username,
+                  fullname: statusObj.fullname || parsed.name,
+                  campusUrl: statusObj.campusUrl,
+                  campusName: statusObj.campusName,
+                  matricula: statusObj.matricula || statusObj.username,
+                  lastSync: statusObj.lastSync || "Sincronizado",
+                  token: "restored_session_token",
+                };
+              }
+            } catch {}
+          }
+        }
         return parsed;
+      }
+
+      // Se não houver perfil salvo mas existirem credenciais salvas do AVA IFES
+      const savedCredsStr = localStorage.getItem("brain_studio_moodle_creds_v2");
+      if (savedCredsStr) {
+        try {
+          const credsObj = JSON.parse(savedCredsStr);
+          if (credsObj && credsObj.username) {
+            const newUser = createBlankUser(credsObj.username, `${credsObj.username}@ifes.edu.br`);
+            newUser.ifesAccount = {
+              connected: true,
+              username: credsObj.username,
+              fullname: credsObj.username,
+              campusUrl: credsObj.campusUrl,
+              campusName: credsObj.campusName,
+              matricula: credsObj.username,
+              lastSync: "Sincronizado",
+              token: "restored_session_token",
+            };
+            return newUser;
+          }
+        } catch {}
       }
     } catch (e) {
       console.warn(e);
@@ -109,8 +147,7 @@ export default function App() {
   // Synced IFES Courses (from localStorage / Moodle profile)
   const [ifesCourses, setIfesCourses] = useState<IfesCourse[]>(() => {
     try {
-      const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
-      return isLoggedIn ? loadSyncedCourses() : [];
+      return loadSyncedCourses();
     } catch {
       return [];
     }
@@ -119,8 +156,8 @@ export default function App() {
   // Dynamic CourseTracks derived directly from user's synced IFES subjects
   const [courses, setCourses] = useState<CourseTrack[]>(() => {
     try {
-      const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
-      return isLoggedIn ? convertIfesCoursesToTracks(loadSyncedCourses()) : [];
+      const synced = loadSyncedCourses();
+      return convertIfesCoursesToTracks(synced);
     } catch {
       return [];
     }
@@ -128,12 +165,11 @@ export default function App() {
 
   const [currentCourse, setCurrentCourse] = useState<CourseTrack>(() => {
     try {
-      const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
-      if (isLoggedIn) {
-        const initialTracks = convertIfesCoursesToTracks(loadSyncedCourses());
-        const found = initialTracks.find((c) => c.id === user.selectedCourseId);
+      const initialTracks = convertIfesCoursesToTracks(loadSyncedCourses());
+      if (initialTracks.length > 0) {
+        const found = initialTracks.find((c) => c.id === user?.selectedCourseId);
         if (found) return found;
-        if (initialTracks[0]) return initialTracks[0];
+        return initialTracks[0];
       }
     } catch (e) {
       console.warn(e);
@@ -144,9 +180,9 @@ export default function App() {
       title: "Nenhuma matéria selecionada",
       icon: "📚",
       category: "Geral",
-      description: "Faça login com sua matrícula IFES para carregar suas matérias.",
-      color: "var(--app-primary)",
-      accentBg: "var(--app-card-secondary)",
+      description: "Conecte sua matrícula IFES para sincronizar suas matérias.",
+      color: "#5D5CDE",
+      accentBg: "rgba(93, 92, 222, 0.15)",
       tags: [],
       modules: [],
     };
@@ -161,9 +197,19 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabId>("dashboard");
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("brain_studio_is_logged_in") !== "true";
-    } catch {
+      const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
+      const savedUser = localStorage.getItem("brain_studio_user_v3");
+      const savedCreds = localStorage.getItem("brain_studio_moodle_creds_v2");
+      const avaStatus = localStorage.getItem("brain_studio_ava_status_v2");
+      const tutorialCompleted = localStorage.getItem("brain_studio_tutorial_completed") === "true";
+
+      // Se qualquer um desses dados existir, o primeiro acesso já ocorreu e o app abre pronto!
+      if (isLoggedIn || savedUser || savedCreds || avaStatus || tutorialCompleted) {
+        return false;
+      }
       return true;
+    } catch {
+      return false;
     }
   });
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
@@ -172,12 +218,115 @@ export default function App() {
   const [activeLessonModule, setActiveLessonModule] = useState<TrackModule | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+  const [isNativeAppModalOpen, setIsNativeAppModalOpen] = useState(false);
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
   const [selectedDeckForGames, setSelectedDeckForGames] = useState<string | null>(null);
   const [targetCallPeer, setTargetCallPeer] = useState<{ id: string; name: string; isVideo?: boolean } | null>(null);
-  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
+  const [activeChatTargetUser, setActiveChatTargetUser] = useState<{
+    id: string;
+    name: string;
+    avatar?: string;
+    campus?: string;
+    isOnline?: boolean;
+  } | null>(null);
+  const [onlineCount, setOnlineCount] = useState(1);
+  const [isAvaConnectOpen, setIsAvaConnectOpen] = useState(false);
+
+  // Poll online count periodically
+  useEffect(() => {
+    const fetchCount = () => {
+      fetch("/api/online-status")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && typeof data.onlineCount === "number") {
+            setOnlineCount(Math.max(1, data.onlineCount));
+          }
+        })
+        .catch(() => {});
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Native Android Capacitor Lifecycle & Hardware Back Button Handler
+  useEffect(() => {
+    initializeCapacitorApp({
+      onBackButtonPressed: () => {
+        if (isNativeAppModalOpen) {
+          setIsNativeAppModalOpen(false);
+          return true;
+        }
+        if (isProfileSettingsOpen) {
+          setIsProfileSettingsOpen(false);
+          return true;
+        }
+        if (isNotificationModalOpen) {
+          setIsNotificationModalOpen(false);
+          return true;
+        }
+        if (isOfflineModalOpen) {
+          setIsOfflineModalOpen(false);
+          return true;
+        }
+        if (isAvaConnectOpen) {
+          setIsAvaConnectOpen(false);
+          return true;
+        }
+        if (activeLessonModule) {
+          setActiveLessonModule(null);
+          return true;
+        }
+        if (currentTab !== "dashboard") {
+          setCurrentTab("dashboard");
+          return true;
+        }
+        return false;
+      },
+    });
+  }, [
+    isNativeAppModalOpen,
+    isProfileSettingsOpen,
+    isNotificationModalOpen,
+    isOfflineModalOpen,
+    isAvaConnectOpen,
+    activeLessonModule,
+    currentTab,
+  ]);
+
+  const handleStartCallWithMember = useCallback(
+    (member: { id: string; name: string; avatar?: string; isVideo?: boolean }, isVideo: boolean = true) => {
+      realtimeCallService.startCall(
+        {
+          id: member.id,
+          name: member.name,
+          avatar: member.avatar,
+          isVideo,
+        },
+        isVideo
+      );
+      stopSpeaking();
+    },
+    []
+  );
+
+  const handleOpenPrivateChatWithMember = useCallback(
+    (member: { id: string; name: string; avatar?: string; campus?: string; isOnline?: boolean }) => {
+      setActiveChatTargetUser(member);
+      stopSpeaking();
+    },
+    []
+  );
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem("brain_studio_splash_shown") !== "true";
+    } catch {
+      return true;
+    }
+  });
   const [showTutorial, setShowTutorial] = useState<boolean>(() => {
     try {
       return localStorage.getItem("brain_studio_tutorial_completed") !== "true";
@@ -203,17 +352,6 @@ export default function App() {
     setShowTutorial(false);
     setCurrentTab("dashboard");
   };
-
-  // Listen for replay 3D splash events
-  useEffect(() => {
-    const handleReplay = () => {
-      setShowSplash(true);
-    };
-    window.addEventListener("replay_3d_splash", handleReplay);
-    return () => {
-      window.removeEventListener("replay_3d_splash", handleReplay);
-    };
-  }, []);
 
   // Initialize IndexedDB Cache on App Launch
   useEffect(() => {
@@ -243,46 +381,6 @@ export default function App() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
-
-  // Synchronize coins, XP and level with Firestore saldos/{uid} and petsUsuario/{uid}
-  useEffect(() => {
-    const userId = user.email || user.name || "aluno_ifes";
-
-    const unsubscribeBalance = subscribeBalance(userId, (balance) => {
-      setUser((prev) => {
-        if (
-          prev.coins === balance.moedas &&
-          prev.xp === balance.xp &&
-          prev.level === balance.nivel
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          coins: balance.moedas,
-          xp: balance.xp,
-          level: balance.nivel,
-        };
-      });
-    });
-
-    const unsubscribePet = subscribeUserPet(userId, (activePet) => {
-      setUser((prev) => {
-        if (prev.pet?.id === activePet.id && prev.pet?.name === activePet.name) {
-          return prev;
-        }
-        return {
-          ...prev,
-          pet: activePet,
-        };
-      });
-    });
-
-    return () => {
-      unsubscribeBalance();
-      unsubscribePet();
-    };
-  }, [user.email, user.name]);
 
   // Sync courses whenever updated via CustomEvent or function
   const handleUpdateCourses = useCallback((newIfesCourses: IfesCourse[]) => {
@@ -314,8 +412,8 @@ export default function App() {
         icon: "📚",
         category: "Geral",
         description: "Importe suas matérias do AVA IFES.",
-        color: "var(--app-primary)",
-        accentBg: "var(--app-card-secondary)",
+        color: "#5D5CDE",
+        accentBg: "rgba(93, 92, 222, 0.15)",
         tags: [],
         modules: [],
       };
@@ -334,8 +432,8 @@ export default function App() {
       icon: "📚",
       category: "Geral",
       description: "Importe suas matérias do AVA IFES.",
-      color: "var(--app-primary)",
-      accentBg: "var(--app-card-secondary)",
+      color: "#5D5CDE",
+      accentBg: "rgba(93, 92, 222, 0.15)",
       tags: [],
       modules: [],
     });
@@ -371,8 +469,8 @@ export default function App() {
           icon: "📚",
           category: "Geral",
           description: "Importe suas matérias do AVA IFES.",
-          color: "var(--app-primary)",
-          accentBg: "var(--app-card-secondary)",
+          color: "#5D5CDE",
+          accentBg: "rgba(93, 92, 222, 0.15)",
           tags: [],
           modules: [],
         };
@@ -466,9 +564,6 @@ export default function App() {
   };
 
   const handleRewardXp = (amount: number) => {
-    const userId = user.email || user.name || "aluno_ifes";
-    creditXp(userId, amount, "Progresso Acadêmico").catch(console.warn);
-
     setUser((prev) => {
       const newXp = Math.max(0, prev.xp + amount);
       const newLevel = Math.floor(newXp / 500) + 1;
@@ -481,9 +576,6 @@ export default function App() {
   };
 
   const handleRewardCoins = (amount: number) => {
-    const userId = user.email || user.name || "aluno_ifes";
-    creditCoins(userId, amount, "Recompensa de Moedas").catch(console.warn);
-
     setUser((prev) => ({
       ...prev,
       coins: Math.max(0, (prev.coins ?? 250) + amount),
@@ -492,13 +584,9 @@ export default function App() {
 
   const handleStudyOnAva = () => {
     if (user.energy < 3) {
-      alert("⚡ Energia insuficiente! Visite a Loja para comprar uma Poção de Energia (🪙 50).");
+      console.warn("⚡ Energia insuficiente! Visite a Loja para comprar uma Poção de Energia (🪙 50).");
       return;
     }
-    const userId = user.email || user.name || "aluno_ifes";
-    creditCoins(userId, 30, "Sessão de estudos AVA").catch(console.warn);
-    creditXp(userId, 25, "Sessão de estudos AVA").catch(console.warn);
-
     setUser((prev) => {
       const newCoins = (prev.coins ?? 250) + 30;
       const newXp = prev.xp + 25;
@@ -529,7 +617,7 @@ export default function App() {
 
   const handleConsumeEnergy = (amount: number = 1): boolean => {
     if (user.energy < amount) {
-      alert("Você não possui energias suficientes! Recarregue na Loja ou peça doação na sua Equipe.");
+      console.warn("Você não possui energias suficientes! Recarregue na Loja ou peça doação na sua Equipe.");
       return false;
     }
     setUser((prev) => ({ ...prev, energy: Math.max(0, prev.energy - amount) }));
@@ -543,31 +631,42 @@ export default function App() {
     }));
   };
 
-  const handlePermanentEnergyUpgrade = (cost: number): boolean => {
-    if ((user.coins ?? 0) < cost) {
-      return false;
-    }
-    const userId = user.email || user.name || "aluno_ifes";
-    debitCoins(userId, cost, "Upgrade Permanente de Energia").catch(console.warn);
-
+  const handlePermanentEnergyUpgrade = (amount: number, cost: number) => {
     setUser((prev) => {
       const currentMax = prev.maxEnergy || 50;
-      const newMax = currentMax + 10;
+      const newMax = currentMax + amount;
       return {
         ...prev,
-        coins: Math.max(0, (prev.coins ?? 0) - cost),
+        xp: prev.xp - cost,
         maxEnergy: newMax,
         energy: newMax, // Instant full refill
       };
     });
-    return true;
   };
 
   const handleUpdatePet = (newPet: UserPet) => {
-    setUser((prev) => ({
-      ...prev,
-      pet: newPet,
-    }));
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        pet: newPet,
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("brain_studio_user_updated", { detail: updated }));
+        window.dispatchEvent(new CustomEvent("pet_updated", { detail: newPet }));
+      } catch {}
+      return updated;
+    });
+
+    const userUid = user.id || user.uid || user.email || user.ifesAccount?.matricula || "januthruam@gmail.com";
+    if (userUid && newPet.name) {
+      renameUserPet(userUid, newPet.name).catch((err) => {
+        console.warn("[App] Aviso ao salvar nome do pet no Firestore:", err);
+      });
+      saveUserProfileToFirestore(userUid, { ...user, pet: newPet }).catch((err) => {
+        console.warn("[App] Aviso ao salvar perfil com pet no Firestore:", err);
+      });
+    }
   };
 
   const handleCompleteLesson = (moduleId: number) => {
@@ -586,20 +685,17 @@ export default function App() {
     }
   };
 
-  const handleBuyBadge = (badgeId: string, price: number): boolean => {
-    if ((user.coins ?? 0) < price) {
-      return false;
+  const handleBuyBadge = (badgeId: string, price: number) => {
+    if (user.xp < price) {
+      console.warn("XP insuficiente para desbloquear este distintivo!");
+      return;
     }
-    const userId = user.email || user.name || "aluno_ifes";
-    debitCoins(userId, price, `Emblema: ${badgeId}`).catch(console.warn);
-
     setUser((prev) => ({
       ...prev,
-      coins: Math.max(0, (prev.coins ?? 0) - price),
-      unlockedBadges: [...(prev.unlockedBadges || []), badgeId],
+      xp: prev.xp - price,
+      unlockedBadges: [...prev.unlockedBadges, badgeId],
       equippedBadge: badgeId,
     }));
-    return true;
   };
 
   const handleEquipBadge = (badgeId: string) => {
@@ -611,6 +707,14 @@ export default function App() {
   };
 
   const handleLogin = (email: string, name?: string, ifesAccount?: IfesAccountInfo) => {
+    let existingUser: Partial<UserProfile> = {};
+    try {
+      const saved = localStorage.getItem("brain_studio_user_v3");
+      if (saved) {
+        existingUser = JSON.parse(saved);
+      }
+    } catch {}
+
     const baseUser = createBlankUser(
       name || ifesAccount?.fullname || email.split("@")[0],
       email
@@ -620,15 +724,20 @@ export default function App() {
 
     const loggedInUser: UserProfile = {
       ...baseUser,
+      ...existingUser,
       email: email.trim(),
-      name: name?.trim() || ifesAccount?.fullname || email.split("@")[0],
-      ifesAccount: ifesAccount,
-      level: 1,
-      xp: 0,
-      coins: 0,
-      streakDays: 1,
-      activeTheme: "paper",
-      pet: undefined,
+      name: name?.trim() || existingUser.name || ifesAccount?.fullname || email.split("@")[0],
+      ifesAccount: ifesAccount || existingUser.ifesAccount,
+      level: existingUser.level ?? baseUser.level,
+      xp: existingUser.xp ?? baseUser.xp,
+      coins: existingUser.coins ?? baseUser.coins,
+      energy: existingUser.energy ?? baseUser.energy,
+      streakDays: existingUser.streakDays ?? baseUser.streakDays,
+      activeTheme: existingUser.activeTheme || baseUser.activeTheme,
+      pet: existingUser.pet || baseUser.pet,
+      unlockedThemes: existingUser.unlockedThemes || baseUser.unlockedThemes,
+      unlockedBadges: existingUser.unlockedBadges || baseUser.unlockedBadges,
+      unlockedCards: existingUser.unlockedCards || baseUser.unlockedCards,
     };
 
     setUser(loggedInUser);
@@ -646,6 +755,7 @@ export default function App() {
 
     // Refresh courses if available
     const synced = loadSyncedCourses();
+    setIfesCourses(synced);
     const tracks = convertIfesCoursesToTracks(synced);
     setCourses(tracks);
     if (tracks.length > 0) {
@@ -655,10 +765,22 @@ export default function App() {
   };
 
   const handleUpdateProfile = (updatedUser: Partial<UserProfile>) => {
-    setUser((prev) => ({
-      ...prev,
-      ...updatedUser,
-    }));
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        ...updatedUser,
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("brain_studio_user_updated", { detail: updated }));
+      } catch {}
+      return updated;
+    });
+
+    const uid = user.id || user.uid || user.email || user.ifesAccount?.matricula || "local-student";
+    if (uid) {
+      saveUserProfileToFirestore(uid, { ...user, ...updatedUser }).catch(() => {});
+    }
   };
 
   const handleUpdateIfesAccount = (ifesAccount: IfesAccountInfo | undefined) => {
@@ -669,28 +791,168 @@ export default function App() {
     }));
   };
 
-  const handleUpdateQAcademicoAccount = (qacademicoAccount: QAcademicoAccountInfo | undefined) => {
-    setUser((prev) => ({
-      ...prev,
-      qacademicoAccount,
-      name: qacademicoAccount?.fullname ? qacademicoAccount.fullname : prev.name,
-    }));
-  };
+  const handleAvaConnectionSuccess = (account: IfesAccountInfo, connectedCourses: IfesCourse[]) => {
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        ifesAccount: account,
+        name: account.fullname && prev.name === "Estudante IFES" ? account.fullname : (account.fullname || prev.name),
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        localStorage.setItem("brain_studio_is_logged_in", "true");
+      } catch {}
+      return updated;
+    });
 
-  const handleImportQAcademicoCourses = (newCourses: IfesCourse[]) => {
-    console.log("[App] Importando e aplicando disciplinas reais do Q-Acadêmico:", newCourses);
-    // As disciplinas reais importadas do Q-Acadêmico tornam-se a lista autêntica do estudante
-    setIfesCourses(newCourses);
-    saveSyncedCourses(newCourses);
-
-    const tracks = convertIfesCoursesToTracks(newCourses);
+    const validCourses = connectedCourses || [];
+    setIfesCourses(validCourses);
+    saveSyncedCourses(validCourses);
+    const tracks = convertIfesCoursesToTracks(validCourses);
     setCourses(tracks);
     if (tracks.length > 0) {
       setCurrentCourse(tracks[0]);
       setModules(tracks[0].modules || []);
     }
-    cacheStudyTracks(tracks).catch(() => {});
   };
+
+  const handleAvaDisconnect = () => {
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        ifesAccount: {
+          connected: false,
+          username: "",
+          fullname: prev.name,
+          campusUrl: "",
+          campusName: "",
+          lastSync: "",
+        },
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  // Salvamento contínuo no localStorage e no Firestore para garantir retenção de tudo que o usuário faz
+  useEffect(() => {
+    if (!user) return;
+    try {
+      localStorage.setItem("brain_studio_user_v3", JSON.stringify(user));
+      if (user.ifesAccount?.connected || user.name !== "Estudante IFES" || user.email !== "estudante@ifes.edu.br") {
+        localStorage.setItem("brain_studio_is_logged_in", "true");
+      }
+    } catch (err) {
+      console.warn("Aviso ao persistir dados do usuário localmente:", err);
+    }
+
+    const uid = user.id || user.uid || user.email;
+    if (uid && uid !== "estudante@ifes.edu.br") {
+      saveUserProfileToFirestore(uid, user).catch((err) => {
+        console.warn("Aviso ao salvar perfil no Firestore:", err);
+      });
+    }
+  }, [user]);
+
+  // Restauração transparente a partir da nuvem Firestore (se disponível)
+  useEffect(() => {
+    const restoreFromCloud = async () => {
+      const uid = user.id || user.uid || user.email || "januthruam@gmail.com";
+      if (uid && uid !== "estudante@ifes.edu.br") {
+        try {
+          const remoteProfile = await getUserProfileFromFirestore(uid);
+          if (remoteProfile) {
+            setUser((prev) => {
+              // Se o pet local já possui nome personalizado pelo aluno, preservamos o nome atualizado
+              const mergedPet = prev.pet?.name
+                ? { ...remoteProfile.pet, ...prev.pet, name: prev.pet.name }
+                : (remoteProfile.pet || prev.pet);
+              return {
+                ...prev,
+                ...remoteProfile,
+                ifesAccount: remoteProfile.ifesAccount || prev.ifesAccount,
+                pet: mergedPet,
+              };
+            });
+          }
+        } catch {}
+      }
+    };
+    restoreFromCloud();
+  }, []);
+
+  // Reconexão automática transparente com o AVA IFES para manter sessão estável e permanente
+  useEffect(() => {
+    let isCancelled = false;
+    const autoReconnect = async () => {
+      try {
+        const userId = user.id || user.uid || user.email || "local-student";
+        const res = await avaConnectionManager.autoReconnectIfSaved(userId);
+        if (!isCancelled && res.reconnected && res.account) {
+          handleAvaConnectionSuccess(res.account, res.courses || []);
+        }
+      } catch (err) {
+        console.warn("Auto-reconexão com AVA IFES:", err);
+      }
+    };
+    autoReconnect();
+    return () => {
+      isCancelled = true;
+    };
+  }, [user.id, user.uid, user.email]);
+
+  // Sincronização automática contínua em segundo plano com o AVA IFES
+  useEffect(() => {
+    const userId = user.id || user.uid || user.email || "local-student";
+
+    if (user.ifesAccount?.connected) {
+      avaConnectionManager.startAutoSync(
+        userId,
+        ({ courses, account }) => {
+          if (courses && courses.length > 0) {
+            handleUpdateCourses(courses);
+          }
+          if (account) {
+            setUser((prev) => ({
+              ...prev,
+              ifesAccount: {
+                ...prev.ifesAccount,
+                ...account,
+                lastSync: account.lastSync || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              },
+            }));
+          }
+        },
+        60000 // A cada 60s
+      );
+    } else {
+      avaConnectionManager.stopAutoSync();
+    }
+
+    const handleAvaAutoSynced = (e: any) => {
+      const { courses, account } = e.detail || {};
+      if (courses && Array.isArray(courses) && courses.length > 0) {
+        handleUpdateCourses(courses);
+      }
+      if (account) {
+        setUser((prev) => ({
+          ...prev,
+          ifesAccount: {
+            ...prev.ifesAccount,
+            ...account,
+          },
+        }));
+      }
+    };
+    window.addEventListener("ava:auto-synced", handleAvaAutoSynced);
+
+    return () => {
+      avaConnectionManager.stopAutoSync();
+      window.removeEventListener("ava:auto-synced", handleAvaAutoSynced);
+    };
+  }, [user.ifesAccount?.connected, user.id, user.uid, user.email, handleUpdateCourses]);
 
   const handleLogout = async () => {
     // 1. Zera e apaga todos os dados do LocalStorage e SessionStorage
@@ -726,8 +988,8 @@ export default function App() {
       icon: "📚",
       category: "Geral",
       description: "Faça login com sua matrícula IFES para carregar suas matérias.",
-      color: "var(--app-primary)",
-      accentBg: "var(--app-card-secondary)",
+      color: "#5D5CDE",
+      accentBg: "rgba(93, 92, 222, 0.15)",
       tags: [],
       modules: [],
     });
@@ -766,6 +1028,12 @@ export default function App() {
         onClose={() => setIsNotificationModalOpen(false)}
       />
 
+      {/* Official Native App Center & Standalone Window Modal */}
+      <NativeAppModal
+        isOpen={isNativeAppModalOpen}
+        onClose={() => setIsNativeAppModalOpen(false)}
+      />
+
       {/* Offline IndexedDB Cache Management Modal */}
       <OfflineCacheModal
         isOpen={isOfflineModalOpen}
@@ -799,6 +1067,9 @@ export default function App() {
 
       {/* Main App Container */}
       <main className="flex-1 flex flex-col h-full overflow-y-auto relative bg-[var(--app-bg)] text-[var(--app-text)]">
+        {/* Native Standalone Window TitleBar */}
+        <NativeTitleBar onOpenNativeModal={() => setIsNativeAppModalOpen(true)} />
+
         {/* App Header */}
         <Header
           currentTab={currentTab}
@@ -816,6 +1087,9 @@ export default function App() {
           onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
           onOpenProfileSettings={() => setIsProfileSettingsOpen(true)}
           onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
+          onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+          onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
+          onlineCount={onlineCount}
           isOnline={isOnline}
           currentTheme={currentTheme}
         />
@@ -843,6 +1117,8 @@ export default function App() {
               onRewardCoins={handleRewardCoins}
               onStudyOnAva={handleStudyOnAva}
               onDeleteCourse={handleDeleteSingleCourse}
+              onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
+              onUpdatePet={handleUpdatePet}
             />
           )}
 
@@ -863,15 +1139,13 @@ export default function App() {
               courses={courses}
               currentCourse={currentCourse}
               onSelectCourse={handleSelectCourse}
-              onOpenLesson={(mod: TrackModule) => setActiveLessonModule(mod)}
+              onOpenLesson={(mod) => setActiveLessonModule(mod)}
               onOpenDeck={handleOpenDeckInGames}
               onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
               onResetCourses={handleResetCourses}
               onDeleteCourse={handleDeleteSingleCourse}
-              onStartCallWithMember={(member: any, isVideo: boolean) => {
-                setTargetCallPeer({ id: member.id, name: member.name, isVideo });
-                setCurrentTab("study_room");
-                stopSpeaking();
+              onStartCallWithMember={(member, isVideo) => {
+                handleStartCallWithMember(member, isVideo);
               }}
               onStartGroupCallWithCourse={() => {
                 setCurrentTab("study_room");
@@ -879,6 +1153,7 @@ export default function App() {
               }}
               onRewardXp={handleRewardXp}
               onRewardCoins={handleRewardCoins}
+              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
             />
           )}
 
@@ -899,48 +1174,26 @@ export default function App() {
               onConsumeEnergy={handleConsumeEnergy}
               onAddEnergy={handleAddEnergy}
               onUpdateUserTeam={handleUpdateUserTeam}
+              onStartCallWithMember={handleStartCallWithMember}
+              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
             />
           )}
 
           {currentTab === "ifes" && (
             <IfesAvaTab
               user={user}
-              onGenerateQuizFromTopic={(topic: string) => {
+              courses={ifesCourses}
+              onUpdateCourses={handleUpdateCourses}
+              onGenerateQuizFromTopic={(topic) => {
                 setCurrentTab("games");
               }}
-              onOpenSocraticWithTopic={(topic: string) => {
+              onOpenSocraticWithTopic={(topic) => {
                 setCurrentTab("lumina");
               }}
               onUpdateIfesAccount={handleUpdateIfesAccount}
-              onUpdateQAcademicoAccount={handleUpdateQAcademicoAccount}
-              onImportCourses={handleImportQAcademicoCourses}
               onRewardXp={handleRewardXp}
-              onEnterCourse={(ifesCourse: IfesCourse) => {
-                const match = courses.find(
-                  (c) =>
-                    c.id === ifesCourse.id ||
-                    c.title.toLowerCase().includes(ifesCourse.name.toLowerCase()) ||
-                    ifesCourse.name.toLowerCase().includes(c.title.toLowerCase())
-                );
-                if (match) {
-                  handleSelectCourse(match);
-                }
-                setCurrentTab("sequence");
-                stopSpeaking();
-              }}
+              onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
             />
-          )}
-
-          {currentTab === "qacademico" && (
-            <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-              <QAcademicoView
-                user={user}
-                ifesCourses={ifesCourses}
-                onUpdateQAcademicoAccount={handleUpdateQAcademicoAccount}
-                onUpdateIfesAccount={handleUpdateIfesAccount}
-                onImportCourses={handleImportQAcademicoCourses}
-              />
-            </div>
           )}
 
           {currentTab === "store" && (
@@ -962,7 +1215,7 @@ export default function App() {
           {currentTab === "library" && (
             <LibraryTab
               user={user}
-              onOpenSocraticWithContext={(topic: string) => {
+              onOpenSocraticWithContext={(topic) => {
                 setCurrentTab("lumina");
               }}
               onOpenDeckWithDocument={() => {
@@ -1024,13 +1277,19 @@ export default function App() {
               onRewardXp={handleRewardXp}
               targetCallPeer={targetCallPeer}
               onClearTargetCallPeer={() => setTargetCallPeer(null)}
+              onNavigate={(tab) => {
+                setCurrentTab(tab as TabId);
+                stopSpeaking();
+              }}
+              onStartCallWithMember={handleStartCallWithMember}
+              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
             />
           )}
 
           {currentTab === "theme" && (
             <ColorThemeTab
               currentTheme={currentTheme}
-              onThemeChange={(newTheme: CustomThemeColors) => {
+              onThemeChange={(newTheme) => {
                 setCurrentTheme(newTheme);
                 saveTheme(newTheme);
                 applyThemeToDOM(newTheme);
@@ -1054,10 +1313,8 @@ export default function App() {
           }}
         />
       )}
-      {/* Offline PWA Indicator */}
+      {/* Offline Status Indicator */}
       <OfflineIndicator />
-      {/* PWA Floating Install Banner */}
-      <PWAInstallBanner />
       {/* First Launch Mandatory Tutorial & Starter Pet Selection */}
       {!isAuthOpen && (showTutorial || !user.pet) && (
         <FirstLaunchTutorial
@@ -1065,10 +1322,61 @@ export default function App() {
           onComplete={handleTutorialComplete}
         />
       )}
-      {/* 3D Fluid Logo Intro Animation */}
+      {/* Tela de Abertura (Splash Screen) Brain Studio */}
       {showSplash && (
-        <Splash3DIntro onComplete={() => setShowSplash(false)} />
+        <SplashScreen
+          videoSrc="/splash.mp4"
+          onComplete={() => {
+            try {
+              sessionStorage.setItem("brain_studio_splash_shown", "true");
+            } catch {}
+            setShowSplash(false);
+          }}
+        />
       )}
+
+      {/* Real-time WebRTC Video & Audio Call Modal (Receber e Fazer Ligações) */}
+      <ActiveCallModal
+        currentUserId={user.email || user.name || "user-id"}
+        currentUserName={user.name || "Estudante"}
+      />
+
+      {/* WhatsApp-Style 1-on-1 Private Chat Modal */}
+      {activeChatTargetUser && (
+        <WhatsAppChatModal
+          currentUserId={user.email || user.name || "user-id"}
+          currentUserName={user.name || "Estudante"}
+          targetUser={activeChatTargetUser}
+          onClose={() => setActiveChatTargetUser(null)}
+          onStartCall={(target, isVideo) => {
+            handleStartCallWithMember(target, isVideo);
+          }}
+        />
+      )}
+
+      {/* Real Online Users Drawer (Apenas Usuários Reais Conectados) */}
+      <OnlineUsersDrawer
+        isOpen={isOnlineUsersOpen}
+        onClose={() => setIsOnlineUsersOpen(false)}
+        currentUser={user}
+        onStartCall={(target, isVideo) => {
+          setIsOnlineUsersOpen(false);
+          handleStartCallWithMember(target, isVideo);
+        }}
+        onOpenPrivateChat={(target) => {
+          setIsOnlineUsersOpen(false);
+          handleOpenPrivateChatWithMember(target);
+        }}
+      />
+
+      {/* Modal de Conexão Estável e Permanente com o AVA IFES */}
+      <AvaConnectModal
+        isOpen={isAvaConnectOpen}
+        onClose={() => setIsAvaConnectOpen(false)}
+        user={user}
+        onConnectionSuccess={handleAvaConnectionSuccess}
+        onDisconnect={handleAvaDisconnect}
+      />
     </div>
   );
 }

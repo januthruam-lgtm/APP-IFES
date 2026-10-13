@@ -1,114 +1,151 @@
 import React, { useState } from "react";
 import {
   Gamepad2,
-  Zap,
   Sparkles,
-  Trophy,
+  Upload,
+  FileText,
+  Zap,
   CheckCircle2,
   XCircle,
-  FileText,
   RotateCcw,
+  Trophy,
   ArrowRight,
   ShoppingBag,
+  Clock,
+  HelpCircle,
 } from "lucide-react";
-import { UserProfile } from "../../types";
+import { UserProfile, QuizQuestion } from "../../types";
 import confetti from "canvas-confetti";
 
 interface PdfGameGeneratorTabProps {
   user: UserProfile;
   initialDeckId?: string | null;
-  onRewardXp: (xp: number) => void;
-  onConsumeEnergy: (amount: number) => boolean;
-  onNavigateToStore: () => void;
+  onRewardXp?: (xp: number) => void;
+  onConsumeEnergy?: (amount: number) => boolean;
+  onNavigateToStore?: () => void;
 }
-
-interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-}
-
-const SAMPLE_QUESTIONS: QuizQuestion[] = [
-  {
-    question: "Qual é a principal vantagem de uma árvore binária de busca equilibrada (ex: AVL) sobre uma lista encadeada simples?",
-    options: [
-      "Menor consumo de memória por ponteiro",
-      "Busca em tempo O(log n) em vez de O(n)",
-      "Capacidade de armazenar strings arbitrariamente longas sem overhead",
-      "Não requer alocação dinâmica de memória",
-    ],
-    correctIndex: 1,
-    explanation: "Em árvores binárias balanceadas, a altura é mantida em O(log n), garantindo operações eficientes de busca e inserção.",
-  },
-  {
-    question: "Na derivação de funções compostas pela Regra da Cadeia, a derivada de f(g(x)) é dada por:",
-    options: [
-      "f'(x) * g'(x)",
-      "f'(g(x)) * g'(x)",
-      "f'(g'(x))",
-      "f(x) * g'(x) + f'(x) * g(x)",
-    ],
-    correctIndex: 1,
-    explanation: "A Regra da Cadeia estabelece que a taxa de variação da composta é o produto da derivada externa avaliada na interna pela derivada da função interna.",
-  },
-  {
-    question: "Qual protocolo da camada de transporte fornece transmissão rápida sem garantia de confirmação de entrega (não confiável)?",
-    options: ["TCP", "UDP", "HTTP", "BGP"],
-    correctIndex: 1,
-    explanation: "UDP é orientado a datagramas sem overhead de handshake, muito utilizado em streaming ao vivo e jogos online.",
-  },
-];
 
 export const PdfGameGeneratorTab: React.FC<PdfGameGeneratorTabProps> = ({
   user,
+  initialDeckId,
   onRewardXp,
   onConsumeEnergy,
   onNavigateToStore,
 }) => {
+  const [inputText, setInputText] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [topicName, setTopicName] = useState("Teorias da Administração & Taylorismo");
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([
+    {
+      id: "q-1",
+      question: "Qual foi o principal objetivo do Taylorismo no início do século XX?",
+      options: [
+        "Aumentar a produtividade operacional eliminando o desperdício de tempo e movimentos.",
+        "Desenvolver planos de previdência privada para operários fabris.",
+        "Automatizar totalmente as indústrias sem interferência operária.",
+        "Substituir o trabalho assalariado por cooperativas sem hierarquia.",
+      ],
+      correctIndex: 0,
+      explanation: "Taylor utilizou métodos científicos para cronometrar movimentos e maximizar a eficiência fabril.",
+      xpReward: 30,
+    },
+    {
+      id: "q-2",
+      question: "Na Teoria Clássica de Henri Fayol, qual função administrativa refere-se ao alinhamento de esforços?",
+      options: [
+        "Coordenação",
+        "Previsão",
+        "Contabilidade",
+        "Segurança",
+      ],
+      correctIndex: 0,
+      explanation: "A Coordenação liga, une e harmoniza todos os atos e todos os esforços coletivos da organização.",
+      xpReward: 30,
+    },
+    {
+      id: "q-3",
+      question: "No contexto da gestão moderna, qual benefício central a filosofia Kaizen promove?",
+      options: [
+        "Melhoria contínua e gradual envolvendo todos os colaboradores.",
+        "Mudanças radicais e pontuais que descartam toda a cultura existente.",
+        "Eliminação completa de qualquer documentação de processos.",
+        "Subordinação aos fornecedores sem análise de qualidade.",
+      ],
+      correctIndex: 0,
+      explanation: "Kaizen significa 'mudar para melhor', preconizando aperfeiçoamento constante do dia a dia.",
+      xpReward: 35,
+    },
+  ]);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
-  const [noEnergyWarning, setNoEnergyWarning] = useState(false);
 
-  const currentQ = SAMPLE_QUESTIONS[currentQuestionIndex];
+  const currentQ = quizQuestions[currentQuestionIndex];
 
-  const handleSelectOption = (idx: number) => {
-    if (isAnswered) return;
+  const handleGenerateGame = async () => {
+    if (!inputText.trim()) return;
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/games/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topicName,
+          documentText: inputText,
+          questionCount: 4,
+        }),
+      });
 
-    if (user.energy <= 0) {
-      setNoEnergyWarning(true);
-      return;
-    }
-
-    // Consume 1 energy
-    const success = onConsumeEnergy(1);
-    if (!success) {
-      setNoEnergyWarning(true);
-      return;
-    }
-
-    setSelectedOption(idx);
-    setIsAnswered(true);
-
-    if (idx === currentQ.correctIndex) {
-      setScore((s) => s + 1);
-      confetti({ particleCount: 30, spread: 60 });
-      onRewardXp(20);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions && data.questions.length > 0) {
+          setQuizQuestions(data.questions);
+          setCurrentQuestionIndex(0);
+          setSelectedOption(null);
+          setIsAnswered(false);
+          setScore(0);
+          setGameOver(false);
+        }
+      }
+    } catch {
+      // Keep existing questions
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const handleNext = () => {
-    if (currentQuestionIndex + 1 < SAMPLE_QUESTIONS.length) {
+  const handleSelectOption = (idx: number) => {
+    if (isAnswered) return;
+    setSelectedOption(idx);
+    setIsAnswered(true);
+
+    const isCorrect = idx === currentQ.correctIndex;
+    if (isCorrect) {
+      setScore((s) => s + 1);
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
+      if (onRewardXp) onRewardXp(currentQ.xpReward || 25);
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (user.energy < 2 && onConsumeEnergy) {
+      const consumed = onConsumeEnergy(2);
+      if (!consumed) {
+        // Out of energy
+        return;
+      }
+    }
+
+    if (currentQuestionIndex + 1 < quizQuestions.length) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
       setGameOver(true);
-      confetti({ particleCount: 60, spread: 80 });
-      onRewardXp(50);
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
     }
   };
 
@@ -118,140 +155,197 @@ export const PdfGameGeneratorTab: React.FC<PdfGameGeneratorTabProps> = ({
     setIsAnswered(false);
     setScore(0);
     setGameOver(false);
-    setNoEnergyWarning(false);
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Quiz Acadêmico Gamificado</span>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Top Banner */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-md shrink-0">
+            <Gamepad2 className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text-primary,#f8fafc)]">
-            Desafio Relâmpago de Conteúdo
-          </h1>
-          <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-            Responda questões para fixar o aprendizado e subir no ranking da guilda
-          </p>
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)] tracking-tight">
+              Gerador de Jogos & Quizzes de PDFs
+            </h2>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Transforme apostilas, resumos e PDFs de aulas em desafios gamificados interativos.
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-2xl bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span className="text-xs font-bold text-[var(--text-primary,#f8fafc)]">
-              {user.energy}/{user.maxEnergy} Energia
-            </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-black">
+            <Zap className="w-4 h-4 fill-amber-500 text-amber-500" />
+            <span>{user.energy} Energia</span>
           </div>
+
+          {user.energy < 5 && onNavigateToStore && (
+            <button
+              onClick={onNavigateToStore}
+              className="px-3 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Recarregar</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {noEnergyWarning && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-400 shrink-0" />
-            <span>Sua energia acabou! Descanse ou compre uma poção de recarga na loja.</span>
-          </div>
-          <button
-            onClick={onNavigateToStore}
-            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shrink-0 flex items-center gap-1.5 transition"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Ir para Loja</span>
-          </button>
-        </div>
-      )}
-
-      {gameOver ? (
-        <div className="p-8 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-2xl text-center space-y-6">
-          <Trophy className="w-16 h-16 text-amber-400 mx-auto animate-bounce" />
-          <div className="space-y-2">
-            <h2 className="text-2xl font-extrabold text-[var(--text-primary,#f8fafc)]">
-              Desafio Concluído!
-            </h2>
-            <p className="text-sm text-[var(--text-muted,#94a3b8)]">
-              Você acertou <strong className="text-emerald-400">{score}</strong> de {SAMPLE_QUESTIONS.length} questões!
-            </p>
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 mt-2">
-              +70 XP Total Concedido
-            </span>
-          </div>
-
-          <div className="pt-4 flex justify-center gap-4">
-            <button
-              onClick={handleRestart}
-              className="px-6 py-3 rounded-2xl bg-[var(--btn-primary,#6366f1)] hover:bg-[var(--btn-primary-hover,#4f46e5)] text-white font-bold text-xs flex items-center gap-2 transition shadow-lg"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Jogar Novamente</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="p-6 sm:p-8 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl space-y-6">
-          <div className="flex items-center justify-between text-xs text-[var(--text-muted,#94a3b8)]">
-            <span>Questão {currentQuestionIndex + 1} de {SAMPLE_QUESTIONS.length}</span>
-            <span>Pontuação: {score}</span>
-          </div>
-
-          <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary,#f8fafc)] leading-relaxed">
-            {currentQ.question}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Game Generator Form */}
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-text-muted)] flex items-center gap-1.5">
+            <FileText className="w-4 h-4 text-[var(--app-primary)]" />
+            Fonte do Conteúdo
           </h3>
 
-          <div className="space-y-3">
-            {currentQ.options.map((opt, idx) => {
-              let btnClass = "bg-[var(--bg-card-secondary,#334155)] border-[var(--border-color,rgba(255,255,255,0.1))] text-[var(--text-primary,#f8fafc)] hover:opacity-90";
-              if (isAnswered) {
-                if (idx === currentQ.correctIndex) {
-                  btnClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold";
-                } else if (idx === selectedOption) {
-                  btnClass = "bg-rose-500/20 border-rose-500 text-rose-300";
-                } else {
-                  btnClass = "opacity-40 bg-neutral-800 border-white/5";
-                }
-              }
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => handleSelectOption(idx)}
-                  disabled={isAnswered}
-                  className={`w-full p-4 rounded-2xl border text-left text-xs sm:text-sm transition flex items-center justify-between gap-4 cursor-pointer ${btnClass}`}
-                >
-                  <span>{opt}</span>
-                  {isAnswered && idx === currentQ.correctIndex && (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                  )}
-                  {isAnswered && idx === selectedOption && idx !== currentQ.correctIndex && (
-                    <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[var(--app-text)]">Tema ou Disciplina</label>
+            <input
+              type="text"
+              value={topicName}
+              onChange={(e) => setTopicName(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none focus:ring-1 focus:ring-[var(--app-primary)]"
+            />
           </div>
 
-          {isAnswered && (
-            <div className="pt-4 border-t border-white/5 space-y-4 animate-in fade-in">
-              <div className="p-4 rounded-2xl bg-black/20 border border-white/5 text-xs text-[var(--text-muted,#94a3b8)] leading-relaxed">
-                <strong className="text-[var(--text-primary,#f8fafc)] block mb-1">Explicação do Conceito:</strong>
-                {currentQ.explanation}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-[var(--app-text)]">
+              Cole o texto de uma apostila, resumo ou anotações
+            </label>
+            <textarea
+              rows={6}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Cole aqui o conteúdo extraído do PDF, slides do professor ou resumo de aula..."
+              className="w-full p-3 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:ring-1 focus:ring-[var(--app-primary)] resize-none"
+            />
+          </div>
+
+          <button
+            onClick={handleGenerateGame}
+            disabled={!inputText.trim() || isGenerating}
+            className="w-full py-3 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-black text-xs flex items-center justify-center gap-2 shadow-xs transition disabled:opacity-40 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{isGenerating ? "Gerando Desafios com IA..." : "Gerar Quiz Interativo"}</span>
+          </button>
+        </div>
+
+        {/* Game Play Arena */}
+        <div className="lg:col-span-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col justify-between space-y-6">
+          {!gameOver ? (
+            <>
+              {/* Question Header */}
+              <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-4">
+                <span className="text-xs font-mono font-bold text-[var(--app-text-muted)]">
+                  Questão {currentQuestionIndex + 1} de {quizQuestions.length}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-500">
+                    Acertos: {score}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-[var(--app-bg)] border border-[var(--app-border)] text-[10px] font-bold text-[var(--app-text)]">
+                    +{currentQ?.xpReward || 30} XP
+                  </span>
+                </div>
               </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleNext}
-                  className="px-6 py-2.5 rounded-2xl bg-[var(--btn-primary,#6366f1)] hover:bg-[var(--btn-primary-hover,#4f46e5)] text-white font-bold text-xs flex items-center gap-2 shadow-lg transition"
-                >
-                  <span>Próxima Questão</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+              {/* Question Body */}
+              <div className="space-y-4">
+                <h3 className="text-base sm:text-lg font-bold text-[var(--app-text)] leading-snug">
+                  {currentQ?.question}
+                </h3>
+
+                {/* Options List */}
+                <div className="space-y-2.5">
+                  {currentQ?.options.map((opt, oIdx) => {
+                    const isSelected = selectedOption === oIdx;
+                    const isCorrect = oIdx === currentQ.correctIndex;
+                    let style =
+                      "border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-text)] hover:border-[var(--app-primary)]";
+
+                    if (isAnswered) {
+                      if (isCorrect) {
+                        style = "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold";
+                      } else if (isSelected) {
+                        style = "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 font-bold";
+                      } else {
+                        style = "border-[var(--app-border)] opacity-40";
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={oIdx}
+                        disabled={isAnswered}
+                        onClick={() => handleSelectOption(oIdx)}
+                        className={`w-full p-3.5 rounded-2xl border text-left text-xs sm:text-sm transition flex items-start gap-3 cursor-pointer ${style}`}
+                      >
+                        <span className="w-5 h-5 rounded-lg border border-[var(--app-border)] flex items-center justify-center font-mono font-bold text-[10px] shrink-0">
+                          {String.fromCharCode(65 + oIdx)}
+                        </span>
+                        <span className="flex-1">{opt}</span>
+                        {isAnswered && isCorrect && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        )}
+                        {isAnswered && isSelected && !isCorrect && (
+                          <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Explanation Card */}
+                {isAnswered && (
+                  <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text-muted)] space-y-1 animate-in fade-in">
+                    <p className="font-bold text-[var(--app-text)] flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Explicação Socrática:
+                    </p>
+                    <p>{currentQ?.explanation}</p>
+                  </div>
+                )}
               </div>
+
+              {/* Footer navigation */}
+              <div className="flex justify-end pt-4 border-t border-[var(--app-border)]">
+                {isAnswered && (
+                  <button
+                    onClick={handleNextQuestion}
+                    className="px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <span>
+                      {currentQuestionIndex + 1 < quizQuestions.length ? "Próxima Questão" : "Ver Resultado"}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-10 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-500">
+                <Trophy className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-black text-[var(--app-text)]">Desafio Concluído!</h3>
+              <p className="text-xs text-[var(--app-text-muted)] max-w-sm mx-auto">
+                Você acertou {score} de {quizQuestions.length} questões do desafio gamificado.
+              </p>
+              <button
+                onClick={handleRestart}
+                className="px-6 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold inline-flex items-center gap-2 transition cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Jogar Novamente</span>
+              </button>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -1,68 +1,60 @@
+import { CourseTrack, IfesCourse, UserProfile } from "../types";
+
 export interface CourseMember {
   id: string;
   name: string;
-  role: "aluno" | "professor" | "tutor";
+  initials: string;
+  avatarColor: string;
   isOnline: boolean;
-  avatar?: string;
-  avatarColor?: string;
-  initials?: string;
-  matricula?: string;
-  lastActive?: string;
-  lastAccess?: string;
+  role: string;
+  matricula: string;
+  lastAccess: string;
+  city?: string;
 }
 
-export function getCourseParticipants(courseOrId: any, user?: any, extraList: any[] = []): CourseMember[] {
-  const courseId = typeof courseOrId === "string" ? courseOrId : courseOrId?.id || "curso";
+const GRADIENT_PALETTES = [
+  "from-emerald-500 to-teal-700",
+  "from-blue-500 to-indigo-700",
+  "from-amber-500 to-orange-700",
+  "from-purple-500 to-pink-700",
+  "from-cyan-500 to-blue-700",
+];
 
-  const defaultList: CourseMember[] = [
-    {
-      id: `prof-${courseId}`,
-      name: "Docente Titular (IFES)",
-      role: "professor",
-      isOnline: true,
-      lastActive: "Agora",
-      lastAccess: "Hoje às 08:30",
-      avatarColor: "#22c55e",
-      initials: "DT",
-      matricula: "20180IFES012",
-    },
-    {
-      id: "student-1",
-      name: "Lucas Mendes",
-      role: "aluno",
-      isOnline: true,
-      lastActive: "Há 2 min",
-      lastAccess: "Há 2 minutos",
-      avatarColor: "#3b82f6",
-      initials: "LM",
-      matricula: "20231TI0041",
-    },
-    {
-      id: "student-2",
-      name: "Mariana Costa",
-      role: "aluno",
-      isOnline: false,
-      lastActive: "Hoje às 10:30",
-      lastAccess: "Hoje às 10:30",
-      avatarColor: "#ec4899",
-      initials: "MC",
-      matricula: "20231TI0055",
-    },
-    {
-      id: "student-3",
-      name: "Gabriel Silva",
-      role: "aluno",
-      isOnline: true,
-      lastActive: "Agora",
-      lastAccess: "Agora",
-      avatarColor: "#f59e0b",
-      initials: "GS",
-      matricula: "20241TI0089",
-    },
-  ];
+export function getCourseParticipants(
+  course: CourseTrack | IfesCourse,
+  user: UserProfile,
+  serverList: CourseMember[] = []
+): CourseMember[] {
+  const currentUserName = user.name || "Estudante";
+  const currentUserInitials = currentUserName
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
-  if (extraList && extraList.length > 0) {
-    return [...defaultList, ...extraList];
+  const currentUserMember: CourseMember = {
+    id: user.email || user.name || "current-user",
+    name: `${currentUserName} (Você)`,
+    initials: currentUserInitials || "EU",
+    avatarColor: "from-emerald-600 to-green-700",
+    isOnline: true,
+    role: "Estudante Regular",
+    matricula: user.ifesAccount?.matricula || "20241IFES",
+    lastAccess: "Online agora",
+    city: user.ifesAccount?.campusName || "IFES",
+  };
+
+  // ONLY return REAL users from the server list, never mock/fictitious participants!
+  if (serverList && serverList.length > 0) {
+    const listWithoutSelf = serverList.filter(
+      (m) =>
+        m.id !== currentUserMember.id &&
+        !m.name.includes("(Você)") &&
+        m.name.toLowerCase() !== currentUserName.toLowerCase()
+    );
+    return [currentUserMember, ...listWithoutSelf];
   }
-  return defaultList;
+
+  return [currentUserMember];
 }

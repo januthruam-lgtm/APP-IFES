@@ -1,44 +1,61 @@
-// Web Speech API text-to-speech helper
-
-let currentUtterance: SpeechSynthesisUtterance | null = null;
-
-export function stopSpeaking(): void {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-      currentUtterance = null;
-    } catch (e) {
-      console.warn("Speech synthesis cancel error:", e);
-    }
-  }
-}
-
-export function speakText(text: string, isUrgent: boolean = false): void {
+export function speakText(
+  text: string,
+  onEndOrInterrupt?: (() => void) | boolean,
+  interrupt: boolean = true
+): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    if (typeof onEndOrInterrupt === "function") onEndOrInterrupt();
     return;
   }
 
-  try {
-    if (isUrgent || window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
+  const shouldInterrupt = typeof onEndOrInterrupt === "boolean" ? onEndOrInterrupt : interrupt;
+  const onEndCallback = typeof onEndOrInterrupt === "function" ? onEndOrInterrupt : undefined;
 
-    const cleanText = text.replace(/[*#_`~\[\]]/g, "").slice(0, 500);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
+  // Clean text from Markdown or emojis
+  const clean = text
+    .replace(/[#*_~`>[\]()]/g, "")
+    .replace(
+      /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu,
+      ""
+    )
+    .trim();
 
-    // Pick a Portuguese voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoice = voices.find((v) => v.lang.startsWith("pt") || v.name.toLowerCase().includes("brazil") || v.name.toLowerCase().includes("portuguese"));
-    if (ptVoice) {
-      utterance.voice = ptVoice;
-    }
+  if (!clean) {
+    if (onEndCallback) onEndCallback();
+    return;
+  }
 
-    currentUtterance = utterance;
-    window.speechSynthesis.speak(utterance);
-  } catch (err) {
-    console.warn("Speech synthesis error:", err);
+  if (shouldInterrupt) {
+    window.speechSynthesis.cancel();
+  }
+
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang = "pt-BR";
+  utterance.rate = 1.05;
+  utterance.pitch = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+  const ptVoice =
+    voices.find((v) => v.lang.startsWith("pt-BR") || v.lang.startsWith("pt_BR")) ||
+    voices.find((v) => v.lang.startsWith("pt"));
+
+  if (ptVoice) {
+    utterance.voice = ptVoice;
+  }
+
+  utterance.onend = () => {
+    if (onEndCallback) onEndCallback();
+  };
+
+  utterance.onerror = () => {
+    if (onEndCallback) onEndCallback();
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+export function stopSpeaking(): void {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
   }
 }

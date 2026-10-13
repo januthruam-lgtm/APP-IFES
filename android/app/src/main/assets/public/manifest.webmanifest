@@ -1,0 +1,64 @@
+{
+  "id": "/",
+  "name": "Brain Studio - App Oficial",
+  "short_name": "Brain Studio",
+  "description": "Aplicativo Oficial Brain Studio • Assistente de Aprendizagem IFES com inteligência acadêmica, conexão persistente com AVA Moodle e estudo offline.",
+  "theme_color": "#050512",
+  "background_color": "#050512",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "fullscreen", "minimal-ui"],
+  "orientation": "any",
+  "start_url": "/?mode=standalone",
+  "scope": "/",
+  "categories": ["education", "productivity", "utilities"],
+  "launch_handler": {
+    "client_mode": "auto"
+  },
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1376x768",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard Oficial",
+      "short_name": "Início",
+      "url": "/?tab=dashboard",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AVA IFES Moodle",
+      "short_name": "AVA IFES",
+      "url": "/?tab=ava-ifes",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tarefas & Prazos",
+      "short_name": "Tarefas",
+      "url": "/?tab=tasks",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

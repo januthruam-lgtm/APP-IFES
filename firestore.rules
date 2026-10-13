@@ -38,6 +38,20 @@ service cloud.firestore {
       match /mensagens/{mensagemId} {
         allow read, write: if true;
       }
+      match /typing/{userId} {
+        allow read, write: if true;
+      }
+    }
+
+    // 5b. Chats Individuais Diretos (1-on-1 Real-time Messaging com Visto e Digitando)
+    match /directChats/{chatId} {
+      allow read, write: if true;
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+      match /typing/{userId} {
+        allow read, write: if true;
+      }
     }
 
     // 6. Presença e Heartbeat

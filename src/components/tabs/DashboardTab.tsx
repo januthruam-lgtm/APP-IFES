@@ -5,12 +5,10 @@ import {
   Target,
   Trophy,
   Users,
-  Brain,
   ArrowRight,
   Flame,
   CheckCircle2,
   BookOpen,
-  ArrowUpRight,
   Building2,
   Calendar,
   Clock,
@@ -22,12 +20,14 @@ import {
   Heart,
   Smile,
   Wand2,
+  Pencil,
+  X,
 } from "lucide-react";
-import { UserProfile, TrackModule, CourseTrack, IfesAssignment, IfesClassSchedule } from "../../types";
+import { UserProfile, TrackModule, CourseTrack, IfesAssignment, IfesClassSchedule, UserPet } from "../../types";
 import { TabId } from "../Sidebar";
 import { PuppetPetView } from "../PuppetPetView";
 import { DailyStudyChallenges } from "../DailyStudyChallenges";
-import { PWAInstallButton } from "../PWAInstallButton";
+import { NativeAppButton } from "../NativeAppButton";
 import {
   loadSyncedAssignments,
   saveSyncedAssignments,
@@ -51,6 +51,8 @@ interface DashboardTabProps {
   onRewardCoins?: (coins: number) => void;
   onStudyOnAva?: () => void;
   onDeleteCourse?: (courseId: string) => void;
+  onOpenAvaConnect?: () => void;
+  onUpdatePet?: (pet: UserPet) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -65,10 +67,48 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onRewardCoins,
   onStudyOnAva,
   onDeleteCourse,
+  onOpenAvaConnect,
+  onUpdatePet,
 }) => {
   const [assignments, setAssignments] = useState<IfesAssignment[]>(() => loadSyncedAssignments());
   const [schedules] = useState<IfesClassSchedule[]>(() => loadSyncedSchedules());
   const [selectedDay, setSelectedDay] = useState<string>("Segunda");
+  const [isRenamingPet, setIsRenamingPet] = useState(false);
+  const [petRenameInput, setPetRenameInput] = useState(user.pet?.name || "Mascote");
+
+  React.useEffect(() => {
+    if (user.pet?.name) {
+      setPetRenameInput(user.pet.name);
+    }
+  }, [user.pet?.name]);
+
+  // Real-time synchronization when courses, assignments or tasks update elsewhere
+  React.useEffect(() => {
+    const handleSync = () => {
+      setAssignments(loadSyncedAssignments());
+    };
+    window.addEventListener("assignments_updated", handleSync);
+    window.addEventListener("courses_synced", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("assignments_updated", handleSync);
+      window.removeEventListener("courses_synced", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, []);
+
+  const handleSavePetName = () => {
+    const trimmed = petRenameInput.trim();
+    if (!trimmed || !user.pet) return;
+    const updatedPet: UserPet = {
+      ...user.pet,
+      name: trimmed,
+    };
+    if (onUpdatePet) {
+      onUpdatePet(updatedPet);
+    }
+    setIsRenamingPet(false);
+  };
 
   const activeModule = modules.find((m) => m.status === "active") || modules[0];
   const completedCount = modules.filter((m) => m.status === "completed").length;
@@ -113,8 +153,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   );
 
   const pet = user.pet;
-  const petDef = getPetDefinition(pet?.activePetId || pet?.id);
-  const petEmoji = pet?.customSpeciesEmoji || petDef.emoji;
+  const petDef = getPetDefinition((pet as any)?.type || (pet as any)?.activePetId || (pet as any)?.id || "bunny");
+  const petEmoji = (pet as any)?.customSpeciesEmoji || petDef.emoji;
 
   return (
     <section id="tab-dashboard" className="p-4 sm:p-8 space-y-6 max-w-7xl mx-auto">
@@ -137,13 +177,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               Potencialize seus estudos com inteligência acadêmica.
             </h1>
 
-            <p className="text-[var(--app-text-muted)] text-xs sm:text-sm leading-relaxed max-w-lg font-normal">
-              Olá, <strong className="text-[var(--app-text)]">{user.name.split(" ")[0]}</strong>! Você está estudando{" "}
-              <strong className="text-[var(--app-primary)] font-bold">
-                {currentCourse?.title || "suas matérias"}
-              </strong>. Cada resposta correta gera XP e alimenta seu mascote.
-            </p>
-
             {/* Quick Status Badges */}
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="px-3 py-1.5 rounded-full border border-[var(--app-border)] text-[11px] text-[var(--app-text)] bg-[var(--app-bg)] font-semibold flex items-center gap-1.5">
@@ -160,52 +193,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               >
                 <span>🪙 {user.coins ?? 250} Moedas</span>
               </span>
-              <span className="px-3 py-1.5 rounded-full border border-[var(--app-primary)]/20 text-[11px] text-[var(--app-primary)] bg-[var(--app-primary)]/10 font-semibold flex items-center gap-1">
-                <Building2 className="w-3 h-3" /> Matrícula: {user.ifesAccount?.matricula || "20241IFES0482"}
-              </span>
-              <span className="px-3 py-1.5 rounded-full border border-[var(--app-border)] text-[11px] text-[var(--app-text)] bg-[var(--app-bg)] font-semibold">
-                {courses.length} Disciplinas Ativas
-              </span>
               <span className="px-3 py-1.5 rounded-full border border-[var(--app-primary)]/30 text-[11px] text-[var(--app-primary)] bg-[var(--app-primary)]/10 font-semibold font-mono">
                 {progressPercent}% Progresso Geral
               </span>
             </div>
-          </div>
-
-          <div className="pt-6 flex flex-wrap items-center gap-3 relative z-10">
-            {courses.length > 0 && currentCourse?.id !== "empty-course" ? (
-              <button
-                onClick={activeModule ? onOpenActiveLesson : () => onNavigate("sequence")}
-                className="bg-[var(--app-primary)] hover:opacity-90 text-white px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm transition shadow-sm flex items-center gap-2 cursor-pointer"
-              >
-                <span>{activeModule ? `Continuar: ${activeModule.title}` : `Estudar: ${currentCourse?.title || "Disciplina"}`}</span>
-                <ArrowUpRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => onNavigate("ifes")}
-                className="bg-[var(--app-primary)] hover:opacity-90 text-white px-6 py-3.5 rounded-2xl font-extrabold text-xs sm:text-sm transition shadow-sm flex items-center gap-2 cursor-pointer"
-              >
-                <Building2 className="w-4 h-4" />
-                <span>Conectar ao AVA IFES</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => onNavigate("lumina")}
-              className="bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] px-6 py-3.5 rounded-2xl font-bold text-xs sm:text-sm transition border border-[var(--app-border)] flex items-center gap-2 cursor-pointer"
-            >
-              <Brain className="w-4 h-4 text-[var(--app-primary)]" />
-              <span>Tutora Lumina</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate("sequence")}
-              className="bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-primary)] border border-[var(--app-border)] px-5 py-3.5 rounded-2xl font-bold text-xs sm:text-sm transition flex items-center gap-2 cursor-pointer"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Trilha em Sequência</span>
-            </button>
           </div>
         </div>
 
@@ -216,16 +207,73 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div
                 onClick={() => onNavigate("store")}
                 className="cursor-pointer hover:scale-105 transition"
-                title="Abrir Mascote Lab na Loja para customizar ou animar"
+                title="Abrir Loja de Pets para evoluir ou alimentar seu mascote"
               >
-                <PuppetPetView pet={pet} size="sm" interactive={false} />
+                <PuppetPetView
+                  pet={pet}
+                  size="md"
+                  interactive={true}
+                  accessoryBadgeStyle={{ fontSize: "0px", lineHeight: "0px" }}
+                />
               </div>
-              <div>
-                <h3 className="font-extrabold text-sm text-[var(--app-text)]">
-                  {pet?.name || "Mascote"}
-                </h3>
-                <span className="text-[11px] text-[var(--app-text-muted)]">
-                  Nível {pet?.level || 1} • {pet?.exp || 0}/{pet?.maxExp || 100} EXP
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isRenamingPet ? (
+                    <div className="flex items-center gap-1 bg-[var(--app-bg)] px-2 py-0.5 rounded-xl border border-[var(--app-primary)] shadow-xs">
+                      <input
+                        type="text"
+                        value={petRenameInput}
+                        onChange={(e) => setPetRenameInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSavePetName();
+                          if (e.key === "Escape") setIsRenamingPet(false);
+                        }}
+                        autoFocus
+                        placeholder="Nome do mascote..."
+                        className="text-xs font-bold bg-transparent text-[var(--app-text)] outline-none w-28 sm:w-36"
+                        maxLength={25}
+                      />
+                      <button
+                        onClick={handleSavePetName}
+                        className="p-1 rounded-md bg-[var(--app-primary)] text-white hover:opacity-90 transition cursor-pointer"
+                        title="Salvar novo nome"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setIsRenamingPet(false)}
+                        className="p-1 rounded-md bg-gray-500/20 text-[var(--app-text-muted)] hover:bg-gray-500/30 transition cursor-pointer"
+                        title="Cancelar"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="font-extrabold text-base text-[var(--app-text)] flex items-center gap-1.5">
+                        <span>{pet?.name || "Mascote"}</span>
+                        <button
+                          onClick={() => {
+                            setPetRenameInput(pet?.name || "Mascote");
+                            setIsRenamingPet(true);
+                          }}
+                          className="p-1 rounded-lg hover:bg-[var(--app-primary)]/15 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition cursor-pointer"
+                          title="Alterar nome do Mascote"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </h3>
+                    </>
+                  )}
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--app-primary)]/15 text-[var(--app-primary)]"
+                    style={{ paddingRight: "26px" }}
+                  >
+                    Nível {pet?.level || 1}
+                  </span>
+                </div>
+                <span className="text-[11px] text-[var(--app-text-muted)] font-mono block">
+                  {pet?.exp || 0} / {pet?.maxExp || 100} EXP
                 </span>
               </div>
             </div>
@@ -240,31 +288,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          {/* Pet stats mini bars */}
-          <div className="space-y-2.5 my-4 p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+          {/* Pet EXP Progression Bar (Sem índices de saciedade/felicidade) */}
+          <div className="space-y-2 my-4 p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)]">
             <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1 font-semibold text-[var(--app-text)]">
-                <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> Felicidade
+              <span className="flex items-center gap-1.5 font-bold text-[var(--app-text)]">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Progresso para o Próximo Nível
               </span>
-              <span className="font-mono font-bold text-[var(--app-text)]">{pet?.happiness || 85}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
-              <div
-                className="h-full bg-rose-400 rounded-full transition-all"
-                style={{ width: `${pet?.happiness || 85}%` }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-xs pt-1">
-              <span className="flex items-center gap-1 font-semibold text-[var(--app-text)]">
-                <Smile className="w-3 h-3 text-emerald-500" /> Saciedade
+              <span className="font-mono font-bold text-[var(--app-primary)]">
+                {Math.round(((pet?.exp || 0) / (pet?.maxExp || 100)) * 100)}%
               </span>
-              <span className="font-mono font-bold text-[var(--app-text)]">{pet?.hunger || 80}%</span>
             </div>
-            <div className="w-full h-2 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
+            <div className="w-full h-2.5 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
               <div
-                className="h-full bg-emerald-400 rounded-full transition-all"
-                style={{ width: `${pet?.hunger || 80}%` }}
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(5, ((pet?.exp || 0) / (pet?.maxExp || 100)) * 100))}%` }}
               />
             </div>
           </div>
@@ -275,21 +312,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               className="bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] py-3 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 transition border border-[var(--app-border)] cursor-pointer"
             >
               <Wand2 className="w-3.5 h-3.5 text-[var(--app-primary)]" />
-              <span>Mascote Lab</span>
+              <span>Loja de Pets</span>
             </button>
             <button
               onClick={() => onNavigate("store")}
               className="bg-[var(--app-primary)] hover:opacity-90 text-white py-3 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
             >
-              <span>Alimentar</span>
+              <span>Evoluir Pet</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Android Direct Install Card */}
-      <PWAInstallButton variant="card" />
+      {/* Official Native App Install Card */}
+      <NativeAppButton variant="card" />
 
       {/* Daily Study Challenges & Consistency Streak Section */}
       <DailyStudyChallenges
@@ -298,6 +335,53 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         onRewardCoins={onRewardCoins}
         onNavigate={onNavigate}
       />
+
+      {/* AVA IFES Connection Status Banner */}
+      <div className={`p-4 sm:p-5 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
+        user.ifesAccount?.connected
+          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200"
+          : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+            user.ifesAccount?.connected
+              ? "bg-emerald-500 text-white shadow-xs"
+              : "bg-amber-500 text-white shadow-xs animate-pulse"
+          }`}>
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${user.ifesAccount?.connected ? "bg-emerald-500" : "bg-amber-500 animate-ping"}`} />
+              <h4 className="text-xs sm:text-sm font-extrabold text-[var(--app-text)]">
+                {user.ifesAccount?.connected
+                  ? `Conexão Permanente com AVA IFES (${user.ifesAccount?.campusName || "IFES"})`
+                  : "Conexão com AVA IFES Pendente"}
+              </h4>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] font-bold text-[var(--app-text-muted)]">
+                {user.ifesAccount?.connected ? "ESTÁVEL" : "DESCONECTADO"}
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--app-text-muted)] mt-0.5">
+              {user.ifesAccount?.connected
+                ? `Matrícula: ${user.ifesAccount?.matricula || user.ifesAccount?.username || user.name} • Sincronização contínua de disciplinas, notas e fóruns ativa.`
+                : "Insira suas credenciais institucionais para importar suas disciplinas reais, boletim e questionários."}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onOpenAvaConnect ? onOpenAvaConnect : () => onNavigate("ifes")}
+          className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shrink-0 shadow-xs ${
+            user.ifesAccount?.connected
+              ? "bg-[var(--app-card)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] border border-[var(--app-border)]"
+              : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white"
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>{user.ifesAccount?.connected ? "Gerenciar Conexão AVA" : "Digitar Credenciais AVA"}</span>
+        </button>
+      </div>
 
       {/* IFES Assignments & Timetable Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -469,12 +553,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <BookOpen className="w-4 h-4 text-[var(--app-primary)]" /> Minhas Matérias do AVA IFES (
             {courses.length} Disciplinas)
           </h2>
-          <button
-            onClick={() => onNavigate("sequence")}
-            className="text-xs text-[var(--app-primary)] hover:underline font-bold flex items-center gap-1 cursor-pointer"
-          >
-            Ver Todas as Trilhas <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onNavigate("ifes")}
+              className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+            >
+              Gerenciar Matérias Reais
+            </button>
+            <button
+              onClick={() => onNavigate("sequence")}
+              className="text-xs text-[var(--app-primary)] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+            >
+              Ver Trilhas <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {courses.length === 0 ? (
@@ -524,9 +616,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(`Deseja excluir a matéria "${course.title}"?`)) {
-                            onDeleteCourse(course.id);
-                          }
+                          onDeleteCourse(course.id);
                         }}
                         className="p-1.5 text-[var(--app-text-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition"
                         title={`Excluir ${course.title}`}

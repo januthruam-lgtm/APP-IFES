@@ -180,7 +180,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
               <p className="text-xs text-[var(--app-text-muted)]">
                 {permissionStatus === "granted" ? (
                   <span className="text-emerald-500 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Notificações Nativas e PWA ativas
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Notificações Nativas do Aplicativo ativas
                   </span>
                 ) : permissionStatus === "denied" ? (
                   <span className="text-rose-500 font-bold flex items-center gap-1">

@@ -18,6 +18,9 @@ interface PuppetPetViewProps {
   accessory?: "glasses" | "cap" | "crown" | "aura" | "badge" | "none";
   reactionText?: string | null;
   className?: string;
+  avatarEmojiStyle?: React.CSSProperties;
+  accessoryBadgeStyle?: React.CSSProperties;
+  stageBadgeStyle?: React.CSSProperties;
 }
 
 export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
@@ -34,6 +37,9 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
   accessory = pet?.customAccessory || "none",
   reactionText = null,
   className = "",
+  avatarEmojiStyle,
+  accessoryBadgeStyle,
+  stageBadgeStyle,
 }) => {
   const [isBouncing, setIsBouncing] = useState(false);
   const [floatingHeart, setFloatingHeart] = useState<{ x: number; y: number; id: number } | null>(null);
@@ -47,7 +53,7 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
   };
 
   const cssVariables = getRiggingCssVariables(config);
-  const stageInfo = getPetStageInfo(pet);
+  const stageInfo = getPetStageInfo(pet?.type || "bunny", pet?.level || 1);
 
   // If no custom image, fallback to template or emoji
   const fallbackTemplate = MASCOT_TEMPLATES.find((t) => t.id === pet?.type);
@@ -229,10 +235,16 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
         ) : (
           /* Standard Built-in Emoji Pet with Puppet Anatomy */
           <div className="relative w-full h-full flex items-center justify-center puppet-body-anim">
-            <span className="inline-block select-none transform transition-transform duration-200">
+            <span
+              className="inline-block select-none transform transition-transform duration-200"
+              style={avatarEmojiStyle}
+            >
               {stageInfo.avatarEmoji}
             </span>
-            <span className="absolute top-2 right-2 text-xl select-none filter drop-shadow">
+            <span
+              className="absolute top-2 right-2 text-xl select-none filter drop-shadow"
+              style={accessoryBadgeStyle}
+            >
               {stageInfo.accessoryBadge}
             </span>
           </div>
@@ -276,10 +288,14 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
       {/* Stage Badge & Level Pill below avatar if specified */}
       {pet && !showRigPins && (
         <div className="mt-2 flex items-center gap-1.5">
-          <span className="px-2.5 py-0.5 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 text-[10px] font-extrabold font-mono flex items-center gap-1 shadow-2xs">
-            <span>Nv. {pet.level}</span>
+          <span
+            className="px-2.5 py-0.5 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 text-[10px] font-extrabold font-mono flex items-center gap-1 shadow-2xs"
+            style={stageBadgeStyle}
+          >
+            <span>Nv. {pet.level || 1}</span>
             <span>•</span>
-            <span>{pet.customSpeciesName || stageInfo.stageName}</span>
+            <span className="font-bold">{pet.name || "Mascote"}</span>
+            <span className="opacity-70 text-[9px]">({pet.customSpeciesName || stageInfo.stageName})</span>
           </span>
         </div>
       )}

@@ -336,7 +336,7 @@ export function subscribeCallIceCandidates(
 export interface AppNotification {
   id: string;
   userId: string;
-  origem: "app" | "qacademico" | "ava";
+  origem: "app" | "ava";
   titulo: string;
   mensagem: string;
   lida: boolean;
@@ -552,16 +552,9 @@ export function subscribeTeamForumMessages(
 }
 
 // ==========================================
-// 5. SEPARATE CREDENTIALS STORE
+// 5. CREDENTIALS STORE (AVA IFES MOODLE)
 // ==========================================
 import { encryptPassword, decryptPassword } from "../utils/cryptoUtils";
-
-export interface StoredQAcademicoCreds {
-  matricula: string;
-  campus?: string;
-  lastSync?: number;
-  lastUpdated?: number;
-}
 
 export interface StoredMoodleCreds {
   username: string;
@@ -569,41 +562,6 @@ export interface StoredMoodleCreds {
   campusUrl: string;
   token?: string;
   lastUpdated: number;
-}
-
-/**
- * Salva apenas a matrícula e campus em credenciaisQAcademico/{uid}.
- * A SENHA NUNCA É SALVA NO BANCO (nem em texto puro, nem criptografada).
- */
-export async function saveUserQAcademicoCreds(uid: string, creds: StoredQAcademicoCreds) {
-  try {
-    const ref = doc(db, "credenciaisQAcademico", uid);
-    await setDoc(ref, {
-      matricula: creds.matricula.trim(),
-      campus: creds.campus || "IFES",
-      lastSync: Date.now(),
-      lastUpdated: Date.now(),
-    });
-  } catch (err) {
-    console.warn("[Firebase Creds] Save Q-Acadêmico error:", err);
-  }
-}
-
-/**
- * Recupera apenas a matrícula armazenada para facilitar a próxima sincronização.
- */
-export async function getUserQAcademicoCreds(uid: string): Promise<StoredQAcademicoCreds | null> {
-  try {
-    const ref = doc(db, "credenciaisQAcademico", uid);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      return snap.data() as StoredQAcademicoCreds;
-    }
-    return null;
-  } catch (err) {
-    console.warn("[Firebase Creds] Get Q-Acadêmico error:", err);
-    return null;
-  }
 }
 
 /**
@@ -675,6 +633,61 @@ export async function getUserMoodleCreds(uid: string): Promise<StoredMoodleCreds
     return null;
   } catch (err) {
     console.warn("[Firebase Creds] Get Moodle error:", err);
+    return null;
+  }
+}
+
+// ==========================================
+// 6. USER PROFILE PERSISTENCE IN FIRESTORE
+// ==========================================
+export async function saveUserProfileToFirestore(uid: string, profile: any): Promise<void> {
+  try {
+    if (!uid) return;
+    const cleanProfile: Record<string, any> = {
+      email: profile.email || "",
+      name: profile.name || "",
+      xp: profile.xp ?? 0,
+      coins: profile.coins ?? 0,
+      level: profile.level ?? 1,
+      energy: profile.energy ?? 50,
+      maxEnergy: profile.maxEnergy ?? 50,
+      streakDays: profile.streakDays ?? 1,
+      activeTheme: profile.activeTheme || "paper",
+      selectedCourseId: profile.selectedCourseId || "",
+      updatedAt: Date.now(),
+    };
+    if (profile.ifesAccount) {
+      cleanProfile.ifesAccount = {
+        connected: Boolean(profile.ifesAccount.connected),
+        username: profile.ifesAccount.username || "",
+        fullname: profile.ifesAccount.fullname || "",
+        campusUrl: profile.ifesAccount.campusUrl || "",
+        campusName: profile.ifesAccount.campusName || "",
+        matricula: profile.ifesAccount.matricula || "",
+        lastSync: profile.ifesAccount.lastSync || "",
+      };
+    }
+    if (profile.pet) {
+      cleanProfile.pet = profile.pet;
+    }
+    const ref = doc(db, "users", uid);
+    await setDoc(ref, cleanProfile, { merge: true });
+  } catch (err) {
+    console.warn("[Firebase Profile] Save error:", err);
+  }
+}
+
+export async function getUserProfileFromFirestore(uid: string): Promise<any | null> {
+  try {
+    if (!uid) return null;
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (err) {
+    console.warn("[Firebase Profile] Get error:", err);
     return null;
   }
 }

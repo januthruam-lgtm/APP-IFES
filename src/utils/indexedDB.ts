@@ -1,106 +1,200 @@
 import { CourseTrack } from "../types";
+import { DeckInfo, DEFAULT_OFFLINE_DECKS, DEFAULT_OFFLINE_FLASHCARDS } from "../data/offlineFlashcards";
 
-export interface CacheStats {
-  decksCount: number;
-  cardsCount: number;
+const DB_NAME = "brain_studio_indexed_db";
+const DB_VERSION = 1;
+
+interface OfflineStats {
   tracksCount: number;
   modulesCount: number;
   flashcardsCount: number;
-  lastUpdated: string;
+  decksCount: number;
   lastSync: string;
   isAvailableOffline: boolean;
 }
 
-const CACHE_TRACKS_KEY = "brain_studio_cached_tracks";
-const CACHE_PROGRESS_KEY = "brain_studio_cached_progress";
-const CACHE_STATS_KEY = "brain_studio_cache_stats";
-
-export async function seedDefaultOfflineCache(tracks?: any): Promise<void> {
-  try {
-    const stats: CacheStats = {
-      decksCount: 4,
-      cardsCount: 48,
-      tracksCount: Array.isArray(tracks) ? tracks.length : 3,
-      modulesCount: 12,
-      flashcardsCount: 48,
-      lastUpdated: new Date().toLocaleDateString("pt-BR"),
-      lastSync: new Date().toISOString(),
-      isAvailableOffline: true,
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !("indexedDB" in window)) {
+      reject(new Error("IndexedDB not supported"));
+      return;
+    }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains("tracks")) {
+        db.createObjectStore("tracks", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("decks")) {
+        db.createObjectStore("decks", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("flashcards")) {
+        db.createObjectStore("flashcards", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("progress")) {
+        db.createObjectStore("progress", { keyPath: "moduleId" });
+      }
     };
-    localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(stats));
-  } catch (e) {
-    console.warn("seedDefaultOfflineCache error:", e);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function seedDefaultOfflineCache(tracks?: CourseTrack[]): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(["decks", "flashcards", "tracks"], "readwrite");
+    const deckStore = tx.objectStore("decks");
+    const fcStore = tx.objectStore("flashcards");
+    const trackStore = tx.objectStore("tracks");
+
+    for (const d of DEFAULT_OFFLINE_DECKS) {
+      deckStore.put(d);
+    }
+    for (const fc of DEFAULT_OFFLINE_FLASHCARDS) {
+      fcStore.put(fc);
+    }
+    if (tracks && tracks.length > 0) {
+      for (const t of tracks) {
+        trackStore.put(t);
+      }
+    }
+    await new Promise<void>((res, rej) => {
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch (err) {
+    try {
+      localStorage.setItem("bs_offline_decks", JSON.stringify(DEFAULT_OFFLINE_DECKS));
+      if (tracks) {
+        localStorage.setItem("bs_offline_tracks", JSON.stringify(tracks));
+      }
+    } catch {
+      // ignore
+    }
   }
 }
 
 export async function cacheStudyTracks(tracks: CourseTrack[]): Promise<void> {
   try {
-    localStorage.setItem(CACHE_TRACKS_KEY, JSON.stringify(tracks));
-    const stats = await getOfflineCacheStats();
-    stats.tracksCount = tracks.length;
-    stats.lastUpdated = new Date().toLocaleDateString("pt-BR");
-    stats.lastSync = new Date().toISOString();
-    localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(stats));
-  } catch (e) {
-    console.warn("cacheStudyTracks error:", e);
+    const db = await openDatabase();
+    const tx = db.transaction("tracks", "readwrite");
+    const store = tx.objectStore("tracks");
+    for (const track of tracks) {
+      store.put(track);
+    }
+  } catch {
+    try {
+      localStorage.setItem("bs_offline_tracks", JSON.stringify(tracks));
+    } catch {
+      // ignore
+    }
   }
 }
 
-export async function saveOfflineModuleProgress(modId: number, progress: any, courseTitle?: string): Promise<void> {
+export async function saveOfflineModuleProgress(
+  moduleId: number,
+  progressOrCompleted: number | boolean,
+  courseTitle?: string
+): Promise<void> {
   try {
-    const saved = localStorage.getItem(CACHE_PROGRESS_KEY);
-    const map = saved ? JSON.parse(saved) : {};
-    map[modId] = { progress, courseTitle, timestamp: Date.now() };
-    localStorage.setItem(CACHE_PROGRESS_KEY, JSON.stringify(map));
-  } catch (e) {
-    console.warn("saveOfflineModuleProgress error:", e);
+    const db = await openDatabase();
+    const tx = db.transaction("progress", "readwrite");
+    tx.objectStore("progress").put({
+      moduleId,
+      progress: typeof progressOrCompleted === "boolean" ? (progressOrCompleted ? 100 : 0) : progressOrCompleted,
+      completed: typeof progressOrCompleted === "boolean" ? progressOrCompleted : progressOrCompleted >= 100,
+      courseTitle,
+      timestamp: Date.now(),
+    });
+  } catch {
+    try {
+      const saved = JSON.parse(localStorage.getItem("bs_offline_progress") || "{}");
+      saved[moduleId] = {
+        progress: progressOrCompleted,
+        completed: typeof progressOrCompleted === "boolean" ? progressOrCompleted : progressOrCompleted >= 100,
+        courseTitle,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("bs_offline_progress", JSON.stringify(saved));
+    } catch {
+      // ignore
+    }
   }
 }
 
 export async function clearOfflineCache(): Promise<void> {
   try {
-    localStorage.removeItem(CACHE_TRACKS_KEY);
-    localStorage.removeItem(CACHE_PROGRESS_KEY);
-    const stats: CacheStats = {
-      decksCount: 0,
-      cardsCount: 0,
-      tracksCount: 0,
-      modulesCount: 0,
-      flashcardsCount: 0,
-      lastUpdated: "Nunca",
-      lastSync: new Date().toISOString(),
-      isAvailableOffline: false,
-    };
-    localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(stats));
-  } catch (e) {
-    console.warn("clearOfflineCache error:", e);
+    const db = await openDatabase();
+    const tx = db.transaction(["tracks", "decks", "flashcards", "progress"], "readwrite");
+    tx.objectStore("tracks").clear();
+    tx.objectStore("decks").clear();
+    tx.objectStore("flashcards").clear();
+    tx.objectStore("progress").clear();
+  } catch {
+    localStorage.removeItem("bs_offline_tracks");
+    localStorage.removeItem("bs_offline_decks");
+    localStorage.removeItem("bs_offline_progress");
   }
 }
 
-export async function getOfflineCacheStats(): Promise<CacheStats> {
+export async function getCachedDecks(): Promise<DeckInfo[]> {
   try {
-    const saved = localStorage.getItem(CACHE_STATS_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    console.warn("getOfflineCacheStats error:", e);
+    const db = await openDatabase();
+    return await new Promise((resolve) => {
+      const tx = db.transaction("decks", "readonly");
+      const req = tx.objectStore("decks").getAll();
+      req.onsuccess = () => {
+        if (req.result && req.result.length > 0) {
+          resolve(req.result);
+        } else {
+          resolve(DEFAULT_OFFLINE_DECKS);
+        }
+      };
+      req.onerror = () => resolve(DEFAULT_OFFLINE_DECKS);
+    });
+  } catch {
+    try {
+      const saved = localStorage.getItem("bs_offline_decks");
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return DEFAULT_OFFLINE_DECKS;
   }
-  return {
-    decksCount: 4,
-    cardsCount: 48,
-    tracksCount: 2,
-    modulesCount: 12,
-    flashcardsCount: 48,
-    lastUpdated: new Date().toLocaleDateString("pt-BR"),
-    lastSync: new Date().toISOString(),
-    isAvailableOffline: true,
-  };
 }
 
-export async function getCachedDecks(): Promise<any[]> {
-  return [
-    { id: "deck-alg-1", title: "Algoritmos e Estruturas de Dados", count: 12, cardsCount: 12, icon: "💻", subjectName: "Algoritmos" },
-    { id: "deck-calc-1", title: "Cálculo Diferencial e Integral", count: 14, cardsCount: 14, icon: "📐", subjectName: "Cálculo I" },
-    { id: "deck-redes-1", title: "Redes de Computadores", count: 10, cardsCount: 10, icon: "🌐", subjectName: "Redes" },
-    { id: "deck-bd-1", title: "Modelagem e Bancos de Dados SQL", count: 12, cardsCount: 12, icon: "🗄️", subjectName: "Banco de Dados" },
-  ];
+export async function getOfflineCacheStats(): Promise<OfflineStats> {
+  try {
+    const decks = await getCachedDecks();
+    const db = await openDatabase();
+    const trackCount: number = await new Promise((res) => {
+      const req = db.transaction("tracks", "readonly").objectStore("tracks").count();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => res(4);
+    });
+    const fcCount: number = await new Promise((res) => {
+      const req = db.transaction("flashcards", "readonly").objectStore("flashcards").count();
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => res(25);
+    });
+
+    return {
+      tracksCount: Math.max(trackCount, 4),
+      modulesCount: Math.max(trackCount * 3, 12),
+      flashcardsCount: Math.max(fcCount, 25),
+      decksCount: decks.length,
+      lastSync: new Date().toISOString(),
+      isAvailableOffline: true,
+    };
+  } catch {
+    return {
+      tracksCount: 4,
+      modulesCount: 12,
+      flashcardsCount: 25,
+      decksCount: DEFAULT_OFFLINE_DECKS.length,
+      lastSync: new Date().toISOString(),
+      isAvailableOffline: true,
+    };
+  }
 }

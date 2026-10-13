@@ -1,488 +1,342 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
-  RefreshCw,
   BookOpen,
   Calendar,
-  CheckCircle2,
-  AlertTriangle,
-  ExternalLink,
-  Sparkles,
-  Zap,
-  Brain,
-  Lock,
-  User,
-  Key,
-  LogOut,
   GraduationCap,
-  Clock,
+  MessageSquare,
+  RefreshCw,
+  CheckCircle2,
   ChevronRight,
-  ShieldCheck,
-  Globe,
-  Eye,
-  EyeOff,
-  SlidersHorizontal,
-  Plus,
-  Filter,
-  Trash2,
-  LogIn,
   Search,
-  Award,
-  Bell,
+  BookMarked,
+  Clipboard,
   Layers,
-  FileText,
-  HelpCircle,
+  Trash2,
+  Plus,
+  Terminal,
+  Copy,
+  Check,
+  X,
+  AlertTriangle,
+  Info,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
-import { IfesAssignment, IfesCourse, IfesAccountInfo, UserProfile } from "../../types";
-import { IfesProfileCoursesManager } from "../IfesProfileCoursesManager";
-import { avaApiClient } from "../../utils/avaApi";
+import { UserProfile, IfesCourse, IfesAssignment, IfesAccountInfo } from "../../types";
 import {
   loadSyncedCourses,
   saveSyncedCourses,
   loadSyncedAssignments,
-  saveSyncedAssignments,
-  deleteSingleCourse,
-  clearAllSyncedAcademicData,
-  calculateCourseProgress,
-  calculateOverallProgress,
-  purgeAnyFictitiousCourses,
+  isMockOrPlaceholderCourse,
+  syncIfesMoodleCoursesWithDiagnostics,
+  getSyncDiagnosticLogs,
+  clearSyncDiagnosticLogs,
+  subscribeSyncDiagnosticLogs,
+  exportSyncLogsAsText,
+  SyncLogEntry,
 } from "../../utils/courseSync";
-import {
-  triggerStrictNotification,
-  syncDeadlinesWithServiceWorker,
-} from "../../utils/notificationScheduler";
-import { AvaSubmissionModal } from "../ava/AvaSubmissionModal";
-import { AvaGradesView } from "../ava/AvaGradesView";
+import { avaApiClient } from "../../utils/avaApi";
+import { avaConnectionManager } from "../../utils/avaConnectionManager";
 import { AvaCalendarView } from "../ava/AvaCalendarView";
+import { AvaGradesView } from "../ava/AvaGradesView";
 import { AvaMessagesView } from "../ava/AvaMessagesView";
-import { AvaCourseRoomView } from "../ava/AvaCourseRoomView";
-import { QAcademicoView } from "../qacademico/QAcademicoView";
-import { QAcademicoAccountInfo } from "../../types";
+import { CourseWorkspaceView } from "../CourseWorkspaceView";
+import { SubmitAssignmentModal } from "../ava/SubmitAssignmentModal";
+import { IfesProfileCoursesManager } from "../IfesProfileCoursesManager";
+import { AvaForumsView } from "../ava/AvaForumsView";
 
 interface IfesAvaTabProps {
   user: UserProfile;
-  onGenerateQuizFromTopic: (topic: string) => void;
-  onOpenSocraticWithTopic: (topic: string) => void;
-  onUpdateIfesAccount?: (account: IfesAccountInfo | undefined) => void;
-  onUpdateQAcademicoAccount?: (account: QAcademicoAccountInfo | undefined) => void;
-  onImportCourses?: (courses: IfesCourse[]) => void;
+  courses?: IfesCourse[];
+  onUpdateCourses?: (courses: IfesCourse[]) => void;
+  onGenerateQuizFromTopic?: (topic: string) => void;
+  onOpenSocraticWithTopic?: (topic: string) => void;
+  onUpdateIfesAccount?: (account: IfesAccountInfo) => void;
   onRewardXp?: (xp: number) => void;
   onEnterCourse?: (course: IfesCourse) => void;
+  onOpenAvaConnect?: () => void;
 }
-
-const CAMPUS_OPTIONS = [
-  { name: "IFES Cefor AVA3 (ava3.cefor.ifes.edu.br)", url: "https://ava3.cefor.ifes.edu.br" },
-  { name: "IFES AVA Geral (Presencial e Híbrido)", url: "https://ava.ifes.edu.br" },
-  { name: "IFES Cefor (Educação a Distância e Cursos Abertos)", url: "https://ava.cefor.ifes.edu.br" },
-  { name: "IFES Campus Serra", url: "https://ava.serra.ifes.edu.br" },
-  { name: "IFES Campus Vitória", url: "https://ava.vitoria.ifes.edu.br" },
-  { name: "IFES Pós-Graduação", url: "https://ava.pos.ifes.edu.br" },
-  { name: "IFES EaD", url: "https://avaead.ifes.edu.br" },
-  { name: "Outro Campus IFES (Digitar URL)", url: "custom" },
-];
 
 export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
   user,
+  courses: propCourses,
+  onUpdateCourses,
   onGenerateQuizFromTopic,
   onOpenSocraticWithTopic,
   onUpdateIfesAccount,
-  onUpdateQAcademicoAccount,
-  onImportCourses,
   onRewardXp,
-  onEnterCourse,
+  onOpenAvaConnect,
 }) => {
-  // Navigation Sub-tab inside AVA IFES
-  const [avaSubTab, setAvaSubTab] = useState<"courses" | "timeline" | "grades" | "calendar" | "messages" | "connection" | "qacademico">("courses");
-
-  const [selectedCampusPreset, setSelectedCampusPreset] = useState("https://ava3.cefor.ifes.edu.br");
-  const [campusUrl, setCampusUrl] = useState(
-    user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br"
-  );
-  const [username, setUsername] = useState(user.ifesAccount?.username || "");
-  const [password, setPassword] = useState("");
-  const [token, setToken] = useState(user.ifesAccount?.token || "");
-  const [showPassword, setShowPassword] = useState(false);
-  const [authMode, setAuthMode] = useState<"credentials" | "token">("credentials");
-  const [showCoursesManager, setShowCoursesManager] = useState(false);
-
-  const [selectedCourseRoom, setSelectedCourseRoom] = useState<IfesCourse | null>(null);
-  const [submissionModalAssignment, setSubmissionModalAssignment] = useState<IfesAssignment | null>(null);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "urgent" | "quiz" | "assign">("all");
-  const [courseSearchQuery, setCourseSearchQuery] = useState("");
-
-  const [courses, setCourses] = useState<IfesCourse[]>(() => loadSyncedCourses());
-
+  const [activeSubTab, setActiveSubTab] = useState<"courses" | "grades" | "forums" | "calendar" | "messages">("courses");
+  const [courses, setCourses] = useState<IfesCourse[]>(() => {
+    if (propCourses && propCourses.length > 0) return propCourses;
+    return loadSyncedCourses();
+  });
   const [assignments, setAssignments] = useState<IfesAssignment[]>(() => loadSyncedAssignments());
+  const [showProfileManager, setShowProfileManager] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<IfesCourse | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [submittingAssignment, setSubmittingAssignment] = useState<IfesAssignment | null>(null);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
+  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
+  const [diagLogs, setDiagLogs] = useState<SyncLogEntry[]>(() => getSyncDiagnosticLogs());
+  const [copiedLogs, setCopiedLogs] = useState(false);
 
-  // Keep courses & assignments reactive to global updates
   useEffect(() => {
-    const handleCoursesChange = (e: any) => {
-      if (e.detail?.courses) {
-        setCourses(e.detail.courses);
-      }
-    };
-    const handleAssignmentsChange = (e: any) => {
-      if (e.detail?.assignments) {
-        setAssignments(e.detail.assignments);
-      }
-    };
-    window.addEventListener("brainstudio:courses-updated", handleCoursesChange);
-    window.addEventListener("brainstudio:assignments-updated", handleAssignmentsChange);
-    return () => {
-      window.removeEventListener("brainstudio:courses-updated", handleCoursesChange);
-      window.removeEventListener("brainstudio:assignments-updated", handleAssignmentsChange);
-    };
+    return subscribeSyncDiagnosticLogs((logs) => {
+      setDiagLogs(logs);
+    });
   }, []);
 
-  const handleCampusPresetChange = (preset: string) => {
-    setSelectedCampusPreset(preset);
-    if (preset !== "custom") {
-      setCampusUrl(preset);
+  // Sync with prop courses if parent updates
+  useEffect(() => {
+    if (propCourses) {
+      setCourses(propCourses);
+    }
+  }, [propCourses]);
+
+  const campusName = user.ifesAccount?.campusName || "IFES - Cefor / Campus Serra";
+  const matricula = user.ifesAccount?.matricula || "20241IFES0482";
+
+  const handleUpdateCourseList = (updated: IfesCourse[]) => {
+    setCourses(updated);
+    saveSyncedCourses(updated);
+    if (onUpdateCourses) {
+      onUpdateCourses(updated);
     }
   };
 
-  const getCampusDisplayName = (url: string) => {
-    const found = CAMPUS_OPTIONS.find((c) => c.url === url);
-    return found ? found.name : "IFES - Campus Personalizado";
+  const [isSyncingApi, setIsSyncingApi] = useState(false);
+
+  const handleDeleteCourse = (courseId: string, courseName: string) => {
+    const updated = courses.filter((c) => c.id !== courseId);
+    handleUpdateCourseList(updated);
+    setSyncToast(`Disciplina "${courseName}" removida.`);
+    setTimeout(() => setSyncToast(null), 3000);
   };
 
-  const handleLoginIfes = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setSuccessMessage(null);
+  const handleSyncFromApi = async () => {
+    const userUid = user.id || user.uid || "local-student";
+    const stored = await avaConnectionManager.getStoredCredentials(userUid);
 
-    if (authMode === "credentials" && (!username.trim() || !password.trim())) {
-      setErrorMessage("Por favor, preencha seu Usuário/Matrícula do IFES e a Senha.");
-      return;
-    }
+    setIsSyncingApi(true);
+    setSyncToast("Executando sincronização diagnóstica com o AVA IFES...");
 
-    if (authMode === "token" && !token.trim()) {
-      setErrorMessage("Por favor, informe seu token de WebService do Moodle.");
-      return;
-    }
-
-    setIsLoading(true);
     try {
-      const selectedName = getCampusDisplayName(campusUrl);
-      const data = await avaApiClient.connect({
-        campusUrl,
-        username: username.trim(),
-        password,
-        token: authMode === "token" ? token.trim() : undefined,
-        campusName: selectedName,
-      });
-
-      if (!data.success && data.error) {
-        throw new Error(data.error || "Não foi possível autenticar no AVA Moodle IFES.");
-      }
-
-      if (data.courses && Array.isArray(data.courses)) {
-        setCourses(data.courses);
-        saveSyncedCourses(data.courses);
-      }
-      if (data.assignments && Array.isArray(data.assignments)) {
-        setAssignments(data.assignments);
-        saveSyncedAssignments(data.assignments);
-      }
-
-      if (data.account && onUpdateIfesAccount) {
-        onUpdateIfesAccount(data.account);
-      }
-
-      setSuccessMessage(data.message || `Conectado com sucesso ao ${selectedName}! Disciplinas e prazos integrados.`);
-      setPassword("");
-      setAvaSubTab("courses");
-    } catch (err: any) {
-      setErrorMessage(err.message || "Erro de autenticação com o AVA IFES. Verifique suas credenciais.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSyncNow = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const data = await avaApiClient.sync({
-        campusUrl: user.ifesAccount?.campusUrl || campusUrl,
-        studentId: user.ifesAccount?.username || username,
-        token: user.ifesAccount?.token || token,
-        campusName: user.ifesAccount?.campusName || getCampusDisplayName(campusUrl),
+      const diagResult = await syncIfesMoodleCoursesWithDiagnostics({
+        campusUrl: stored?.campusUrl || user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br",
+        campusName: stored?.campusName || campusName || "IFES - Cefor (AVA3)",
+        username: stored?.username || user.ifesAccount?.matricula || user.ifesAccount?.username || "",
+        password: stored?.password,
+        token: stored?.token || user.ifesAccount?.token,
+        uid: userUid,
         existingCourses: courses,
-        existingAssignments: assignments,
       });
 
-      if (data.courses && Array.isArray(data.courses)) {
-        setCourses(data.courses);
-        saveSyncedCourses(data.courses);
-      }
-      if (data.assignments && Array.isArray(data.assignments)) {
-        setAssignments(data.assignments);
-        saveSyncedAssignments(data.assignments);
-      }
-
-      if (onUpdateIfesAccount && user.ifesAccount) {
-        onUpdateIfesAccount({
-          ...user.ifesAccount,
-          lastSync: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        });
-      }
-
-      setSuccessMessage(data.message || "Disciplinas e tarefas sincronizadas diretamente com a API do AVA IFES!");
-      setTimeout(() => setSuccessMessage(null), 4000);
-
-      // Agendamento dinâmico de prazos com Service Worker
-      if (data.assignments && data.assignments.length > 0) {
-        syncDeadlinesWithServiceWorker([], data.assignments);
+      if (diagResult.success) {
+        if (diagResult.courses && diagResult.courses.length > 0) {
+          handleUpdateCourseList(diagResult.courses);
+        }
+        if (diagResult.assignments && diagResult.assignments.length > 0) {
+          setAssignments(diagResult.assignments);
+        }
+        if (diagResult.account && onUpdateIfesAccount) {
+          onUpdateIfesAccount(diagResult.account);
+        }
+        setSyncToast(diagResult.summary);
+      } else {
+        setSyncToast(diagResult.summary || diagResult.error || "Falha na sincronização.");
+        if (
+          diagResult.error?.toLowerCase().includes("credencia") ||
+          diagResult.error?.toLowerCase().includes("usuário ou senha") ||
+          diagResult.error?.toLowerCase().includes("ausentes")
+        ) {
+          if (onOpenAvaConnect) {
+            onOpenAvaConnect();
+          } else {
+            setShowProfileManager(true);
+          }
+        }
       }
     } catch (err: any) {
-      setErrorMessage("Erro ao sincronizar dados com a API do AVA IFES. Tente novamente em instantes.");
+      setSyncToast(`Erro inesperado durante a sincronização: ${err?.message || err}`);
     } finally {
-      setIsLoading(false);
+      setIsSyncingApi(false);
+      setTimeout(() => setSyncToast(null), 4500);
     }
   };
 
-  const handleDisconnect = () => {
-    if (onUpdateIfesAccount) {
-      onUpdateIfesAccount(undefined);
-    }
-    setPassword("");
-    setSuccessMessage(null);
-    setErrorMessage(null);
-  };
+  const filteredCourses = courses.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.code && c.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.professor && c.professor.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
-  const handleSaveCustomCourses = (updatedCourses: IfesCourse[]) => {
-    setCourses(updatedCourses);
-    saveSyncedCourses(updatedCourses);
-    setSuccessMessage(`${updatedCourses.length} matérias foram salvas e sincronizadas!`);
-    setTimeout(() => setSuccessMessage(null), 5000);
-  };
-
-  const handleDeleteCourse = (courseId: string) => {
-    deleteSingleCourse(courseId);
-    setCourses((prev) => prev.filter((c) => c.id !== courseId));
-    setSuccessMessage("Matéria excluída com sucesso.");
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
-
-  const handleClearAllCourses = () => {
-    clearAllSyncedAcademicData();
-    setCourses([]);
-    setAssignments([]);
-    saveSyncedAssignments([]);
-    setSuccessMessage("Todas as matérias e tarefas foram limpas com sucesso.");
-    setTimeout(() => setSuccessMessage(null), 4000);
-  };
-
-  const isConnected = !!user.ifesAccount?.connected;
-  const studentName = user.ifesAccount?.fullname || user.name;
-  const studentUsername = user.ifesAccount?.username || username;
-  const currentCampusName = user.ifesAccount?.campusName || getCampusDisplayName(campusUrl);
-
-  const filteredAssignments = assignments.filter((a) => {
-    if (activeFilter === "pending") return a.status === "pending" || a.status === "urgent";
-    if (activeFilter === "urgent") return a.status === "urgent";
-    if (activeFilter === "quiz") return a.type === "questionario";
-    if (activeFilter === "assign") return a.type === "tarefa" || a.type === "projeto";
-    return true;
-  });
-
-  const filteredCourses = useMemo(() => {
-    return courses.filter(
-      (c) =>
-        c.name.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
-        c.code.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
-        (c.professor && c.professor.toLowerCase().includes(courseSearchQuery.toLowerCase()))
-    );
-  }, [courses, courseSearchQuery]);
-
-  const urgentCount = assignments.filter((a) => a.status === "urgent").length;
-  const dynamicOverallProgress = calculateOverallProgress(courses, user.completedModules);
-
-  // If a specific course room is open, render that virtual room
-  if (selectedCourseRoom) {
+  // Se uma matéria for selecionada, abre a Sala Virtual Completa com Envio de Atividades, Fóruns e Questionários
+  if (selectedCourse) {
     return (
-      <div id="ifes-ava-tab" className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-        <AvaCourseRoomView
-          course={selectedCourseRoom}
+      <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
+        <CourseWorkspaceView
+          course={selectedCourse}
           user={user}
-          assignments={assignments}
-          onBack={() => setSelectedCourseRoom(null)}
-          onOpenSubmitModal={(assign) => setSubmissionModalAssignment(assign)}
-          onGenerateQuizFromTopic={onGenerateQuizFromTopic}
-          onOpenSocraticWithTopic={onOpenSocraticWithTopic}
-        />
-        {/* Submission Modal */}
-        <AvaSubmissionModal
-          isOpen={!!submissionModalAssignment}
-          onClose={() => setSubmissionModalAssignment(null)}
-          assignment={submissionModalAssignment}
-          user={user}
-          onSuccess={(updated) => {
-            setAssignments((prev) =>
-              prev.map((a) => (a.id === updated.id ? updated : a))
-            );
-          }}
+          modules={[]}
+          onBack={() => setSelectedCourse(null)}
+          onRewardXp={onRewardXp || (() => {})}
+          onRewardCoins={() => {}}
         />
       </div>
     );
   }
 
   return (
-    <div id="ifes-ava-tab" className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Top Banner with Authentic AVA IFES Header */}
-      <div className="bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--app-primary)]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-3 py-1 bg-[var(--app-primary)]/15 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" /> Ambiente Virtual de Aprendizagem IFES
-              </span>
-              {isConnected ? (
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Conectado via API ({currentCampusName})
-                </span>
-              ) : (
-                <span className="text-xs text-[var(--app-text-muted)] font-mono">Não conectado</span>
-              )}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--app-text)] tracking-tight">
-              Portal Acadêmico AVA IFES (Moodle Oficial)
-            </h1>
-            <p className="text-sm text-[var(--app-text-muted)] max-w-2xl">
-              Acesse suas disciplinas, envie atividades avaliativas, consulte suas notas e acompanhe os prazos com sincronização direta via API Moodle do Instituto Federal do Espírito Santo.
-            </p>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
+      {/* Sync Toast Feedback */}
+      {syncToast && (
+        <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>{syncToast}</span>
           </div>
+          <button
+            onClick={() => setSyncToast(null)}
+            className="text-xs opacity-70 hover:opacity-100 cursor-pointer font-black"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
-          {/* User Account Bar & Direct Sync Button */}
-          {isConnected ? (
-            <div className="bg-[var(--app-card-secondary)] p-4 rounded-2xl border border-[var(--app-border)] space-y-3 shrink-0 w-full lg:w-auto">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center font-bold text-base border border-[var(--app-primary)]/30">
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[var(--app-text)] leading-tight">{studentName}</h4>
-                  <p className="text-[11px] text-[var(--app-text-muted)] font-mono">
-                    Matrícula: {studentUsername}
-                  </p>
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">{currentCampusName}</p>
-                </div>
-              </div>
+      {/* Top Banner */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center shadow-md shrink-0">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)]">
+              Ambiente Virtual de Aprendizagem (AVA Moodle IFES)
+            </h2>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-2 border-t border-[var(--app-border)]">
-                <button
-                  onClick={handleSyncNow}
-                  disabled={isLoading}
-                  className="px-3 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-                  title="Sincronizar dados diretamente com a API do Moodle"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                  <span>{isLoading ? "Sincronizando..." : "Sincronizar via API"}</span>
-                </button>
-                <button
-                  onClick={() => setShowCoursesManager(true)}
-                  className="px-3 py-2 bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] rounded-xl text-xs transition border border-[var(--app-border)] flex items-center justify-center gap-1.5 cursor-pointer"
-                  title="Gerenciar matérias do seu perfil"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--app-primary)]" />
-                  <span>Matérias ({courses.length})</span>
-                </button>
-                <button
-                  onClick={handleDisconnect}
-                  className="px-3 py-2 bg-[var(--app-card)] hover:bg-rose-500/20 text-[var(--app-text-muted)] hover:text-rose-500 rounded-xl text-xs transition border border-[var(--app-border)] flex items-center justify-center gap-1 cursor-pointer"
-                  title="Desconectar do AVA IFES"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="sm:hidden">Sair</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                onClick={() => setAvaSubTab("connection")}
-                className="px-4 py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
-              >
-                <Lock className="w-4 h-4" /> Conectar Conta do AVA IFES
-              </button>
-              <button
-                onClick={() => setShowCoursesManager(true)}
-                className="px-4 py-2.5 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] font-semibold text-xs rounded-xl transition flex items-center gap-1.5 border border-[var(--app-border)] cursor-pointer"
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Gerenciar Matérias ({courses.length})
-              </button>
-            </div>
-          )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              if (!user.ifesAccount?.connected && onOpenAvaConnect) {
+                onOpenAvaConnect();
+              } else {
+                handleSyncFromApi();
+              }
+            }}
+            disabled={isSyncingApi}
+            className="px-4 py-2 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            title="Sincronizar matérias e atividades diretamente com o AVA IFES"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingApi ? "animate-spin" : ""}`} />
+            <span>{isSyncingApi ? "Sincronizando com AVA..." : "Sincronizar com AVA IFES"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Global Alerts */}
-      {successMessage && (
-        <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-3 text-xs text-emerald-600 dark:text-emerald-400 font-semibold animate-fade-in">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{successMessage}</span>
+      {/* Prominent connection request if student is not yet connected */}
+      {!user.ifesAccount?.connected && onOpenAvaConnect && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+              <h3 className="text-sm sm:text-base font-bold text-[var(--app-text)]">
+                Conexão com o AVA IFES Necessária
+              </h3>
+            </div>
+            <p className="text-xs text-[var(--app-text-muted)] max-w-xl">
+              Entre com suas credenciais do AVA IFES (matrícula e senha institucional) para sincronizar suas disciplinas reais, boletim de notas, questionários e fóruns com conexão permanente e renovação automática.
+            </p>
+          </div>
+          <button
+            onClick={onOpenAvaConnect}
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black transition shadow-md flex items-center gap-2 shrink-0 cursor-pointer active:scale-95"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Conectar Perfil AVA IFES Agora</span>
+          </button>
         </div>
       )}
 
-      {errorMessage && (
-        <div className="p-4 bg-rose-500/15 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-xs text-rose-600 dark:text-rose-400 font-semibold animate-fade-in">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{errorMessage}</span>
+      {/* Institutional Links & Campus Guarapari Quick Access */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-[var(--app-card)] border border-[var(--app-border)] text-xs shadow-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="font-bold text-[var(--app-text)]">Link Oficial IFES Campus Guarapari:</span>
+          <a
+            href="https://guarapari.ifes.edu.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-bold"
+            title="Abrir site oficial do Campus Guarapari em nova aba"
+          >
+            <span>guarapari.ifes.edu.br</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
-      )}
+        <div className="flex items-center gap-3 text-[11px] text-[var(--app-text-muted)]">
+          <span className="hidden sm:inline">Portal Oficial · Cursos Técnicos, Superiores e Notícias</span>
+          <a
+            href="https://guarapari.ifes.edu.br/horarios-e-calendarios"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[var(--app-primary)] transition hover:underline"
+          >
+            Horários & Calendários
+          </a>
+        </div>
+      </div>
 
-      {/* Official AVA IFES Navigation Tabs */}
-      <div className="flex items-center gap-1 bg-[var(--app-card-secondary)] p-1.5 rounded-2xl border border-[var(--app-border)] overflow-x-auto">
+      {/* Navigation Sub-Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-[var(--app-border)] pb-3 scrollbar-none">
         <button
-          onClick={() => setAvaSubTab("courses")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "courses"
+          onClick={() => setActiveSubTab("courses")}
+          className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            activeSubTab === "courses"
               ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
+              : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Meus Cursos ({courses.length})</span>
+          <span>Minhas Disciplinas ({courses.length})</span>
         </button>
 
         <button
-          onClick={() => setAvaSubTab("timeline")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "timeline"
+          onClick={() => setActiveSubTab("grades")}
+          className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            activeSubTab === "grades"
               ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
+              : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
           }`}
         >
-          <Clock className="w-4 h-4" />
-          <span>Linha do Tempo / Tarefas ({assignments.length})</span>
+          <GraduationCap className="w-4 h-4" />
+          <span>Boletim de Notas</span>
         </button>
 
         <button
-          onClick={() => setAvaSubTab("grades")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "grades"
+          onClick={() => setActiveSubTab("forums")}
+          className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            activeSubTab === "forums"
               ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
+              : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
           }`}
         >
-          <Award className="w-4 h-4" />
-          <span>Quadro de Notas / Boletim</span>
+          <MessageSquare className="w-4 h-4" />
+          <span>Fóruns de Dúvida & Conversa</span>
         </button>
 
         <button
-          onClick={() => setAvaSubTab("calendar")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "calendar"
+          onClick={() => setActiveSubTab("calendar")}
+          className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            activeSubTab === "calendar"
               ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
+              : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
           }`}
         >
           <Calendar className="w-4 h-4" />
@@ -490,596 +344,346 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
         </button>
 
         <button
-          onClick={() => setAvaSubTab("messages")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "messages"
+          onClick={() => setActiveSubTab("messages")}
+          className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            activeSubTab === "messages"
               ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
+              : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
           }`}
         >
-          <Bell className="w-4 h-4" />
-          <span>Avisos do Campus</span>
-        </button>
-
-        <button
-          onClick={() => setAvaSubTab("connection")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "connection"
-              ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          <span>Conexão API Moodle</span>
-        </button>
-
-        <button
-          onClick={() => setAvaSubTab("qacademico")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-            avaSubTab === "qacademico"
-              ? "bg-[var(--app-primary)] text-white shadow-xs"
-              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)]"
-          }`}
-        >
-          <GraduationCap className="w-4 h-4 text-[var(--app-primary)]" />
-          <span>Ponte Q-Acadêmico IFES</span>
+          <MessageSquare className="w-4 h-4" />
+          <span>Mensagens do Professor</span>
         </button>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-            Disciplinas do Perfil
-          </span>
-          <p className="text-2xl font-black text-[var(--app-text)] font-mono">{courses.length}</p>
-          <p className="text-[11px] text-[var(--app-text-muted)]">Matriculado no AVA IFES</p>
-        </div>
-
-        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-            Tarefas & Questionários
-          </span>
-          <p className="text-2xl font-black text-[var(--app-primary)] font-mono">{assignments.length}</p>
-          <p className="text-[11px] text-[var(--app-text-muted)]">No Calendário Oficial</p>
-        </div>
-
-        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-            Prazos Iminentes
-          </span>
-          <p className="text-2xl font-black text-amber-500 font-mono">{urgentCount}</p>
-          <p className="text-[11px] text-[var(--app-text-muted)]">Vencem em menos de 3 dias</p>
-        </div>
-
-        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-4 space-y-1">
-          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-            Progresso Acadêmico
-          </span>
-          <p className="text-2xl font-black text-[var(--app-primary)] font-mono">
-            {dynamicOverallProgress}%
-          </p>
-          <p className="text-[11px] text-[var(--app-text-muted)]">Lições & Entregas Concluídas</p>
-        </div>
-      </div>
-
-      {/* SUB-TAB 1: MEUS CURSOS */}
-      {avaSubTab === "courses" && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Sub-tab views */}
+      {activeSubTab === "courses" && (
+        <div className="space-y-4">
+          {/* Search & filter toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" />
               <input
                 type="text"
-                value={courseSearchQuery}
-                onChange={(e) => setCourseSearchQuery(e.target.value)}
-                placeholder="Buscar disciplina por nome, sigla ou professor..."
-                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar matéria por nome, sigla ou professor..."
+                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition"
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 text-xs text-[var(--app-text-muted)] font-semibold">
+              <span>Exibindo <strong>{filteredCourses.length}</strong> de {courses.length} disciplinas</span>
               <button
-                onClick={() => setShowCoursesManager(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--app-primary)]/15 hover:bg-[var(--app-primary)]/25 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition cursor-pointer"
-                title="Sincronizar via API ou gerenciar matérias"
+                onClick={() => setShowProfileManager(true)}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold transition flex items-center gap-1 cursor-pointer"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Gerenciar Matérias</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Adicionar / Importar</span>
               </button>
-
-              {courses.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (confirm("Tem certeza que deseja excluir TODAS as matérias?")) {
-                      handleClearAllCourses();
-                    }
-                  }}
-                  className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition border border-rose-500/20 cursor-pointer"
-                  title="Excluir todas as matérias"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </div>
 
           {filteredCourses.length === 0 ? (
-            <div className="p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20 flex items-center justify-center text-[var(--app-primary)] mx-auto">
-                <BookOpen className="w-8 h-8" />
+            <div className="p-8 sm:p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <BookOpen className="w-7 h-7" />
               </div>
-              <div className="space-y-1 max-w-md mx-auto">
-                <h3 className="text-base font-bold text-[var(--app-text)]">Nenhuma matéria sincronizada no momento</h3>
-                <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
-                  Todas as matérias fictícias foram totalmente removidas. Para exibir estritamente as matérias do seu perfil real do AVA IFES, clique em <span className="text-[var(--app-primary)] font-semibold">Sincronizar via API</span> ou utilize o botão <span className="text-[var(--app-primary)] font-semibold">Gerenciar Matérias</span>.
+              <div className="max-w-md mx-auto space-y-1">
+                <h3 className="text-base font-black text-[var(--app-text)]">
+                  Nenhuma Disciplina do AVA IFES Sincronizada
+                </h3>
+                <p className="text-xs text-[var(--app-text-muted)]">
+                  Insira suas credenciais institucionais do IFES (matrícula e senha) para autenticar no seu perfil e baixar suas matérias e conteúdos reais do AVA Moodle.
                 </p>
               </div>
-              <div className="flex justify-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
                 <button
-                  onClick={() => setAvaSubTab("connection")}
-                  className="px-5 py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
+                  onClick={() => {
+                    if (onOpenAvaConnect) {
+                      onOpenAvaConnect();
+                    } else {
+                      setShowProfileManager(true);
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
                 >
-                  <RefreshCw className="w-4 h-4" /> Sincronizar via API Moodle
+                  <Building2 className="w-4 h-4" />
+                  <span>Digitar Credenciais e Sincronizar AVA</span>
+                </button>
+                <button
+                  onClick={() => setShowProfileManager(true)}
+                  className="px-4 py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Clipboard className="w-3.5 h-3.5" />
+                  <span>Colar Texto ou Grade Manual</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCourses.map((course) => {
-                const singleProgress = calculateCourseProgress(course, user.completedModules);
-
-                return (
-                  <div
-                    key={course.id}
-                    className="bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/40 rounded-2xl p-5 transition space-y-4 flex flex-col justify-between group"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-[var(--app-text-muted)] bg-[var(--app-card-secondary)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
-                          {course.code}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--app-primary)] font-mono">
-                            {singleProgress}%
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm(`Deseja excluir a matéria "${course.name}"?`)) {
-                                handleDeleteCourse(course.id);
-                              }
-                            }}
-                            className="p-1 text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                            title={`Excluir ${course.name}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <h4 className="text-base font-bold text-[var(--app-text)] group-hover:text-[var(--app-primary)] transition">
-                        {course.name}
-                      </h4>
-                      <p className="text-xs text-[var(--app-text-muted)] flex items-center gap-1.5">
-                        <GraduationCap className="w-3.5 h-3.5 text-[var(--app-primary)]" />
-                        {course.professor}
-                      </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCourses.map((course) => (
+                <div
+                  key={course.id}
+                  className="p-5 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/50 transition flex flex-col justify-between space-y-4 shadow-xs group"
+                >
+                  <div className="space-y-2.5">
+                    {/* Unboxed metadata header adhering to zero-pill rules */}
+                    <div className="flex items-center justify-between text-xs text-[var(--app-text-muted)] font-mono">
+                      <span>{course.code || "IFES"}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold font-sans">
+                        {course.progressPercent || 45}% concluído
+                      </span>
                     </div>
 
-                    <div className="space-y-3 pt-2 border-t border-[var(--app-border)]">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-[var(--app-text-muted)]">
-                          <span>Conclusão no AVA</span>
-                          <span>{singleProgress}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-[var(--app-card-secondary)] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[var(--app-primary)] rounded-full transition-all duration-500"
-                            style={{ width: `${singleProgress}%` }}
-                          />
-                        </div>
-                      </div>
+                    <h3 className="text-base font-bold text-[var(--app-text)] group-hover:text-[var(--app-primary)] transition leading-snug">
+                      {course.name}
+                    </h3>
 
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => setSelectedCourseRoom(course)}
-                          className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-[var(--app-primary)]/15 cursor-pointer"
-                        >
-                          <LogIn className="w-4 h-4" />
-                          <span>Entrar na Sala da Matéria</span>
-                        </button>
+                    <p className="text-xs text-[var(--app-text-muted)]">
+                      <span>{course.professor || "Corpo Docente IFES"}</span>
+                      <span className="mx-1.5 opacity-40">·</span>
+                      <span>{course.campus || campusName}</span>
+                    </p>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => onGenerateQuizFromTopic(`${course.name} (${course.code})`)}
-                            className="flex-1 py-2 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                            title="Gera 10 questões e flashcards com base no conteúdo desta disciplina"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-[var(--app-primary)]" /> 10 Questões
-                          </button>
-
-                          <button
-                            onClick={() => onOpenSocraticWithTopic(`${course.name} (${course.code})`)}
-                            className="p-2 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl transition cursor-pointer"
-                            title="Tutoria Socrática desta disciplina"
-                          >
-                            <Brain className="w-4 h-4 text-[var(--app-primary)]" />
-                          </button>
-                        </div>
-                      </div>
+                    {/* Progress Track bar */}
+                    <div className="w-full bg-[var(--app-bg)] h-1.5 rounded-full overflow-hidden border border-[var(--app-border)]">
+                      <div
+                        className="bg-[var(--app-primary)] h-full rounded-full transition-all duration-300"
+                        style={{ width: `${course.progressPercent || 45}%` }}
+                      />
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="pt-3 border-t border-[var(--app-border)] flex items-center justify-between">
+                    <button
+                      onClick={() => handleDeleteCourse(course.id, course.name)}
+                      className="p-1.5 text-[var(--app-text-muted)] hover:text-red-500 rounded-lg transition cursor-pointer"
+                      title={`Remover ${course.name}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedCourse(course)}
+                      className="px-3.5 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    >
+                      <span>Acessar Sala</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* SUB-TAB 2: LINHA DO TEMPO / TAREFAS */}
-      {avaSubTab === "timeline" && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[var(--app-primary)]" />
-              <h2 className="text-lg font-bold text-[var(--app-text)] tracking-tight">
-                Tarefas & Questionários do AVA Moodle
-              </h2>
-            </div>
-
-            {/* Filter Pills */}
-            <div className="flex flex-wrap gap-1.5 bg-[var(--app-card-secondary)] p-1 rounded-xl border border-[var(--app-border)] text-xs font-semibold">
-              <button
-                onClick={() => setActiveFilter("all")}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                  activeFilter === "all"
-                    ? "bg-[var(--app-card)] text-[var(--app-text)] font-bold shadow-xs border border-[var(--app-border)]"
-                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-                }`}
-              >
-                Todas ({assignments.length})
-              </button>
-              <button
-                onClick={() => setActiveFilter("urgent")}
-                className={`px-3 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer ${
-                  activeFilter === "urgent"
-                    ? "bg-red-500/20 text-red-400 font-bold border border-red-500/30"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <AlertTriangle className="w-3 h-3 text-red-400" /> Urgentes ({urgentCount})
-              </button>
-              <button
-                onClick={() => setActiveFilter("quiz")}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                  activeFilter === "quiz"
-                    ? "bg-white/10 text-white font-bold"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                Questionários
-              </button>
-              <button
-                onClick={() => setActiveFilter("assign")}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                  activeFilter === "assign"
-                    ? "bg-white/10 text-white font-bold"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                Trabalhos
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {filteredAssignments.length === 0 ? (
-              <div className="p-10 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-[var(--app-success)] mx-auto" />
-                <p className="text-sm font-bold text-[var(--app-text)]">Nenhuma atividade com este filtro</p>
-                <p className="text-xs text-[var(--app-text-muted)]">Você está em dia com os prazos selecionados!</p>
-              </div>
-            ) : (
-              filteredAssignments.map((assign) => {
-                const isUrgent = assign.status === "urgent";
-                const dueDateObj = new Date(assign.dueDate);
-                const diffDays = Math.ceil((dueDateObj.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-                return (
-                  <div
-                    key={assign.id}
-                    className={`bg-[var(--app-card)] rounded-2xl border p-5 transition space-y-3 ${
-                      isUrgent
-                        ? "border-red-500/30 bg-red-950/10 hover:border-red-500/50"
-                        : "border-[var(--app-border)] hover:border-[var(--app-primary)]/30"
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-[var(--app-primary)] uppercase tracking-wider">
-                            {assign.courseName}
-                          </span>
-                          {isUrgent ? (
-                            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Prazo Iminente ({diffDays}d)
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] border border-[var(--app-border)] rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-[var(--app-text-muted)]" /> Entrega em {diffDays}d
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-base font-bold text-[var(--app-text)]">{assign.title}</h3>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-mono font-bold text-[var(--app-text-muted)]">
-                          {assign.weight}
-                        </span>
-                        <p className="text-[11px] text-[var(--app-text-muted)]">
-                          Entrega: {dueDateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às{" "}
-                          {dueDateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
-                      {assign.description}
-                    </p>
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--app-border)]">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSubmissionModalAssignment(assign)}
-                          className="px-3.5 py-1.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-md shadow-[var(--app-primary)]/20 cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5" /> Entregar no AVA IFES
-                        </button>
-
-                        <button
-                          onClick={() => onGenerateQuizFromTopic(`${assign.courseName} - ${assign.title}`)}
-                          className="px-3.5 py-1.5 bg-[var(--app-primary)]/20 hover:bg-[var(--app-primary)]/30 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                          title="Gera 10 questões e flashcards para treinar esta tarefa"
-                        >
-                          <Zap className="w-3.5 h-3.5 fill-[var(--app-primary)]" /> Gerar 10 Questões
-                        </button>
-
-                        <button
-                          onClick={() => onOpenSocraticWithTopic(`${assign.courseName}: ${assign.title}`)}
-                          className="px-3.5 py-1.5 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Brain className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Estudo Socrático
-                        </button>
-                      </div>
-
-                      {assign.link && (
-                        <a
-                          href={assign.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-[var(--app-text-muted)] hover:text-[var(--app-text)] flex items-center gap-1 font-medium transition"
-                        >
-                          Abrir no AVA IFES <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* SUB-TAB 3: LIVRO DE NOTAS / BOLETIM */}
-      {avaSubTab === "grades" && (
-        <AvaGradesView courses={courses} user={user} />
-      )}
-
-      {/* SUB-TAB 4: CALENDÁRIO ACADÊMICO */}
-      {avaSubTab === "calendar" && (
-        <AvaCalendarView
-          assignments={assignments}
-          onOpenSubmitModal={(assign) => setSubmissionModalAssignment(assign)}
+      {activeSubTab === "grades" && (
+        <AvaGradesView
+          user={user}
+          courses={courses}
         />
       )}
 
-      {/* SUB-TAB 5: MURAL DE AVISOS */}
-      {avaSubTab === "messages" && (
-        <AvaMessagesView campusName={currentCampusName} />
+      {activeSubTab === "forums" && (
+        <AvaForumsView
+          courses={courses}
+          user={user}
+          onRewardXp={onRewardXp}
+        />
       )}
 
-      {/* SUB-TAB 6: CONEXÃO API & CONFIGURAÇÕES */}
-      {avaSubTab === "connection" && (
-        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-6 space-y-5 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-4">
-            <div>
-              <h3 className="text-base font-bold text-[var(--app-text)] flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[var(--app-primary)]" />
-                Conexão Direta com a API WebService do Moodle IFES
-              </h3>
-              <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
-                Autenticação direta com os servidores oficiais do Instituto Federal do Espírito Santo
-              </p>
-            </div>
-            <span className="text-xs text-[var(--app-primary)] font-mono">+150 XP de Bônus</span>
-          </div>
+      {activeSubTab === "calendar" && (
+        <AvaCalendarView
+          assignments={assignments}
+          onOpenSubmitModal={(assign) => setSubmittingAssignment(assign)}
+        />
+      )}
 
-          <form onSubmit={handleLoginIfes} className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[var(--app-primary)]" /> Selecione seu Campus / AVA IFES
-                </label>
-                <select
-                  value={selectedCampusPreset}
-                  onChange={(e) => handleCampusPresetChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition cursor-pointer"
+      {activeSubTab === "messages" && (
+        <AvaMessagesView
+          campusName={campusName}
+        />
+      )}
+
+      {/* Courses Profile Modal */}
+      {showProfileManager && (
+        <IfesProfileCoursesManager
+          isOpen={showProfileManager}
+          onClose={() => setShowProfileManager(false)}
+          courses={courses}
+          onSaveCourses={(updated) => {
+            handleUpdateCourseList(updated);
+          }}
+          campusName={campusName}
+        />
+      )}
+
+      {/* Diagnostics Logs Modal */}
+      {showDiagnosticsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
+          <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b border-[var(--app-border)] flex items-center justify-between gap-4 bg-[var(--app-bg)]/50">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-500 shrink-0">
+                  <Terminal className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-black text-[var(--app-text)] truncate flex items-center gap-2">
+                    <span>Console de Diagnóstico & Logs do AVA IFES</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-400">
+                      {diagLogs.length} eventos
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[var(--app-text-muted)] truncate">
+                    Auditoria técnica de rede, autenticação Moodle e extração de matérias em tempo real
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowDiagnosticsModal(false)}
+                className="p-2 rounded-xl hover:bg-gray-500/15 text-[var(--app-text-muted)] transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="px-5 py-3 border-b border-[var(--app-border)] bg-[var(--app-card)] flex items-center justify-between gap-3 flex-wrap text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--app-text-muted)]">Servidor alvo:</span>
+                <span className="font-mono font-bold text-[var(--app-primary)] bg-[var(--app-primary)]/10 px-2 py-0.5 rounded-md">
+                  {user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const text = exportSyncLogsAsText();
+                    navigator.clipboard.writeText(text);
+                    setCopiedLogs(true);
+                    setTimeout(() => setCopiedLogs(false), 2500);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  {CAMPUS_OPTIONS.map((c) => (
-                    <option key={c.url} value={c.url}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {copiedLogs ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLogs ? "Copiado!" : "Copiar Logs"}</span>
+                </button>
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                  URL do Moodle
-                </label>
-                <input
-                  type="url"
-                  value={campusUrl}
-                  onChange={(e) => setCampusUrl(e.target.value)}
-                  placeholder="https://ava3.cefor.ifes.edu.br"
-                  className="w-full px-3.5 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono transition"
-                />
+                <button
+                  onClick={() => {
+                    clearSyncDiagnosticLogs();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-gray-500/10 hover:bg-gray-500/20 text-[var(--app-text-muted)] font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Limpar</span>
+                </button>
+
+                <button
+                  onClick={() => handleSyncFromApi()}
+                  disabled={isSyncingApi}
+                  className="px-3.5 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingApi ? "animate-spin" : ""}`} />
+                  <span>{isSyncingApi ? "Executando..." : "Testar Sincronização"}</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex gap-2 p-1 bg-[var(--app-card-secondary)] rounded-xl border border-[var(--app-border)] w-fit">
-              <button
-                type="button"
-                onClick={() => setAuthMode("credentials")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  authMode === "credentials"
-                    ? "bg-[var(--app-primary)] text-white shadow-xs"
-                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-                }`}
-              >
-                <User className="w-3.5 h-3.5" /> Matrícula / CPF e Senha
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode("token")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  authMode === "token"
-                    ? "bg-[var(--app-primary)] text-white shadow-xs"
-                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-                }`}
-              >
-                <Key className="w-3.5 h-3.5" /> Token Moodle (WebServices)
-              </button>
-            </div>
-
-            {authMode === "credentials" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Usuário / Matrícula / CPF
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Ex: 20241IFES0482 ou seu usuário"
-                      className="w-full pl-10 pr-4 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition font-mono"
-                    />
+            {/* Logs Stream Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5 font-mono text-xs bg-[var(--app-bg)]/40">
+              {diagLogs.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto">
+                    <Terminal className="w-6 h-6" />
                   </div>
+                  <p className="text-sm font-bold text-[var(--app-text)]">
+                    Nenhum registro de diagnóstico capturado ainda nesta sessão.
+                  </p>
+                  <p className="text-xs text-[var(--app-text-muted)] max-w-md mx-auto">
+                    Clique no botão abaixo para rodar uma verificação completa de conexão e capturar as respostas do Moodle.
+                  </p>
+                  <button
+                    onClick={() => handleSyncFromApi()}
+                    className="px-4 py-2 rounded-xl bg-[var(--app-primary)] text-white font-sans font-bold text-xs hover:opacity-90 transition cursor-pointer"
+                  >
+                    Iniciar Teste de Diagnóstico
+                  </button>
                 </div>
+              ) : (
+                diagLogs.map((log) => {
+                  const levelClasses =
+                    log.level === "error"
+                      ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
+                      : log.level === "warn"
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                      : log.level === "success"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                      : "border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300";
 
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Senha do AVA IFES
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Sua senha institucional"
-                      className="w-full pl-10 pr-10 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-[var(--app-text-muted)] hover:text-[var(--app-text)] cursor-pointer"
+                  const badgeClasses =
+                    log.level === "error"
+                      ? "bg-red-500 text-white"
+                      : log.level === "warn"
+                      ? "bg-amber-500 text-white"
+                      : log.level === "success"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-indigo-500 text-white";
+
+                  return (
+                    <div
+                      key={log.id}
+                      className={`p-3.5 rounded-2xl border transition ${levelClasses} shadow-xs space-y-1.5`}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                  Chave Token de Acesso WebService Moodle
-                </label>
-                <div className="relative">
-                  <Key className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    placeholder="Cole seu token Moodle gerado em Preferências > Chaves de Segurança"
-                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono transition"
-                  />
-                </div>
-              </div>
-            )}
+                      <div className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[9px] ${badgeClasses}`}>
+                            {log.level}
+                          </span>
+                          <span className="font-bold text-[var(--app-text)] uppercase tracking-wider text-[10px]">
+                            [{log.step}]
+                          </span>
+                        </div>
+                        <span className="text-[var(--app-text-muted)] text-[10px]">
+                          {log.timestamp}
+                        </span>
+                      </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-[var(--app-border)]">
-              <div className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-[var(--app-primary)]" />
-                Conexão criptografada direta com a API do Moodle IFES.
-              </div>
+                      <p className="font-sans font-medium text-xs leading-relaxed text-[var(--app-text)]">
+                        {log.message}
+                      </p>
 
+                      {log.details && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-black/40 text-slate-200 border border-white/10 text-[10px] whitespace-pre-wrap overflow-x-auto max-h-48 font-mono">
+                          {log.details}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[var(--app-border)] bg-[var(--app-card)] flex items-center justify-between text-xs">
+              <span className="text-[var(--app-text-muted)]">
+                Dica: Erros de autenticação ("credenciais inválidas") são limpos automaticamente para sua segurança.
+              </span>
               <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full sm:w-auto px-6 py-3 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-[var(--app-primary)]/20 disabled:opacity-50 cursor-pointer"
+                onClick={() => setShowDiagnosticsModal(false)}
+                className="px-4 py-2 rounded-xl bg-[var(--app-bg)] hover:bg-gray-500/20 text-[var(--app-text)] font-bold transition cursor-pointer border border-[var(--app-border)]"
               >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-                {isLoading ? "Autenticando no IFES..." : "Entrar e Sincronizar AVA IFES"}
+                Fechar
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
-
-      {/* SUB-TAB 7: PONTE DE DADOS Q-ACADÊMICO IFES */}
-      {avaSubTab === "qacademico" && (
-        <div className="space-y-4 animate-fade-in">
-          <QAcademicoView
-            user={user}
-            onUpdateQAcademicoAccount={onUpdateQAcademicoAccount}
-            onImportCourses={(newCourses) => {
-              if (onImportCourses) {
-                onImportCourses(newCourses);
-              }
-              setCourses(loadSyncedCourses());
-            }}
-          />
-        </div>
-      )}
-
-      {/* Submission Modal */}
-      <AvaSubmissionModal
-        isOpen={!!submissionModalAssignment}
-        onClose={() => setSubmissionModalAssignment(null)}
-        assignment={submissionModalAssignment}
-        user={user}
-        onSuccess={(updated) => {
-          setAssignments((prev) =>
-            prev.map((a) => (a.id === updated.id ? updated : a))
-          );
-        }}
-      />
-
-      {/* Modal: Gerenciar / Filtrar Matérias Exatas do Perfil IFES */}
-      <IfesProfileCoursesManager
-        isOpen={showCoursesManager}
-        onClose={() => setShowCoursesManager(false)}
-        courses={courses}
-        onSaveCourses={handleSaveCustomCourses}
-        campusName={currentCampusName}
-      />
     </div>
   );
 };

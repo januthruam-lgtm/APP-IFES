@@ -9,7 +9,7 @@ export const OfflineIndicator: React.FC = () => {
 
   return (
     <div
-      id="pwa-offline-indicator"
+      id="native-offline-indicator"
       className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-bold text-white shadow-xl animate-in slide-in-from-bottom-2"
     >
       <WifiOff className="w-4 h-4 animate-pulse" />

@@ -1,41 +1,55 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
-  CheckSquare,
-  Square,
+  ListTodo,
+  CheckCircle2,
+  Circle,
   Plus,
   Trash2,
   Calendar,
-  Sparkles,
-  Tag,
   AlertCircle,
-  Filter,
-  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
-import { CourseTrack, UserProfile } from "../../types";
+import { UserProfile, CourseTrack, TaskItem, TaskPriority } from "../../types";
 import confetti from "canvas-confetti";
-import { creditXp, creditCoins } from "../../features/gamificacao/economyService";
-
-export interface TaskItem {
-  id: string;
-  title: string;
-  courseTitle: string;
-  dueDate: string;
-  priority: "baixa" | "media" | "alta";
-  completed: boolean;
-  xpReward: number;
-  createdAt: string;
-}
-
-const STORAGE_KEY = "brain_studio_tasks_list_v2";
-
-const INITIAL_TASKS: TaskItem[] = [];
 
 interface TasksTabProps {
   user: UserProfile;
   courses: CourseTrack[];
-  onRewardXp: (xp: number) => void;
+  onRewardXp?: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
 }
+
+const STORAGE_KEY_TASKS = "brain_studio_tasks_v2";
+
+const DEFAULT_TASKS: TaskItem[] = [
+  {
+    id: "task-1",
+    title: "Revisar anotações sobre Ciclo PDCA para o seminário",
+    dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    priority: "alta",
+    category: "Gestão da Qualidade",
+    completed: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task-2",
+    title: "Exercícios de recursividade no Moodle IFES",
+    dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+    priority: "média",
+    category: "Algoritmos e Lógica",
+    completed: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task-3",
+    title: "Formatar relatório da aula prática conforme normas ABNT",
+    dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+    priority: "baixa",
+    category: "Comunicação Técnica",
+    completed: true,
+    createdAt: new Date().toISOString(),
+  },
+];
 
 export const TasksTab: React.FC<TasksTabProps> = ({
   user,
@@ -45,350 +59,199 @@ export const TasksTab: React.FC<TasksTabProps> = ({
 }) => {
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.warn("Error loading tasks:", e);
-    }
-    return INITIAL_TASKS;
+      const saved = localStorage.getItem(STORAGE_KEY_TASKS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return DEFAULT_TASKS;
   });
 
-  const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas">("todas");
-  const [selectedCourse, setSelectedCourse] = useState<string>("todas");
-
-  // New task form state
-  const [isAdding, setIsAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newCourse, setNewCourse] = useState("");
-  const [newDueDate, setNewDueDate] = useState("");
-  const [newPriority, setNewPriority] = useState<"baixa" | "media" | "alta">("media");
-
-  // Save tasks to localStorage when tasks change (pure local effect, never touches parent)
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    } catch (e) {
-      console.warn("Error saving tasks:", e);
-    }
-  }, [tasks]);
-
-  const handleToggleTask = (task: TaskItem) => {
-    const updatedStatus = !task.completed;
-
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, completed: updatedStatus } : t))
-    );
-
-    // Call centralized economy service and parent reward handlers
-    if (updatedStatus) {
-      confetti({ particleCount: 30, spread: 50 });
-      const coinsReward = Math.max(5, Math.floor(task.xpReward / 2));
-      const userId = user.email || user.name || "aluno";
-
-      // Persistência atômica no Firestore
-      creditXp(userId, task.xpReward, `Conclusão da tarefa: ${task.title}`).catch(console.warn);
-      creditCoins(userId, coinsReward, `Recompensa tarefa: ${task.title}`).catch(console.warn);
-
-      onRewardXp(task.xpReward);
-      if (onRewardCoins) {
-        onRewardCoins(coinsReward);
-      }
-    }
+  // Salva tarefas sempre que houver alteração
+  const updateTasks = (newTasks: TaskItem[] | ((prev: TaskItem[]) => TaskItem[])) => {
+    setTasks((prev) => {
+      const updated = typeof newTasks === "function" ? newTasks(prev) : newTasks;
+      try {
+        localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskCategory, setNewTaskCategory] = useState(courses[0]?.title || "Geral");
+  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>("média");
+  const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().split("T")[0]);
 
-    const newTask: TaskItem = {
+  const handleToggleTask = (id: string) => {
+    updateTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          const nextCompleted = !t.completed;
+          if (nextCompleted) {
+            confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+            if (onRewardXp) onRewardXp(20);
+            if (onRewardCoins) onRewardCoins(5);
+          }
+          return { ...t, completed: nextCompleted };
+        }
+        return t;
+      })
+    );
+  };
+
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+
+    const task: TaskItem = {
       id: `task-${Date.now()}`,
-      title: newTitle.trim(),
-      courseTitle: newCourse || (courses[0]?.title || "Geral"),
-      dueDate: newDueDate || new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-      priority: newPriority,
+      title: newTaskTitle.trim(),
+      dueDate: newTaskDate,
+      priority: newTaskPriority,
+      category: newTaskCategory,
       completed: false,
-      xpReward: newPriority === "alta" ? 40 : newPriority === "media" ? 25 : 15,
       createdAt: new Date().toISOString(),
     };
 
-    setTasks((prev) => [newTask, ...prev]);
-    setNewTitle("");
-    setNewDueDate("");
-    setIsAdding(false);
+    updateTasks((prev) => [task, ...prev]);
+    setNewTaskTitle("");
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  const handleDeleteTask = (id: string) => {
+    updateTasks((prev) => prev.filter((t) => t.id !== id));
   };
-
-  const filteredTasks = tasks.filter((t) => {
-    if (filter === "pendentes" && t.completed) return false;
-    if (filter === "concluidas" && !t.completed) return false;
-    if (selectedCourse !== "todas" && t.courseTitle !== selectedCourse) return false;
-    return true;
-  });
 
   const completedCount = tasks.filter((t) => t.completed).length;
-  const pendingCount = tasks.length - completedCount;
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--app-card)] p-6 rounded-3xl border border-[var(--app-border)] shadow-sm">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
-            <CheckSquare className="w-3.5 h-3.5" />
-            <span>Gestão Acadêmica de Tarefas</span>
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+      {/* Top Banner */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+            <ListTodo className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--app-text)]">
-            Minhas Tarefas & Prazos
-          </h1>
-          <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-            {pendingCount} pendente{pendingCount !== 1 ? "s" : ""} • {completedCount} concluída{completedCount !== 1 ? "s" : ""}
-          </p>
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)]">Gerenciador de Tarefas de Estudo</h2>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Organize seus deveres, leituras e entregas por disciplina com recompensas em moedas e XP.
+            </p>
+          </div>
         </div>
 
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="px-5 py-2.5 rounded-2xl text-xs font-bold bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white transition shadow-sm flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{isAdding ? "Fechar Formulário" : "Nova Tarefa"}</span>
-        </button>
+        <span className="text-xs font-bold text-[var(--app-primary)] px-3 py-1.5 rounded-xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20">
+          {completedCount} de {tasks.length} concluídas
+        </span>
       </div>
 
       {/* Add Task Form */}
-      {isAdding && (
-        <form
-          onSubmit={handleCreateTask}
-          className="p-6 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-md space-y-4 animate-in slide-in-from-top-2"
-        >
-          <h3 className="text-sm font-bold text-[var(--app-text)] flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[var(--app-primary)]" />
-            Cadastrar Nova Tarefa
-          </h3>
+      <form
+        onSubmit={handleAddTask}
+        className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-sm space-y-3"
+      >
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <input
+            type="text"
+            required
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            placeholder="O que você precisa estudar ou entregar hoje?..."
+            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text)] outline-none"
+          />
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
-                Título da Tarefa
-              </label>
-              <input
-                type="text"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Ex: Entregar lista de exercícios no AVA..."
-                className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-4 py-2.5 text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] focus:outline-none focus:border-[var(--app-primary)]"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
-                  Matéria / Disciplina
-                </label>
-                <select
-                  value={newCourse}
-                  onChange={(e) => setNewCourse(e.target.value)}
-                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
-                >
-                  <option value="Geral">Geral (Todas as Matérias)</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.title}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
-                  Data Limite
-                </label>
-                <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--app-text-muted)] mb-1">
-                  Prioridade
-                </label>
-                <select
-                  value={newPriority}
-                  onChange={(e) => setNewPriority(e.target.value as any)}
-                  className="w-full bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--app-text)] focus:outline-none"
-                >
-                  <option value="baixa">Baixa (+15 XP)</option>
-                  <option value="media">Média (+25 XP)</option>
-                  <option value="alta">Alta (+40 XP)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--app-border)]">
-            <button
-              type="button"
-              onClick={() => setIsAdding(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-xl bg-[var(--app-card-secondary)] hover:opacity-80 text-[var(--app-text-muted)]"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white transition cursor-pointer"
-            >
-              Salvar Tarefa
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--app-card)] p-4 rounded-2xl border border-[var(--app-border)]">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilter("todas")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              filter === "todas"
-                ? "bg-[var(--app-primary)] text-white shadow-xs"
-                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-            }`}
-          >
-            Todas ({tasks.length})
-          </button>
-          <button
-            onClick={() => setFilter("pendentes")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              filter === "pendentes"
-                ? "bg-[var(--app-primary)] text-white shadow-xs"
-                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-            }`}
-          >
-            Pendentes ({pendingCount})
-          </button>
-          <button
-            onClick={() => setFilter("concluidas")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              filter === "concluidas"
-                ? "bg-[var(--app-primary)] text-white shadow-xs"
-                : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-            }`}
-          >
-            Concluídas ({completedCount})
-          </button>
-        </div>
-
-        {courses.length > 0 && (
           <select
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            className="bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl px-3 py-1.5 text-xs text-[var(--app-text)] focus:outline-none"
+            value={newTaskCategory}
+            onChange={(e) => setNewTaskCategory(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold"
           >
-            <option value="todas">Filtrar por Disciplina</option>
             {courses.map((c) => (
               <option key={c.id} value={c.title}>
                 {c.title}
               </option>
             ))}
+            <option value="Geral">Geral</option>
           </select>
-        )}
-      </div>
 
-      {/* Task List */}
-      <div className="space-y-3">
-        {filteredTasks.length === 0 ? (
-          <div className="text-center py-12 bg-[var(--app-card)] rounded-3xl border border-[var(--app-border)] p-6 space-y-2">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto opacity-70" />
-            <h4 className="text-sm font-bold text-[var(--app-text)]">
-              Nenhuma tarefa encontrada neste filtro!
-            </h4>
-            <p className="text-xs text-[var(--app-text-muted)]">
-              Você está em dia com seus estudos acadêmicos.
-            </p>
-          </div>
-        ) : (
-          filteredTasks.map((task) => {
-            const isCompleted = task.completed;
-            return (
-              <div
-                key={task.id}
-                className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-4 group ${
-                  isCompleted
-                    ? "bg-[var(--app-card)]/60 opacity-60 border-[var(--app-border)]"
-                    : "bg-[var(--app-card)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 shadow-xs"
-                }`}
+          <select
+            value={newTaskPriority}
+            onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
+            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold"
+          >
+            <option value="alta">Prioridade Alta</option>
+            <option value="média">Prioridade Média</option>
+            <option value="baixa">Prioridade Baixa</option>
+          </select>
+
+          <button
+            type="submit"
+            className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar</span>
+          </button>
+        </div>
+      </form>
+
+      {/* Tasks List */}
+      <div className="space-y-2.5">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 bg-[var(--app-card)] shadow-xs ${
+              task.completed ? "opacity-60 border-[var(--app-border)]" : "border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <button
+                onClick={() => handleToggleTask(task.id)}
+                className="text-[var(--app-primary)] shrink-0 cursor-pointer"
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <button
-                    onClick={() => handleToggleTask(task)}
-                    className="p-1 text-neutral-400 hover:text-indigo-400 transition cursor-pointer"
-                    title={isCompleted ? "Marcar como pendente" : "Marcar como concluída"}
+                {task.completed ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />
+                ) : (
+                  <Circle className="w-5 h-5 text-neutral-400" />
+                )}
+              </button>
+
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <p
+                  className={`text-xs sm:text-sm font-bold truncate ${
+                    task.completed ? "line-through text-[var(--app-text-muted)]" : "text-[var(--app-text)]"
+                  }`}
+                >
+                  {task.title}
+                </p>
+                <div className="flex items-center gap-2 text-[10px] text-[var(--app-text-muted)]">
+                  <span>{task.category}</span>
+                  <span>•</span>
+                  <span>Prazo: {task.dueDate}</span>
+                  <span>•</span>
+                  <span
+                    className={`font-bold uppercase ${
+                      task.priority === "alta"
+                        ? "text-red-500"
+                        : task.priority === "média"
+                        ? "text-amber-500"
+                        : "text-blue-500"
+                    }`}
                   >
-                    {isCompleted ? (
-                      <CheckSquare className="w-5 h-5 text-emerald-400" />
-                    ) : (
-                      <Square className="w-5 h-5" />
-                    )}
-                  </button>
-
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-sm font-semibold truncate ${
-                        isCompleted
-                          ? "line-through text-neutral-500"
-                          : "text-[var(--text-primary,#f8fafc)]"
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 text-[11px] text-[var(--text-muted,#94a3b8)]">
-                      <span className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-indigo-400" />
-                        {task.courseTitle}
-                      </span>
-                      {task.dueDate && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-amber-400" />
-                          {task.dueDate}
-                        </span>
-                      )}
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          task.priority === "alta"
-                            ? "bg-rose-500/20 text-rose-400"
-                            : task.priority === "media"
-                            ? "bg-amber-500/20 text-amber-400"
-                            : "bg-blue-500/20 text-blue-400"
-                        }`}
-                      >
-                        {task.priority.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20">
-                    +{task.xpReward} XP
+                    {task.priority}
                   </span>
-                  <button
-                    onClick={() => handleDeleteTask(task.id)}
-                    className="p-2 rounded-xl text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer opacity-0 group-hover:opacity-100"
-                    title="Excluir tarefa"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
-            );
-          })
-        )}
+            </div>
+
+            <button
+              onClick={() => handleDeleteTask(task.id)}
+              className="p-1.5 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+              title="Excluir tarefa"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

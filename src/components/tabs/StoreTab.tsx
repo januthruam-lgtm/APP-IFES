@@ -1,51 +1,36 @@
 import React, { useState } from "react";
 import {
   ShoppingBag,
-  Coins,
   Zap,
-  Award,
+  Coins,
   Sparkles,
-  Check,
-  Shield,
+  Award,
   Heart,
-  Crown,
-  PawPrint,
-  CheckCircle2,
+  Shield,
+  Check,
+  ChevronRight,
+  Plus,
+  Wand2,
+  Pencil,
+  X,
 } from "lucide-react";
-import { CustomThemeColors, UserPet, UserProfile } from "../../types";
+import { UserProfile, CustomThemeColors, StoreItem, UserPet } from "../../types";
+import { PuppetPetView } from "../PuppetPetView";
 import confetti from "canvas-confetti";
-import {
-  OFFICIAL_PET_CATALOG,
-  getPetDefinition,
-  DEFAULT_PET_ID,
-  PetCatalogItem,
-} from "../../features/gamificacao/petCatalog";
-import {
-  equipUserPet,
-  buyAndEquipPet,
-} from "../../features/gamificacao/petService";
 
 interface StoreTabProps {
   user: UserProfile;
-  onBuyBadge: (badgeId: string, cost: number) => boolean;
-  onEquipBadge: (badgeId: string) => void;
-  onAddEnergy: (amount: number) => void;
-  onPermanentEnergyUpgrade: (cost: number) => boolean;
-  onRewardXp: (xp: number) => void;
-  onRewardCoins: (coins: number) => void;
-  onStudyOnAva: () => void;
-  onUnlockCard: (cardId: string) => void;
-  onUpdatePet: (pet: UserPet) => void;
+  onBuyBadge?: (badgeName: string, cost: number) => void;
+  onEquipBadge?: (badgeName: string) => void;
+  onAddEnergy?: (amount: number) => void;
+  onPermanentEnergyUpgrade?: (additionalMax: number, cost: number) => void;
+  onRewardXp?: (xp: number) => void;
+  onRewardCoins?: (coins: number) => void;
+  onStudyOnAva?: () => void;
+  onUnlockCard?: (cardId: string) => void;
+  onUpdatePet?: (pet: UserPet) => void;
   currentTheme?: CustomThemeColors;
 }
-
-const STORE_BADGES = [
-  { id: "calouro_ifes", name: "Calouro IFES", icon: "🎓", cost: 0, description: "Concedido ao ingressar na jornada acadêmica." },
-  { id: "maratonista_dados", name: "Mestre de Algoritmos", icon: "⚡", cost: 80, description: "Dedicação comprovada em estruturas de dados." },
-  { id: "coruja_noturna", name: "Coruja da Madrugada", icon: "🦉", cost: 120, description: "Estudos concentrados no período noturno." },
-  { id: "mestre_calculo", name: "Sábio do Cálculo", icon: "📐", cost: 150, description: "Domínio de derivadas, integrais e limites." },
-  { id: "veterano_ifes", name: "Veterano Lendário", icon: "👑", cost: 250, description: "O maior status honorário do instituto." },
-];
 
 export const StoreTab: React.FC<StoreTabProps> = ({
   user,
@@ -53,345 +38,383 @@ export const StoreTab: React.FC<StoreTabProps> = ({
   onEquipBadge,
   onAddEnergy,
   onPermanentEnergyUpgrade,
+  onRewardCoins,
   onUpdatePet,
 }) => {
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [isRenamingPet, setIsRenamingPet] = useState(false);
+  const [newPetName, setNewPetName] = useState(user.pet?.name || "Mascote");
 
-  const showFeedback = (msg: string) => {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(null), 2500);
-  };
-
-  const handleBuyPotion = (energyAmount: number, coinCost: number) => {
-    if (user.coins < coinCost) {
-      showFeedback("Moedas insuficientes para esta poção!");
-      return;
+  React.useEffect(() => {
+    if (user.pet?.name) {
+      setNewPetName(user.pet.name);
     }
-    onAddEnergy(energyAmount);
-    showFeedback(`+${energyAmount} de Energia restaurada com sucesso!`);
-    confetti({ particleCount: 25, spread: 50 });
-  };
+  }, [user.pet?.name]);
 
-  const handleUpgradeMaxEnergy = () => {
-    const cost = 120;
-    const success = onPermanentEnergyUpgrade(cost);
-    if (success) {
-      showFeedback("Capacidade máxima de energia aumentada em +10!");
-      confetti({ particleCount: 40, spread: 60 });
-    } else {
-      showFeedback("Moedas insuficientes para o aprimoramento!");
-    }
-  };
-
-  const handleBuyOrEquipBadge = (badgeId: string, cost: number) => {
-    const isUnlocked = user.unlockedBadges?.includes(badgeId);
-    if (isUnlocked) {
-      onEquipBadge(badgeId);
-      showFeedback("Emblema equipado no seu perfil!");
-      return;
-    }
-
-    const bought = onBuyBadge(badgeId, cost);
-    if (bought) {
-      showFeedback("Emblema adquirido e equipado com sucesso!");
-      confetti({ particleCount: 30, spread: 50 });
-    } else {
-      showFeedback("Moedas insuficientes para desbloquear!");
-    }
-  };
-
-  const activePetDef = getPetDefinition(user.pet?.activePetId || user.pet?.id);
-  const unlockedPetsList: string[] = (user.pet?.unlockedPets as string[]) || [DEFAULT_PET_ID];
-
-  const handleEquipPet = async (petItem: PetCatalogItem) => {
-    try {
-      const updatedPet = await equipUserPet(user.email || "aluno", petItem.id);
-      onUpdatePet(updatedPet);
-      showFeedback(`Mascote ${petItem.nome} equipado com sucesso!`);
-      confetti({ particleCount: 35, spread: 60 });
-    } catch {
-      showFeedback("Erro ao equipar mascote. Tente novamente.");
-    }
-  };
-
-  const handleAdoptPet = async (petItem: PetCatalogItem) => {
-    if (user.coins < petItem.custoMoedas) {
-      showFeedback(`Moedas insuficientes! Você precisa de ${petItem.custoMoedas} moedas para adotar ${petItem.nome}.`);
-      return;
-    }
-
-    try {
-      const result = await buyAndEquipPet(user.email || "aluno", petItem.id);
-      if (result.success && result.pet) {
-        onUpdatePet(result.pet);
-        showFeedback(`Parabéns! ${petItem.nome} foi adotado e equipado.`);
-        confetti({ particleCount: 60, spread: 80 });
-      } else {
-        showFeedback(result.error || "Não foi possível completar a adoção.");
+  React.useEffect(() => {
+    const handlePetUpdated = (e: any) => {
+      if (e.detail?.name) {
+        setNewPetName(e.detail.name);
       }
-    } catch {
-      showFeedback("Erro na transação de adoção.");
+    };
+    window.addEventListener("pet_updated", handlePetUpdated);
+    return () => window.removeEventListener("pet_updated", handlePetUpdated);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setFeedbackMsg(msg);
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  const handleStartRename = () => {
+    setNewPetName(user.pet?.name || "Mascote");
+    setIsRenamingPet(true);
+  };
+
+  const handleSavePetName = () => {
+    const trimmed = newPetName.trim();
+    if (!trimmed || !user.pet) return;
+    const updatedPet: UserPet = {
+      ...user.pet,
+      name: trimmed,
+    };
+    if (onUpdatePet) {
+      onUpdatePet(updatedPet);
     }
+    setIsRenamingPet(false);
+    showToast(`🎉 Nome do mascote alterado para "${trimmed}"!`);
+    confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+  };
+
+  const handleBuyEnergy = (amount: number, cost: number) => {
+    if (user.coins < cost) {
+      showToast("Moedas insuficientes! Estude e complete módulos para ganhar mais moedas.");
+      return;
+    }
+    if (onRewardCoins) onRewardCoins(-cost);
+    if (onAddEnergy) onAddEnergy(amount);
+    confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+    showToast(`+${amount} Energias recarregadas com sucesso!`);
+  };
+
+  const handleBuyPermanentEnergy = (cost: number) => {
+    if (user.coins < cost) {
+      showToast("Moedas insuficientes para expansão permanente de bateria.");
+      return;
+    }
+    if (onPermanentEnergyUpgrade) onPermanentEnergyUpgrade(5, cost);
+    confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+    showToast("Capacidade máxima de energia permanentemente expandida em +5!");
+  };
+
+  const handleFeedPet = (cost: number, foodName: string, expGain: number = 25) => {
+    if (user.coins < cost) {
+      showToast("Moedas insuficientes para petisco.");
+      return;
+    }
+    if (!user.pet) return;
+
+    if (onRewardCoins) onRewardCoins(-cost);
+    const currentExp = (user.pet.exp || 0) + expGain;
+    let level = user.pet.level || 1;
+    let maxExp = user.pet.maxExp || 100;
+    let finalExp = currentExp;
+
+    if (finalExp >= maxExp) {
+      level += 1;
+      finalExp = finalExp - maxExp;
+      maxExp = Math.round(maxExp * 1.5);
+      showToast(`🎉 Incrível! ${user.pet.name} subiu para o Nível ${level}!`);
+    } else {
+      showToast(`${user.pet.name} adorou ${foodName}! (+${expGain} EXP)`);
+    }
+
+    const updatedPet: UserPet = {
+      ...user.pet,
+      level,
+      exp: finalExp,
+      maxExp,
+      totalMeals: (user.pet.totalMeals || 0) + 1,
+      lastFedTimestamp: new Date().toISOString(),
+    };
+    if (onUpdatePet) onUpdatePet(updatedPet);
+    confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Loja do Aluno & Recompensas</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-[var(--text-primary,#f8fafc)]">
-            Mercado Acadêmico
-          </h1>
-          <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-            Invista suas moedas ganhas resolvendo tarefas e estudando
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
-            <Coins className="w-5 h-5 text-amber-400" />
-            <span className="text-sm font-extrabold text-amber-300">
-              {user.coins} Moedas
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {feedback && (
-        <div className="p-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold text-center animate-in slide-in-from-top-2">
-          {feedback}
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Feedback Toast */}
+      {feedbackMsg && (
+        <div className="p-3 bg-[var(--app-primary)] text-white text-xs font-bold rounded-2xl shadow-lg animate-in fade-in flex items-center justify-between">
+          <span>{feedbackMsg}</span>
+          <button onClick={() => setFeedbackMsg(null)} className="cursor-pointer">✕</button>
         </div>
       )}
 
-      {/* Energy & Power-ups */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary,#f8fafc)] flex items-center gap-2">
-          <Zap className="w-5 h-5 text-amber-400 fill-amber-400" />
-          <span>Poções de Energia & Aprimoramentos</span>
-        </h2>
+      {/* Top Header Card */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
+            <ShoppingBag className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-[var(--app-text)]">Loja & Economia Brain Studio</h2>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Use suas moedas ganhas com esforço acadêmico para recarregar baterias e cuidar do mascote.
+            </p>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-lg space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Zap className="w-5 h-5 fill-amber-400" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-[var(--text-primary,#f8fafc)]">
-                Recarga Rápida (+20 Energia)
-              </h3>
-              <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-                Restaura 20 pontos para continuar jogando no Quiz.
-              </p>
-            </div>
-            <button
-              onClick={() => handleBuyPotion(20, 25)}
-              className="w-full py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span>Comprar por 25 Moedas</span>
-            </button>
+        {/* User Balance */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-sm font-black">
+            <Coins className="w-4 h-4 text-amber-500 fill-amber-500" />
+            <span>{user.coins} Moedas</span>
           </div>
 
-          <div className="p-5 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-lg space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-[var(--text-primary,#f8fafc)]">
-                Recarga Total (100% Energia)
-              </h3>
-              <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-                Preenche a barra de energia completamente.
-              </p>
-            </div>
-            <button
-              onClick={() => handleBuyPotion(user.maxEnergy, 50)}
-              className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span>Comprar por 50 Moedas</span>
-            </button>
-          </div>
-
-          <div className="p-5 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-lg space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-              <Crown className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-[var(--text-primary,#f8fafc)]">
-                Expansão Permanente (+10 Max)
-              </h3>
-              <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-                Aumenta sua barra máxima de energia para sempre.
-              </p>
-            </div>
-            <button
-              onClick={handleUpgradeMaxEnergy}
-              className="w-full py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span>Aprimorar por 120 Moedas</span>
-            </button>
+          <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-sm font-black">
+            <Zap className="w-4 h-4 fill-emerald-500 text-emerald-500" />
+            <span>{user.energy}/{user.maxEnergy} Energia</span>
           </div>
         </div>
       </div>
 
-      {/* Badges and Titles */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary,#f8fafc)] flex items-center gap-2">
-          <Award className="w-5 h-5 text-indigo-400" />
-          <span>Emblemas & Insígnias Honorárias</span>
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {STORE_BADGES.map((b) => {
-            const isUnlocked = user.unlockedBadges?.includes(b.id);
-            const isEquipped = user.equippedBadge === b.id;
-
-            return (
-              <div
-                key={b.id}
-                className={`p-5 rounded-3xl border transition flex flex-col justify-between gap-3 ${
-                  isEquipped
-                    ? "bg-[var(--bg-card,#1e293b)] border-indigo-500 ring-2 ring-indigo-500/20"
-                    : "bg-[var(--bg-card,#1e293b)] border-[var(--border-color,rgba(255,255,255,0.1))]"
-                }`}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-3xl">{b.icon}</span>
-                    {isEquipped && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                        EQUIPADO
-                      </span>
-                    )}
+      {/* Pet Interactive Showcase Card na Loja de Pets */}
+      {user.pet && (
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/25 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+            <div className="cursor-pointer hover:scale-105 transition shrink-0" title="Clique para interagir com o Pet!">
+              <PuppetPetView pet={user.pet} size="lg" interactive={true} />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                {isRenamingPet ? (
+                  <div className="flex items-center gap-1.5 bg-[var(--app-bg)] px-2.5 py-1 rounded-xl border border-[var(--app-primary)] shadow-xs">
+                    <input
+                      type="text"
+                      value={newPetName}
+                      onChange={(e) => setNewPetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSavePetName();
+                        if (e.key === "Escape") setIsRenamingPet(false);
+                      }}
+                      autoFocus
+                      placeholder="Nome do Mascote..."
+                      className="text-sm font-bold bg-transparent text-[var(--app-text)] outline-none w-32 sm:w-44"
+                      maxLength={25}
+                    />
+                    <button
+                      onClick={handleSavePetName}
+                      className="p-1 rounded-lg bg-[var(--app-primary)] text-white hover:opacity-90 transition cursor-pointer"
+                      title="Salvar novo nome"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setIsRenamingPet(false)}
+                      className="p-1 rounded-lg bg-gray-500/20 text-[var(--app-text-muted)] hover:bg-gray-500/30 transition cursor-pointer"
+                      title="Cancelar"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <h3 className="font-bold text-sm text-[var(--text-primary,#f8fafc)]">
-                    {b.name}
-                  </h3>
-                  <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-                    {b.description}
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleBuyOrEquipBadge(b.id, b.cost)}
-                  className={`w-full py-2.5 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
-                    isEquipped
-                      ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                      : isUnlocked
-                      ? "bg-[var(--bg-card-secondary,#334155)] hover:bg-indigo-600 hover:text-white text-[var(--text-primary,#f8fafc)]"
-                      : "bg-amber-500 hover:bg-amber-400 text-black"
-                  }`}
-                >
-                  {isEquipped ? (
-                    <span>Emblema em Uso</span>
-                  ) : isUnlocked ? (
-                    <span>Equipar no Perfil</span>
-                  ) : (
-                    <>
-                      <Coins className="w-3.5 h-3.5" />
-                      <span>Adquirir por {b.cost} Moedas</span>
-                    </>
-                  )}
-                </button>
+                ) : (
+                  <>
+                    <h3 className="text-xl font-black text-[var(--app-text)] flex items-center gap-1.5">
+                      <span>{user.pet.name || "Mascote"}</span>
+                      <button
+                        onClick={handleStartRename}
+                        className="p-1.5 rounded-xl hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:text-[var(--app-primary)] transition cursor-pointer"
+                        title="Alterar nome do Mascote"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </h3>
+                  </>
+                )}
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  Nível {user.pet.level || 1}
+                </span>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mascotes Acadêmicos Oficiais do IFES */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="text-lg font-bold text-[var(--text-primary,#f8fafc)] flex items-center gap-2">
-            <PawPrint className="w-5 h-5 text-emerald-400" />
-            <span>Centro de Adoção de Mascotes IFES</span>
-          </h2>
-          <span className="text-xs text-[var(--text-muted,#94a3b8)]">
-            Mascote Ativo Atual: <strong className="text-emerald-400">{activePetDef.emoji} {activePetDef.nome}</strong>
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {OFFICIAL_PET_CATALOG.map((petItem) => {
-            const isEquipped = activePetDef.id === petItem.id;
-            const isUnlocked = unlockedPetsList.includes(petItem.id) || petItem.isDefault;
-
-            return (
-              <div
-                key={petItem.id}
-                className={`p-5 rounded-3xl border transition-all flex flex-col justify-between gap-3 ${
-                  isEquipped
-                    ? "bg-[var(--bg-card,#1e293b)] border-emerald-500 ring-2 ring-emerald-500/20 shadow-md"
-                    : "bg-[var(--bg-card,#1e293b)] border-[var(--border-color,rgba(255,255,255,0.1))]"
-                }`}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-4xl">{petItem.emoji}</span>
-                    {isEquipped ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        ATIVO
-                      </span>
-                    ) : petItem.isDefault ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                        PADRÃO IFES
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <h3 className="font-bold text-sm text-[var(--text-primary,#f8fafc)]">
-                    {petItem.nome}
-                  </h3>
-
-                  <div className="inline-block px-2 py-0.5 rounded-md bg-[var(--bg-card-secondary,#334155)] text-[10px] font-semibold text-emerald-300">
-                    {petItem.tituloBadge}
-                  </div>
-
-                  <p className="text-xs text-[var(--text-muted,#94a3b8)] line-clamp-2">
-                    {petItem.descricao}
-                  </p>
-
-                  <div className="pt-2 border-t border-[var(--border-color,rgba(255,255,255,0.06))] text-[11px] font-medium text-amber-300/90">
-                    ✦ {petItem.habilidadePassiva}
-                  </div>
+              <p className="text-xs text-[var(--app-text-muted)] max-w-sm">
+                Seu companheiro leal de estudos no IFES! Clique nele para fazer carinho e evolua seu nível dando petiscos da loja.
+              </p>
+              <div className="w-48 sm:w-64 space-y-1 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-mono text-[var(--app-text-muted)]">
+                  <span>EXP</span>
+                  <span className="font-bold text-[var(--app-primary)]">{user.pet.exp || 0} / {user.pet.maxExp || 100}</span>
                 </div>
-
-                <div className="pt-2">
-                  {isEquipped ? (
-                    <button
-                      disabled
-                      className="w-full py-2.5 rounded-2xl text-xs font-bold bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center gap-1.5"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>Mascote em Uso</span>
-                    </button>
-                  ) : isUnlocked ? (
-                    <button
-                      onClick={() => handleEquipPet(petItem)}
-                      className="w-full py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>Equipar Mascote</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleAdoptPet(petItem)}
-                      className="w-full py-2.5 rounded-2xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <Coins className="w-3.5 h-3.5" />
-                      <span>Adotar por {petItem.custoMoedas} Moedas</span>
-                    </button>
-                  )}
+                <div className="w-full h-2 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(5, ((user.pet.exp || 0) / (user.pet.maxExp || 100)) * 100))}%` }}
+                  />
                 </div>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          <div className="text-center sm:text-right shrink-0 bg-[var(--app-card)]/70 backdrop-blur-xs p-4 rounded-2xl border border-[var(--app-border)]">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--app-text-muted)] block">
+              Alimentações Realizadas
+            </span>
+            <div className="text-2xl font-black text-amber-500">
+              {user.pet.totalMeals || 0} 🥕
+            </div>
+            <span className="text-[10px] text-[var(--app-text-muted)] font-medium">
+              Evolui e ganha auras com EXP
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Grid of Store Items */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Section 1: Energy Recharges */}
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="text-xs font-black uppercase text-[var(--app-text-muted)] flex items-center gap-1.5">
+            <Zap className="w-4 h-4 text-amber-500" />
+            Bateria & Energia de Estudo
+          </h3>
+
+          <div className="space-y-3">
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">+15 Energias Rápidas</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">Para estudar quizzes e batalhas</span>
+              </div>
+              <button
+                onClick={() => handleBuyEnergy(15, 20)}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition cursor-pointer"
+              >
+                20 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">Recarga Total de Bateria</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">Restaura 100% da sua barra</span>
+              </div>
+              <button
+                onClick={() => handleBuyEnergy(user.maxEnergy, 45)}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs transition cursor-pointer"
+              >
+                45 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-gradient-to-tr from-amber-500/10 to-orange-500/10 border border-amber-500/30 flex items-center justify-between">
+              <div>
+                <p className="font-black text-xs text-[var(--app-text)]">+5 Capacidade Máxima</p>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">Upgrade Permanente!</span>
+              </div>
+              <button
+                onClick={() => handleBuyPermanentEnergy(120)}
+                className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs transition cursor-pointer"
+              >
+                120 🪙
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Mascote Pet Care (Sem índices de saciedade/felicidade) */}
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="text-xs font-black uppercase text-[var(--app-text-muted)] flex items-center gap-1.5">
+            <Heart className="w-4 h-4 text-pink-500" />
+            Nutrição & EXP do Pet ({user.pet?.name || "Mascote"})
+          </h3>
+
+          <div className="space-y-3">
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">Cenoura Fresca da Horta</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">+25 EXP para o Mascote</span>
+              </div>
+              <button
+                onClick={() => handleFeedPet(10, "Cenoura", 25)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-primary)] text-white font-black text-xs transition cursor-pointer"
+              >
+                10 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">Biscoito da Sabedoria</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">+50 EXP para o Mascote</span>
+              </div>
+              <button
+                onClick={() => handleFeedPet(25, "Biscoito da Sabedoria", 50)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-primary)] text-white font-black text-xs transition cursor-pointer"
+              >
+                25 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">Poção Estelar Cósmica</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">+120 EXP & Salto de Nível</span>
+              </div>
+              <button
+                onClick={() => handleFeedPet(60, "Poção Estelar", 120)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-primary)] text-white font-black text-xs transition cursor-pointer"
+              >
+                60 🪙
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Badges & Titles */}
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="text-xs font-black uppercase text-[var(--app-text-muted)] flex items-center gap-1.5">
+            <Award className="w-4 h-4 text-[var(--app-primary)]" />
+            Distintivos Honoríficos
+          </h3>
+
+          <div className="space-y-3">
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">🎓 Mestre da Maiêutica</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">Para quem pensa por si mesmo</span>
+              </div>
+              <button
+                onClick={() => onBuyBadge && onBuyBadge("Mestre da Maiêutica", 50)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] font-black text-xs transition cursor-pointer"
+              >
+                50 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">⚡ Foco Implacável</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">Completar 10 lições seguidas</span>
+              </div>
+              <button
+                onClick={() => onBuyBadge && onBuyBadge("Foco Implacável", 75)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] font-black text-xs transition cursor-pointer"
+              >
+                75 🪙
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between">
+              <div>
+                <p className="font-bold text-xs text-[var(--app-text)]">👑 Guardião do Conhecimento</p>
+                <span className="text-[10px] text-[var(--app-text-muted)]">Título especial de prestígio</span>
+              </div>
+              <button
+                onClick={() => onBuyBadge && onBuyBadge("Guardião do Conhecimento", 150)}
+                className="px-3 py-1.5 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] font-black text-xs transition cursor-pointer"
+              >
+                150 🪙
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

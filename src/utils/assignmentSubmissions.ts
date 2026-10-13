@@ -3,34 +3,33 @@ export interface ActivitySubmission {
   assignmentId: string;
   courseId: string;
   courseName: string;
-  title?: string;
-  studentEmail?: string;
+  studentEmail: string;
   studentName?: string;
   studentMatricula?: string;
   fileName?: string;
   fileSize?: string;
   fileData?: string;
   textContent?: string;
+  notes?: string;
   submittedAt: string;
+  status?: "submitted" | "graded" | "pending";
+  grade?: string | number;
   feedback?: string;
-  status: "submetido" | "avaliado" | "rascunho" | "submitted";
-  grade?: string;
 }
 
 const STORAGE_KEY = "brain_studio_activity_submissions";
 
-export function loadSubmissions(courseId?: string): ActivitySubmission[] {
+export function loadSubmissions(): ActivitySubmission[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const list: ActivitySubmission[] = JSON.parse(saved);
-      if (courseId) {
-        return list.filter((s) => s.courseId === courseId);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed;
       }
-      return list;
     }
   } catch (e) {
-    console.warn("loadSubmissions error:", e);
+    console.warn("Failed to load submissions:", e);
   }
   return [];
 }
@@ -38,20 +37,29 @@ export function loadSubmissions(courseId?: string): ActivitySubmission[] {
 export function saveSubmission(submission: ActivitySubmission): void {
   try {
     const current = loadSubmissions();
-    const filtered = current.filter((s) => s.id !== submission.id);
-    filtered.unshift(submission);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    const updated = [submission, ...current.filter((s) => s.assignmentId !== submission.assignmentId)];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    fetch("/api/activities/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(submission),
+    }).catch(() => {});
   } catch (e) {
-    console.warn("saveSubmission error:", e);
+    console.warn("Failed to save submission:", e);
   }
 }
 
-export function removeSubmission(submissionId: string): void {
+export function removeSubmission(assignmentId: string): void {
   try {
     const current = loadSubmissions();
-    const filtered = current.filter((s) => s.id !== submissionId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    const updated = current.filter((s) => s.assignmentId !== assignmentId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    fetch(`/api/activities/submissions/${assignmentId}`, {
+      method: "DELETE",
+    }).catch(() => {});
   } catch (e) {
-    console.warn("removeSubmission error:", e);
+    console.warn("Failed to remove submission:", e);
   }
 }

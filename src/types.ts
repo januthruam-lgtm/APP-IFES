@@ -1,27 +1,6 @@
-export type ThemeId =
-  | "default"
-  | "cyberpunk"
-  | "solar"
-  | "emerald"
-  | "sunset"
-  | "custom"
-  | "paper"
-  | "dark"
-  | "nordic"
-  | "cyber_green"
-  | "paper_focus"
-  | "sakura_warm"
-  | "sunset_amber";
+export type ThemeId = "default" | "cyberpunk" | "solar" | "emerald" | "sunset" | "custom" | "paper" | "dark" | "nordic";
 
-export type PetType =
-  | "bunny"
-  | "bird"
-  | "elephant"
-  | "tiger"
-  | "custom"
-  | "owl"
-  | "coruja"
-  | (string & {});
+export type PetType = "bunny" | "bird" | "elephant" | "tiger" | "custom";
 
 export interface PuppetRigPin {
   x: number; // Percentage 0 - 100
@@ -44,24 +23,12 @@ export interface PuppetRigConfig {
   rigProfile: "mammal" | "bird" | "biped" | "quadruped" | "robot";
 }
 
-export interface PetStageInfo {
-  stageName: string;
-  minLevel: number;
-  perks: string[];
-  auraColor: string;
-  badge: string;
-  avatarEmoji?: string;
-  accessoryBadge?: string;
-}
-
 export interface UserPet {
   id?: string;
-  activePetId?: string;
   type: PetType;
   name: string;
   level: number;
   exp: number;
-  experience?: number;
   maxExp: number;
   happiness: number; // 0 - 100
   hunger: number; // 0 - 100 (100 = satisfeito)
@@ -69,12 +36,13 @@ export interface UserPet {
   totalMeals?: number;
   lastFedTimestamp?: string;
   lastFed?: string;
-  unlockedPets: (PetType | string)[];
+  unlockedPets: PetType[];
   customImageUrl?: string;
   customRigConfig?: PuppetRigConfig;
   customAccessory?: "glasses" | "cap" | "crown" | "aura" | "badge" | "none";
   customSpeciesName?: string;
   customSpeciesEmoji?: string;
+  activePetId?: string;
 }
 
 export interface CustomThemeColors {
@@ -101,81 +69,17 @@ export interface IfesAccountInfo {
   fullname: string;
   campusUrl: string;
   campusName: string;
-  password?: string;
   token?: string;
+  password?: string;
   userPictureUrl?: string;
   lastSync: string;
   matricula?: string;
   email?: string;
   department?: string;
   city?: string;
-  gradesSummary?: {
-    totalDisciplinas: number;
-    aprovadas: number;
-    cursando: number;
-    emExame: number;
-    totalFaltas: number;
-    mediaGeral: string;
-    crOficial?: number;
-    lastGradesSync?: string;
-  };
-  academicGrades?: QAcademicoGradeItem[];
-  academicSchedules?: QAcademicoScheduleItem[];
-}
-
-export interface QAcademicoAccountInfo {
-  connected: boolean;
-  matricula: string;
-  fullname?: string;
-  curso?: string;
-  campus?: string;
-  campusUrl?: string;
-  periodo?: string;
-  coeficienteRendimento?: number; // CR Oficial (ex: 85.4)
-  portalUrl: string; // https://academico.ifes.edu.br/qacademico/index.asp?t=2000
-  lastSync: string;
-  authMethod?: "direct_session" | "pasted_report" | "bookmarklet";
-}
-
-export interface QAcademicoEtapaGrade {
-  etapa: string; // "1ª Etapa", "2ª Etapa", "3ª Etapa", "4ª Etapa", "Exame Final"
-  rotulo?: string;
-  nota?: number;
-  notaMax?: number;
-  faltas?: number;
-}
-
-export interface QAcademicoGradeItem {
-  id: string;
-  disciplina: string;
-  codigo?: string;
-  turma?: string;
-  docente?: string;
-  cargaHoraria?: number;
-  aulasDadas?: number;
-  faltas?: number;
-  etapas: QAcademicoEtapaGrade[];
-  mediaParcial?: number;
-  exameFinal?: number;
-  mediaFinal?: number;
-  situacao: "Aprovado" | "Cursando" | "Reprovado" | "Em Exame" | "Cancelado";
-}
-
-export interface QAcademicoScheduleItem {
-  id: string;
-  diaSemana: string; // "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"
-  horario: string; // "07:00 - 08:40"
-  disciplina: string;
-  turma?: string;
-  sala?: string;
-  docente?: string;
-}
-
-export interface QAcademicoSyncData {
-  account: QAcademicoAccountInfo;
-  grades: QAcademicoGradeItem[];
-  schedules: QAcademicoScheduleItem[];
-  courses: IfesCourse[];
+  gradesSummary?: any;
+  academicGrades?: any;
+  academicSchedules?: any;
 }
 
 export interface CollectibleCard {
@@ -215,7 +119,6 @@ export interface UserProfile {
   unlockedBadges: string[];
   completedModules: number[];
   ifesAccount?: IfesAccountInfo;
-  qacademicoAccount?: QAcademicoAccountInfo;
   notificationPreferences?: StrictNotificationPreferences;
   stats: {
     socraticInteractions: number;
@@ -283,13 +186,12 @@ export interface TrackModule {
   subtitle: string;
   category: string;
   status: "completed" | "active" | "locked";
-  completed?: boolean;
-  description?: string;
   xpReward: number;
   estimatedMinutes: number;
   summary: string;
   keyConcepts: string[];
   lessons: LessonStep[];
+  description?: string;
 }
 
 export interface CourseDefinition {
@@ -307,7 +209,6 @@ export interface CourseDefinition {
 export interface CourseTrack {
   id: string;
   title: string;
-  code?: string;
   name: string;
   icon: string;
   category: string;
@@ -438,6 +339,9 @@ export interface IfesCourse {
   campus: string;
   progressPercent: number;
   shortname?: string;
+  moodleId?: number | string;
+  modules?: TrackModule[];
+  room?: string;
 }
 
 export interface IfesAssignment {

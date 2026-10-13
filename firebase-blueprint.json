@@ -81,6 +81,34 @@
       },
       "required": ["id", "equipeId", "autorId", "autorNome", "conteudo", "createdAt"]
     },
+    "MensagemDireta": {
+      "title": "MensagemDireta",
+      "description": "Mensagem instantânea individual 1-a-1 com visto e entrega",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"] },
+        "timestamp": { "type": "number" },
+        "readAt": { "type": "number" }
+      },
+      "required": ["id", "senderId", "senderName", "receiverId", "text", "status", "timestamp"]
+    },
+    "TypingIndicator": {
+      "title": "TypingIndicator",
+      "description": "Indicador de digitação em tempo real",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "isTyping": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "isTyping", "timestamp"]
+    },
     "Saldo": {
       "title": "Saldo",
       "description": "Saldo econômico atômico do aluno (moedas, XP e nível)",
@@ -133,9 +161,34 @@
         "lastUpdated": { "type": "number" }
       },
       "required": ["matricula", "lastSync"]
+    },
+    "PerfilUsuario": {
+      "title": "PerfilUsuario",
+      "description": "Configurações completas, dados acadêmicos e estado do estudante",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "xp": { "type": "number" },
+        "coins": { "type": "number" },
+        "level": { "type": "number" },
+        "energy": { "type": "number" },
+        "maxEnergy": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "activeTheme": { "type": "string" },
+        "selectedCourseId": { "type": "string" },
+        "ifesAccount": { "type": "object" },
+        "pet": { "type": "object" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["email", "name", "updatedAt"]
     }
   },
   "firestore": {
+    "/users/{uid}": {
+      "schema": "PerfilUsuario",
+      "description": "Dados de perfil e configurações do aluno"
+    },
     "/presencas/{uid}": {
       "schema": "Presenca",
       "description": "Documentos de presença ativa e heartbeat de alunos"
@@ -159,6 +212,18 @@
     "/equipes/{equipeId}/mensagens/{mensagemId}": {
       "schema": "MensagemEquipe",
       "description": "Fórum em tempo real da equipe"
+    },
+    "/equipes/{equipeId}/typing/{userId}": {
+      "schema": "TypingIndicator",
+      "description": "Indicador de digitação dos membros da equipe"
+    },
+    "/directChats/{chatId}/messages/{messageId}": {
+      "schema": "MensagemDireta",
+      "description": "Mensagens instantâneas individuais 1-a-1"
+    },
+    "/directChats/{chatId}/typing/{userId}": {
+      "schema": "TypingIndicator",
+      "description": "Indicador de digitação no chat individual"
     },
     "/saldos/{uid}": {
       "schema": "Saldo",

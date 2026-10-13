@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 import { UserProfile, IfesAccountInfo } from "../types";
 import confetti from "canvas-confetti";
-import { PWAInstallButton } from "./PWAInstallButton";
-import { loadQAcademicoAccount, saveQAcademicoAccount } from "../utils/qacademicoStorage";
-import { saveUserQAcademicoCreds, saveUserMoodleCreds } from "../lib/firebase";
+import { NativeAppButton } from "./NativeAppButton";
+import { saveUserMoodleCreds } from "../lib/firebase";
+import { IFES_CAMPUSES_LIST } from "../data/ifesCampuses";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -31,15 +31,7 @@ interface ProfileSettingsModalProps {
   onResetCourses?: () => void;
 }
 
-const CAMPUS_OPTIONS = [
-  { name: "IFES Cefor AVA3 (ava3.cefor.ifes.edu.br)", url: "https://ava3.cefor.ifes.edu.br" },
-  { name: "IFES AVA Geral (Presencial e Híbrido)", url: "https://ava.ifes.edu.br" },
-  { name: "IFES Campus Serra", url: "https://ava.serra.ifes.edu.br" },
-  { name: "IFES Campus Vitória", url: "https://ava.vitoria.ifes.edu.br" },
-  { name: "IFES Cefor (EaD e Cursos Abertos)", url: "https://ava.cefor.ifes.edu.br" },
-  { name: "IFES Pós-Graduação", url: "https://ava.pos.ifes.edu.br" },
-  { name: "IFES EaD", url: "https://avaead.ifes.edu.br" },
-];
+const CAMPUS_OPTIONS = IFES_CAMPUSES_LIST;
 
 export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   isOpen,
@@ -55,13 +47,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   const [moodleUsername, setMoodleUsername] = useState(
     user.ifesAccount?.username || user.ifesAccount?.matricula || "20241IFES0482"
   );
-  const [moodlePassword, setMoodlePassword] = useState(user.ifesAccount?.password || "");
-
-  const existingQAcademico = loadQAcademicoAccount();
-  const [qacademicoMatricula, setQacademicoMatricula] = useState(
-    user.qacademicoAccount?.matricula || existingQAcademico?.matricula || ""
-  );
-  const [qacademicoPassword, setQacademicoPassword] = useState("");
 
   const [campusUrl, setCampusUrl] = useState(
     user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br"
@@ -76,6 +61,18 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br"
   );
   const [savedToast, setSavedToast] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setName(user.name || "Ruam Sérgio de Sousa Januth");
+      setEmail(user.email || "ruamsergioj@gmail.com");
+      setMoodleUsername(user.ifesAccount?.username || user.ifesAccount?.matricula || "20241IFES0482");
+      setCampusUrl(user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br");
+      setCampusName(user.ifesAccount?.campusName || "IFES - Cefor (AVA3)");
+      setCourseProgram(user.ifesAccount?.department || "Técnico Integrado em Administração - 2º Ano");
+      setDirectAvaLink(user.ifesAccount?.campusUrl || "https://ava3.cefor.ifes.edu.br");
+    }
+  }, [isOpen, user]);
   const [inviteCopiedToast, setInviteCopiedToast] = useState(false);
 
   if (!isOpen) return null;
@@ -100,15 +97,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   };
 
   const handleFullReset = () => {
-    if (
-      confirm(
-        "ATENÇÃO: Deseja resetar todo o aplicativo? Todos os dados locais, preferências e credenciais serão apagados."
-      )
-    ) {
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.reload();
-    }
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.reload();
   };
 
   const handleCampusChange = (url: string) => {
@@ -126,12 +117,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       ? directAvaLink.trim()
       : `https://${directAvaLink.trim()}`;
 
-    // 1. Update Moodle / AVA Account cleanly
+    // 1. Update Moodle / AVA Account cleanly (Sem senha acadêmica)
     const updatedIfesAccount: IfesAccountInfo = {
       ...user.ifesAccount,
       connected: true,
       username: moodleUsername.trim() || user.ifesAccount?.username || "20241IFES0482",
-      password: moodlePassword.trim() || user.ifesAccount?.password,
       fullname: name.trim() || user.name,
       matricula: moodleUsername.trim(),
       email: email.trim(),
@@ -144,29 +134,9 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
     const userId = user.id || user.uid || "local-user";
 
-    // 2. Update Q-Acadêmico Account cleanly without touching Moodle credentials
-    if (qacademicoMatricula.trim()) {
-      const qAccount = {
-        connected: true,
-        matricula: qacademicoMatricula.trim(),
-        fullname: name.trim() || user.name,
-        curso: courseProgram.trim(),
-        campus: campusName,
-        portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
-        lastSync: new Date().toISOString(),
-      };
-      saveQAcademicoAccount(qAccount);
-      saveUserQAcademicoCreds(userId, {
-        matricula: qacademicoMatricula.trim(),
-        campus: campusName,
-        lastUpdated: Date.now(),
-      });
-    }
-
     // Save Moodle creds to Firebase store if available
     saveUserMoodleCreds(userId, {
       username: moodleUsername.trim(),
-      password: moodlePassword ? moodlePassword.trim() : undefined,
       campusUrl: cleanUrl || campusUrl,
       lastUpdated: Date.now(),
     });
@@ -175,17 +145,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       name: name.trim(),
       email: email.trim(),
       ifesAccount: updatedIfesAccount,
-      qacademicoAccount: qacademicoMatricula.trim()
-        ? {
-            connected: true,
-            matricula: qacademicoMatricula.trim(),
-            fullname: name.trim(),
-            curso: courseProgram.trim(),
-            campus: campusName,
-            portalUrl: "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
-            lastSync: new Date().toISOString(),
-          }
-        : user.qacademicoAccount,
     });
 
     setSavedToast(true);
@@ -280,34 +239,18 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Usuário / Matrícula AVA
-                  </label>
-                  <input
-                    id="profile-edit-moodle-user"
-                    type="text"
-                    value={moodleUsername}
-                    onChange={(e) => setMoodleUsername(e.target.value)}
-                    placeholder="Ex: 20241IFES0482"
-                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Senha do AVA (Opcional)
-                  </label>
-                  <input
-                    id="profile-edit-moodle-pass"
-                    type="password"
-                    value={moodlePassword}
-                    onChange={(e) => setMoodlePassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
+                  Usuário / Matrícula AVA
+                </label>
+                <input
+                  id="profile-edit-moodle-user"
+                  type="text"
+                  value={moodleUsername}
+                  onChange={(e) => setMoodleUsername(e.target.value)}
+                  placeholder="Ex: 20241IFES0482"
+                  className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
+                />
               </div>
 
               <div className="space-y-1">
@@ -320,8 +263,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   onChange={(e) => handleCampusChange(e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] transition cursor-pointer"
                 >
-                  {CAMPUS_OPTIONS.map((c) => (
-                    <option key={c.url} value={c.url}>
+                  {CAMPUS_OPTIONS.map((c, idx) => (
+                    <option key={`campus-opt-${c.id || idx}`} value={c.url}>
                       {c.name}
                     </option>
                   ))}
@@ -331,7 +274,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Link Direto do AVA
+                    Link Direto da API do AVA
                   </label>
                   {directAvaLink && (
                     <a
@@ -356,55 +299,6 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               </div>
             </div>
 
-            {/* SEPARATE CREDENTIAL SECTION: Q-ACADÊMICO IFES */}
-            <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📋</span>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-[var(--app-text)]">
-                    Credenciais Q-Acadêmico IFES
-                  </h4>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
-                  Boletim & Histórico
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Matrícula Q-Acadêmico
-                  </label>
-                  <input
-                    id="profile-edit-qacademico-user"
-                    type="text"
-                    value={qacademicoMatricula}
-                    onChange={(e) => setQacademicoMatricula(e.target.value)}
-                    placeholder="Ex: 20241IFES0482"
-                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider">
-                    Senha Q-Acadêmico
-                  </label>
-                  <input
-                    id="profile-edit-qacademico-pass"
-                    type="password"
-                    value={qacademicoPassword}
-                    onChange={(e) => setQacademicoPassword(e.target.value)}
-                    placeholder="Senha do Portal Acadêmico"
-                    className="w-full px-3.5 py-2 bg-[var(--app-bg)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] font-mono outline-none focus:border-[var(--app-primary)]"
-                  />
-                </div>
-              </div>
-
-              <p className="text-[10px] text-[var(--app-text-muted)]">
-                Segregação total: o login do Q-Acadêmico é armazenado isoladamente para evitar qualquer interferência nas credenciais do AVA Moodle.
-              </p>
-            </div>
-
             {/* Program / Curso */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider flex items-center gap-1.5">
@@ -420,13 +314,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               />
             </div>
 
-            {/* PWA App Installation & Social Sharing */}
+            {/* Native App Installation & Social Sharing */}
             <div className="pt-2 space-y-3">
               <div>
                 <label className="text-[11px] font-bold text-[var(--app-text)] uppercase tracking-wider block mb-2">
-                  Instalação do Aplicativo (PWA)
+                  Aplicativo Oficial (Sem Navegador)
                 </label>
-                <PWAInstallButton variant="card" />
+                <NativeAppButton variant="card" />
               </div>
 
               {/* Convidar Amigos (Web Share API) & Resetar App */}
@@ -457,10 +351,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (confirm("Deseja limpar as matérias para deixar o app limpo e sincronizar seus dados do AVA IFES?")) {
-                      onResetCourses();
-                      onClose();
-                    }
+                    onResetCourses();
+                    onClose();
                   }}
                   className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >

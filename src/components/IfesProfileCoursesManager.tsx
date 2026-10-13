@@ -10,15 +10,20 @@ import {
   RefreshCw,
   Search,
   Radio,
+  Layers,
+  ArrowRight,
+  School,
   ExternalLink,
-  GraduationCap,
 } from "lucide-react";
 import { IfesCourse } from "../types";
-import { saveSyncedCourses, isMockOrPlaceholderCourse } from "../utils/courseSync";
+import {
+  saveSyncedCourses,
+  isMockOrPlaceholderCourse,
+  IFES_CURRICULUM_PRESETS,
+  extractCoursesFromAvaText,
+} from "../utils/courseSync";
 import { avaApiClient } from "../utils/avaApi";
-import { parseQAcademicoContent } from "../utils/qacademicoParser";
-import { qacademicoApi } from "../utils/qacademicoApi";
-import { saveQAcademicoGrades, saveQAcademicoAccount, saveQAcademicoSchedules } from "../utils/qacademicoStorage";
+import { avaConnectionManager } from "../utils/avaConnectionManager";
 
 interface IfesProfileCoursesManagerProps {
   isOpen: boolean;
@@ -39,13 +44,15 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
   const [currentCourses, setCurrentCourses] = useState<IfesCourse[]>(() =>
     courses.filter((c) => !isMockOrPlaceholderCourse(c))
   );
-  const [activeTab, setActiveTab] = useState<"manage" | "apiSync" | "paste" | "qacademico" | "addManual">("manage");
+  const [activeTab, setActiveTab] = useState<"manage" | "paste" | "presets" | "apiSync" | "addManual">("manage");
   const [pasteText, setPasteText] = useState("");
-  const [qacadText, setQacadText] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackType, setFeedbackType] = useState<"success" | "error">("success");
+
+  // Extracted preview list
+  const [extractedPreview, setExtractedPreview] = useState<IfesCourse[]>([]);
 
   // Manual course input state
   const [newCourseName, setNewCourseName] = useState("");
@@ -63,9 +70,11 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
   };
 
   const handleClearAll = () => {
-    setCurrentCourses([]);
-    setFeedbackMessage("Todas as disciplinas foram limpas. Sincronize com o AVA ou Q-Acadêmico para carregar sua grade.");
-    setFeedbackType("success");
+    if (confirm("Deseja remover todas as matérias da lista para cadastrar apenas as suas matérias reais do AVA?")) {
+      setCurrentCourses([]);
+      setFeedbackMessage("Todas as matérias foram limpas. Agora você pode importar ou colar as do seu perfil.");
+      setFeedbackType("success");
+    }
   };
 
   const handleAddCourse = (e: React.FormEvent) => {
@@ -73,7 +82,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
     if (!newCourseName.trim()) return;
 
     const newCourse: IfesCourse = {
-      id: `ifes-real-${Date.now()}`,
+      id: `ifes-custom-${Date.now()}`,
       name: newCourseName.trim(),
       code: newCourseCode.trim() || `IFES-${newCourseName.substring(0, 3).toUpperCase()}`,
       professor: newCourseProfessor.trim() || "Docente IFES",
@@ -86,7 +95,7 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
     setNewCourseCode("");
     setNewCourseProfessor("");
     setNewCourseProgress(0);
-    setFeedbackMessage(`Disciplina "${newCourse.name}" adicionada.`);
+    setFeedbackMessage(`Disciplina real "${newCourse.name}" adicionada ao seu perfil.`);
     setFeedbackType("success");
     setActiveTab("manage");
   };
@@ -95,15 +104,35 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
     setIsSyncingApi(true);
     setFeedbackMessage(null);
     try {
-      const res = await avaApiClient.sync();
-      if (res.courses && Array.isArray(res.courses)) {
-        const real = res.courses.filter((c) => !isMockOrPlaceholderCourse(c));
+      const stored = await avaConnectionManager.getStoredCredentials();
+      if (stored && stored.username && stored.password) {
+        const connRes = await avaConnectionManager.connectAva(stored);
+        if (connRes.success && connRes.courses && connRes.courses.length > 0) {
+          setCurrentCourses(connRes.courses);
+          setFeedbackMessage(`Sincronização com o AVA IFES concluída! ${connRes.courses.length} matéria(s) sincronizada(s).`);
+          setFeedbackType("success");
+          setActiveTab("manage");
+          return;
+        }
+      }
+
+      const res = await avaApiClient.sync({
+        studentId: stored?.username,
+        username: stored?.username,
+        password: stored?.password,
+        campusUrl: stored?.campusUrl,
+        campusName: campusName || "IFES - AVA",
+        existingCourses: currentCourses,
+      });
+
+      if (res.courses && Array.isArray(res.courses) && res.courses.length > 0) {
+        const real = res.courses.filter((c: any) => !isMockOrPlaceholderCourse(c));
         setCurrentCourses(real);
-        setFeedbackMessage(`Sincronização via API Moodle concluída! ${real.length} disciplina(s) carregada(s).`);
+        setFeedbackMessage(`Sincronização com o AVA Moodle concluída! ${real.length} matéria(s) sincronizada(s).`);
         setFeedbackType("success");
         setActiveTab("manage");
       } else {
-        setFeedbackMessage("Nenhuma disciplina retornada pela API do AVA IFES no momento.");
+        setFeedbackMessage("Conexão estabelecida, mas o AVA não retornou matérias inscritas. Tente conectar na modal oficial do AVA IFES ou cole o texto na aba 'Colar do AVA IFES'.");
         setFeedbackType("error");
       }
     } catch (err: any) {
@@ -115,162 +144,119 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
   };
 
   const handleExtractFromPastedText = async () => {
-    if (!pasteText.trim()) return;
+    if (!pasteText.trim()) {
+      setFeedbackMessage("Por favor, cole o texto copiado da sua página do AVA IFES.");
+      setFeedbackType("error");
+      return;
+    }
+
     setIsExtracting(true);
     setFeedbackMessage(null);
 
     try {
-      const res = await fetch("/api/ava/import-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawText: pasteText,
-          campusName: campusName || "IFES - AVA",
-        }),
-      });
-
-      const data = await res.json();
-      if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
-        const normalized = data.courses
-          .filter((c: IfesCourse) => !isMockOrPlaceholderCourse(c))
-          .map((c: IfesCourse) => ({
-            ...c,
-            progressPercent: Number(c.progressPercent) || 0,
-          }));
-        setCurrentCourses(normalized);
-        setFeedbackMessage(`Identificadas com sucesso ${normalized.length} matéria(s) reais do seu AVA!`);
-        setFeedbackType("success");
-        setActiveTab("manage");
-      } else {
-        // Line-by-line fallback
-        const lines = pasteText
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.length > 3 && !l.startsWith("http") && !l.includes("Detalhes"));
-
-        const extracted: IfesCourse[] = [];
-        lines.forEach((line, index) => {
-          if (!["Perfil", "Administração", "Mensagens", "Notas", "Painel", "Página inicial"].includes(line)) {
-            extracted.push({
-              id: `extracted-${index}-${Date.now()}`,
-              name: line,
-              code: `IFES-${index + 1}`,
-              professor: "Docente IFES",
-              campus: campusName || "IFES - AVA",
-              progressPercent: 0,
-            });
-          }
+      // 1. First try Gemini server parser
+      let extracted: IfesCourse[] = [];
+      try {
+        const res = await fetch("/api/ava/import-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawText: pasteText,
+            campusName: campusName || "IFES - AVA",
+          }),
         });
 
-        const realExtracted = extracted.filter((c) => !isMockOrPlaceholderCourse(c));
-        if (realExtracted.length > 0) {
-          setCurrentCourses(realExtracted);
-          setFeedbackMessage(`Importadas ${realExtracted.length} matérias do texto.`);
-          setFeedbackType("success");
-          setActiveTab("manage");
-        } else {
-          setFeedbackMessage("Não foi possível extrair matérias válidas do texto.");
-          setFeedbackType("error");
+        const data = await res.json();
+        if (data.courses && Array.isArray(data.courses) && data.courses.length > 0) {
+          extracted = data.courses.filter((c: IfesCourse) => !isMockOrPlaceholderCourse(c));
         }
+      } catch {
+        // Fallback to client-side extractor
       }
-    } catch {
-      setFeedbackMessage("Erro ao processar o texto do AVA.");
+
+      // 2. Client-side heuristic parser fallback
+      if (extracted.length === 0) {
+        extracted = extractCoursesFromAvaText(pasteText, campusName || "IFES - AVA");
+      }
+
+      if (extracted.length > 0) {
+        setExtractedPreview(extracted);
+        setFeedbackMessage(`Identificamos ${extracted.length} matéria(s) real(is) no texto colado. Revise e clique em "Aplicar ao meu Perfil"!`);
+        setFeedbackType("success");
+      } else {
+        setFeedbackMessage("Não conseguimos identificar matérias no texto. Certifique-se de copiar a lista da página 'Meus Cursos' do AVA.");
+        setFeedbackType("error");
+      }
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || "Erro ao processar texto.");
       setFeedbackType("error");
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const handleExtractFromQAcademico = async () => {
-    if (!qacadText.trim()) return;
-    setIsExtracting(true);
-    setFeedbackMessage(null);
+  const handleApplyExtractedCourses = () => {
+    if (extractedPreview.length === 0) return;
+    setCurrentCourses(extractedPreview);
+    setExtractedPreview([]);
+    setPasteText("");
+    setFeedbackMessage(`${extractedPreview.length} matéria(s) do seu AVA foram aplicadas com sucesso ao seu perfil!`);
+    setFeedbackType("success");
+    setActiveTab("manage");
+  };
 
-    try {
-      // 1. Client parser
-      const clientParsed = parseQAcademicoContent(qacadText, campusName);
-
-      // 2. Server parse report
-      const serverRes = await qacademicoApi.parseReport(qacadText, campusName);
-
-      const finalGrades = serverRes.grades && serverRes.grades.length > 0 ? serverRes.grades : clientParsed.grades;
-      const finalCourses = serverRes.courses && serverRes.courses.length > 0 ? serverRes.courses : clientParsed.courses;
-      const finalAccount = serverRes.account || clientParsed.account;
-      const finalSchedules = serverRes.schedules || clientParsed.schedules;
-
-      if (finalGrades.length > 0) {
-        saveQAcademicoGrades(finalGrades);
-      }
-      if (finalAccount) {
-        saveQAcademicoAccount({
-          connected: true,
-          campusUrl: "https://academico.ifes.edu.br/qacademico",
-          portalUrl: finalAccount.portalUrl || "https://academico.ifes.edu.br/qacademico/index.asp?t=2000",
-          lastSync: finalAccount.lastSync || new Date().toISOString(),
-          matricula: finalAccount.matricula || "",
-          fullname: finalAccount.fullname || "Estudante IFES",
-          ...finalAccount,
-        });
-      }
-      if (finalSchedules && finalSchedules.length > 0) {
-        saveQAcademicoSchedules(finalSchedules);
-      }
-
-      if (finalCourses.length > 0) {
-        // Merge with existing, avoiding duplicates by code or name
-        setCurrentCourses((prev) => {
-          const map = new Map<string, IfesCourse>();
-          prev.forEach((c) => map.set(c.name.toLowerCase(), c));
-          finalCourses.forEach((c) => map.set(c.name.toLowerCase(), c));
-          return Array.from(map.values());
-        });
-
-        setFeedbackMessage(
-          `Ponte Q-Acadêmico concluída! ${finalCourses.length} disciplina(s) e notas importadas com sucesso.`
-        );
-        setFeedbackType("success");
-        setQacadText("");
-        setActiveTab("manage");
-      } else {
-        setFeedbackMessage("Não foi possível identificar matérias no texto do Q-Acadêmico.");
-        setFeedbackType("error");
-      }
-    } catch (e: any) {
-      setFeedbackMessage(e?.message || "Erro ao importar do Q-Acadêmico.");
-      setFeedbackType("error");
-    } finally {
-      setIsExtracting(false);
-    }
+  const handleSelectPreset = (preset: typeof IFES_CURRICULUM_PRESETS[0]) => {
+    setCurrentCourses(preset.courses);
+    setFeedbackMessage(`Grade curricular do curso "${preset.name}" carregada com sucesso! (${preset.courses.length} disciplinas)`);
+    setFeedbackType("success");
+    setActiveTab("manage");
   };
 
   const handleSaveAndClose = () => {
-    const realCourses = currentCourses.filter((c) => !isMockOrPlaceholderCourse(c));
-    saveSyncedCourses(realCourses);
-    onSaveCourses(realCourses);
+    saveSyncedCourses(currentCourses);
+    onSaveCourses(currentCourses);
+    window.dispatchEvent(
+      new CustomEvent("brainstudio:courses-updated", {
+        detail: { courses: currentCourses },
+      })
+    );
     onClose();
   };
 
   const filteredCurrentCourses = currentCourses.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.code.toLowerCase().includes(searchQuery.toLowerCase())
+      (c.code && c.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.professor && c.professor.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-border)] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      id="profile-courses-manager-modal"
+      className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#121614] border border-emerald-500/25 text-neutral-100 rounded-3xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="p-5 border-b border-[var(--app-border)] flex items-center justify-between bg-[var(--app-card-secondary)]">
+        <div className="p-5 sm:p-6 border-b border-emerald-500/20 flex items-center justify-between bg-[#141b17]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[var(--app-primary)]/15 border border-[var(--app-primary)]/30 flex items-center justify-center text-[var(--app-primary)]">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <School className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--app-text)] tracking-tight">
-                Gerenciador de Disciplinas do AVA IFES
-              </h3>
-              <p className="text-xs text-[var(--app-text-muted)]">
-                Sincronização estrita via API Moodle do IFES (sem matérias fictícias)
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  Matérias Reais do Perfil AVA IFES
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {currentCourses.length} Disciplinas
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400">
+                Visualize, importe e mantenha estritamente as matérias reais do seu curso no IFES.
               </p>
             </div>
           </div>
@@ -278,38 +264,25 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)] rounded-xl transition cursor-pointer"
+            className="p-2 text-neutral-400 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[var(--app-border)] bg-[var(--app-card-secondary)] px-4 pt-2 gap-2 overflow-x-auto text-xs">
+        <div className="flex border-b border-white/10 bg-[#0e1310] px-3 sm:px-4 pt-2 gap-1.5 overflow-x-auto text-xs scrollbar-none">
           <button
             type="button"
             onClick={() => setActiveTab("manage")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "manage"
-                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
-                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-neutral-400 hover:text-white"
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            Disciplinas do Perfil ({currentCourses.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("apiSync")}
-            className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "apiSync"
-                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
-                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
-            }`}
-          >
-            <Radio className="w-4 h-4" />
-            Sincronização Direta API
+            Minhas Matérias ({currentCourses.length})
           </button>
 
           <button
@@ -317,25 +290,38 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("paste")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "paste"
-                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
-                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-neutral-400 hover:text-white"
             }`}
           >
             <Clipboard className="w-4 h-4" />
-            Importar do AVA Moodle
+            Colar do AVA IFES
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("qacademico")}
+            onClick={() => setActiveTab("presets")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              activeTab === "qacademico"
-                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
-                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              activeTab === "presets"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-neutral-400 hover:text-white"
             }`}
           >
-            <GraduationCap className="w-4 h-4" />
-            Importar do Q-Acadêmico
+            <Layers className="w-4 h-4" />
+            Grades Oficiais IFES
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("apiSync")}
+            className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeTab === "apiSync"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-neutral-400 hover:text-white"
+            }`}
+          >
+            <Radio className="w-4 h-4" />
+            Sincronização API
           </button>
 
           <button
@@ -343,31 +329,40 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             onClick={() => setActiveTab("addManual")}
             className={`pb-3 px-3 font-bold transition border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === "addManual"
-                ? "border-[var(--app-primary)] text-[var(--app-primary)]"
-                : "border-transparent text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-neutral-400 hover:text-white"
             }`}
           >
             <Plus className="w-4 h-4" />
-            Cadastrar Disciplina
+            Adicionar Manual
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
           {feedbackMessage && (
             <div
-              className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+              className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 shadow-xs ${
                 feedbackType === "success"
-                  ? "bg-[var(--app-success)]/10 text-[var(--app-success)] border border-[var(--app-success)]/20"
-                  : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                  : "bg-red-500/15 text-red-300 border border-red-500/30"
               }`}
             >
-              {feedbackType === "success" ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-              ) : (
-                <X className="w-4 h-4 shrink-0" />
-              )}
-              {feedbackMessage}
+              <div className="flex items-center gap-2">
+                {feedbackType === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <X className="w-4 h-4 text-red-400 shrink-0" />
+                )}
+                <span>{feedbackMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeedbackMessage(null)}
+                className="text-xs opacity-70 hover:opacity-100 cursor-pointer font-bold"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -376,76 +371,95 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-[var(--app-text-muted)] absolute left-3 top-2.5" />
+                  <Search className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
                   <input
                     type="text"
-                    placeholder="Filtrar matérias por nome ou código..."
+                    placeholder="Filtrar matérias por nome, sigla ou professor..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
+                    className="w-full pl-9 pr-4 py-2 bg-[#171e1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-emerald-400"
                   />
                 </div>
 
-                {currentCourses.length > 0 && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleClearAll}
-                    className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                    onClick={() => setActiveTab("paste")}
+                    className="px-3.5 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Limpar Grade
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Colar do AVA</span>
                   </button>
-                )}
+
+                  {currentCourses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                      title="Limpar todas as matérias para deixar apenas as reais"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Limpar Tudo</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Course Items List */}
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {filteredCurrentCourses.length === 0 ? (
-                  <div className="text-center py-10 bg-[var(--app-card-secondary)] rounded-2xl border border-[var(--app-border)] space-y-2 p-4">
-                    <BookOpen className="w-8 h-8 text-[var(--app-text-muted)] mx-auto" />
-                    <p className="text-xs font-bold text-[var(--app-text)]">
-                      Nenhuma matéria cadastrada
+                  <div className="text-center py-10 bg-[#161c18] rounded-2xl border border-white/5 space-y-3 p-6">
+                    <BookOpen className="w-10 h-10 text-emerald-400/50 mx-auto" />
+                    <h4 className="text-sm font-bold text-white">Nenhuma disciplina cadastrada no momento</h4>
+                    <p className="text-xs text-neutral-400 max-w-md mx-auto">
+                      Você pode colar a lista do seu AVA IFES, escolher sua grade curricular oficial ou adicionar as matérias que você cursa.
                     </p>
-                    <p className="text-[11px] text-[var(--app-text-muted)] max-w-md mx-auto">
-                      Todas as matérias de exemplo foram removidas. Utilize a aba{" "}
-                      <strong className="text-[var(--app-primary)]">"Sincronização Direta API"</strong> para conectar ao Moodle do seu campus ou importe seu histórico pelo Q-Acadêmico.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("apiSync")}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-extrabold rounded-xl transition cursor-pointer"
-                    >
-                      <Radio className="w-3.5 h-3.5" /> Sincronizar via API Moodle
-                    </button>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("paste")}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        Colar do AVA IFES
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("presets")}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        Escolher Grade IFES
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   filteredCurrentCourses.map((c) => (
                     <div
                       key={c.id}
-                      className="p-3 bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] rounded-xl flex items-center justify-between gap-3 transition"
+                      className="p-3.5 rounded-2xl bg-[#171e1a] border border-white/10 hover:border-emerald-500/30 flex items-center justify-between gap-3 transition group"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="w-8 h-8 rounded-lg bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center text-xs font-mono font-bold shrink-0">
-                          {c.code ? c.code.substring(0, 3) : "IF"}
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-[var(--app-text)] leading-snug">{c.name}</p>
-                          <p className="text-[10px] text-[var(--app-text-muted)] font-mono">
-                            {c.code || "IFES"} {c.professor ? `• ${c.professor}` : ""}
-                          </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-white truncate">{c.name}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/40 text-emerald-300 border border-emerald-500/30">
+                            {c.code || "IFES"}
+                          </span>
                         </div>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          {c.professor || "Corpo Docente IFES"} • {c.campus || campusName}
+                        </p>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-[var(--app-primary)] font-mono">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-bold text-emerald-400">
                           {c.progressPercent || 0}%
                         </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveCourse(c.id)}
-                          className="p-1.5 text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                          title="Remover da grade"
+                          className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition cursor-pointer"
+                          title="Remover matéria da lista"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -455,135 +469,172 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             </div>
           )}
 
-          {/* TAB 2: DIRECT API SYNC */}
-          {activeTab === "apiSync" && (
-            <div className="space-y-4 bg-[var(--app-card-secondary)] p-5 rounded-2xl border border-[var(--app-border)]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center">
-                  <Radio className="w-5 h-5 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--app-text)]">Sincronização Direta com o AVA IFES</h4>
-                  <p className="text-xs text-[var(--app-text-muted)]">
-                    Conexão oficial com WebServices REST do Moodle do IFES
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-xs text-[var(--app-text-muted)] space-y-2 border-t border-[var(--app-border)] pt-3">
-                <p>
-                  O aplicativo faz chamadas diretas aos endpoints do Moodle:
-                </p>
-                <ul className="list-disc list-inside space-y-1 text-[var(--app-text-muted)] text-[11px] font-mono">
-                  <li>core_enrol_get_users_courses (Minhas Disciplinas)</li>
-                  <li>core_calendar_get_action_events_by_timesort (Prazos e Tarefas)</li>
-                  <li>gradereport_user_get_grades_table (Quadro de Notas)</li>
-                </ul>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleSyncFromApi}
-                  disabled={isSyncingApi}
-                  className="w-full py-3 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isSyncingApi ? "animate-spin" : ""}`} />
-                  {isSyncingApi ? "Consultando API Moodle IFES..." : "Sincronizar Agora com a API"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: PASTE RAW TEXT FROM AVA PROFILE */}
+          {/* TAB 2: PASTE FROM AVA IFES */}
           {activeTab === "paste" && (
             <div className="space-y-4">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-emerald-300 font-bold text-xs">
+                  <Clipboard className="w-4 h-4 text-emerald-400" />
+                  <span>Como copiar suas matérias reais diretamente do AVA IFES:</span>
+                </div>
+                <ol className="text-xs text-neutral-300 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Abra o seu AVA IFES (ex: <strong>ava3.cefor.ifes.edu.br</strong> ou o do seu campus).</li>
+                  <li>Acesse a página <strong>"Painel"</strong> ou <strong>"Meus Cursos"</strong>.</li>
+                  <li>Selecione todo o texto da tela (ou copie a lista de matérias) e dê <strong>Ctrl+C</strong>.</li>
+                  <li>Cole no campo abaixo e clique em <strong>"Extrair Matérias Reais"</strong>!</li>
+                </ol>
+              </div>
+
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[var(--app-text)] flex items-center gap-2">
-                  <Clipboard className="w-4 h-4 text-[var(--app-primary)]" />
-                  Importar do AVA Moodle (Texto ou Meus Cursos)
+                <label className="text-xs font-bold text-white flex items-center justify-between">
+                  <span>Texto copiado do seu AVA IFES:</span>
+                  <span className="text-[10px] text-neutral-400">Limpeza inteligente automática</span>
                 </label>
-                <p className="text-[11px] text-[var(--app-text-muted)]">
-                  Acesse seu AVA Moodle no navegador, vá em <strong>Meus Cursos</strong> ou <strong>Painel</strong>, selecione os nomes das disciplinas e cole abaixo:
-                </p>
                 <textarea
                   rows={6}
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
-                  placeholder={`Cole aqui as disciplinas do seu perfil do AVA IFES...`}
-                  className="w-full p-3 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleExtractFromPastedText}
-                disabled={isExtracting || !pasteText.trim()}
-                className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
-              >
-                {isExtracting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando com API...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" /> Importar Disciplinas Reais
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* TAB 3.5: IMPORT FROM Q-ACADÊMICO */}
-          {activeTab === "qacademico" && (
-            <div className="space-y-4">
-              <div className="p-4 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[var(--app-text)] flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-[var(--app-primary)]" /> Ponte de Dados Q-Acadêmico Web IFES
-                  </span>
-                  <a
-                    href="https://academico.ifes.edu.br/qacademico/index.asp?t=2000"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 transition"
-                  >
-                    <span>Abrir Portal</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <p className="text-xs text-[var(--app-text-muted)]">
-                  Acesse o Q-Acadêmico (<code>index.asp?t=2000</code>), abra a tela de <strong>Boletim Escolar (t=2071)</strong> ou <strong>Horários (t=2010)</strong>, copie o conteúdo e cole abaixo. As matérias e notas por etapa serão sincronizadas com o seu perfil!
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-[var(--app-text)]">
-                  Texto ou Tabela copiada do Q-Acadêmico IFES:
-                </label>
-                <textarea
-                  rows={6}
-                  value={qacadText}
-                  onChange={(e) => setQacadText(e.target.value)}
-                  placeholder="Cole aqui o conteúdo copiado da tela de Boletim Escolar ou Horários do Q-Acadêmico IFES..."
-                  className="w-full p-3 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
+                  placeholder="Cole aqui o texto copiado da página do AVA Moodle IFES..."
+                  className="w-full p-3.5 bg-[#171e1a] border border-white/10 rounded-2xl text-xs text-white placeholder-neutral-500 outline-none focus:border-emerald-400 font-mono"
                 />
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleExtractFromQAcademico}
-                  disabled={isExtracting || !qacadText.trim()}
-                  className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+                  onClick={handleExtractFromPastedText}
+                  disabled={isExtracting || !pasteText.trim()}
+                  className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
                 >
                   {isExtracting ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando dados...
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Processando e identificando matérias...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3.5 h-3.5" /> Importar e Sincronizar Disciplinas
+                      <Sparkles className="w-4 h-4" />
+                      <span>Extrair Matérias Reais</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Preview of Extracted Courses */}
+              {extractedPreview.length > 0 && (
+                <div className="p-4 bg-[#171e1a] border border-emerald-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{extractedPreview.length} Matérias Identificadas no Texto:</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleApplyExtractedCourses}
+                      className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <span>Aplicar ao Meu Perfil</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {extractedPreview.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl bg-black/30 border border-white/5 flex items-center justify-between text-xs"
+                      >
+                        <span className="font-bold text-white">{item.name}</span>
+                        <span className="text-[10px] font-mono text-emerald-400">{item.code}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: OFFICIAL IFES CURRICULUM PRESETS */}
+          {activeTab === "presets" && (
+            <div className="space-y-3">
+              <p className="text-xs text-neutral-300">
+                Selecione o seu curso no IFES para carregar automaticamente a grade curricular oficial correspondente:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {IFES_CURRICULUM_PRESETS.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="p-4 rounded-2xl bg-[#171e1a] border border-white/10 hover:border-emerald-500/40 flex flex-col justify-between space-y-3 transition group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="text-xs font-bold text-white group-hover:text-emerald-300 transition">
+                          {preset.name}
+                        </h4>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold shrink-0">
+                          {preset.courses.length} Matérias
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-400 mt-1 leading-snug">
+                        {preset.description}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className="w-full py-2 bg-white/10 hover:bg-emerald-500 hover:text-black text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Carregar esta Grade</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: DIRECT MOODLE API SYNC */}
+          {activeTab === "apiSync" && (
+            <div className="space-y-4">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl space-y-2">
+                <h4 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                  <Radio className="w-4 h-4 text-emerald-400" />
+                  Sincronização Direta com o AVA Moodle IFES
+                </h4>
+                <p className="text-xs text-neutral-300 leading-relaxed">
+                  Conecte-se diretamente com o seu perfil do AVA IFES ({campusName}) para sincronizar suas matérias ativas, notas e prazos em tempo real.
+                </p>
+              </div>
+
+              <div className="p-4 bg-[#171e1a] border border-white/10 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-neutral-400">Campus Configurado:</span>
+                  <span className="font-bold text-white font-mono">{campusName}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-neutral-400">Status da Sessão:</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Conectado
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncFromApi}
+                  disabled={isSyncingApi}
+                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  {isSyncingApi ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Sincronizando com o AVA IFES...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Sincronizar Minhas Matérias Agora</span>
                     </>
                   )}
                 </button>
@@ -591,75 +642,77 @@ export const IfesProfileCoursesManager: React.FC<IfesProfileCoursesManagerProps>
             </div>
           )}
 
-          {/* TAB 4: MANUAL ENTRY OF REAL SUBJECT */}
+          {/* TAB 5: MANUAL ADD */}
           {activeTab === "addManual" && (
-            <form onSubmit={handleAddCourse} className="space-y-3 bg-[var(--app-card-secondary)] p-4 rounded-2xl border border-[var(--app-border)]">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[var(--app-text)]">Nome da Disciplina Oficial</label>
+            <form onSubmit={handleAddCourse} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-white">Nome da Matéria / Disciplina *</label>
                 <input
                   type="text"
-                  required
-                  placeholder="Ex: Introdução à Administração, Cálculo I, etc."
+                  placeholder="Ex: Teoria Geral da Administração II, Física II, etc."
                   value={newCourseName}
                   onChange={(e) => setNewCourseName(e.target.value)}
-                  className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
+                  className="w-full px-3.5 py-2.5 bg-[#171e1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-emerald-400"
+                  required
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[var(--app-text)]">Código no AVA (Opcional)</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-white">Código / Sigla no AVA (Opcional)</label>
                   <input
                     type="text"
-                    placeholder="Ex: ADM-001"
+                    placeholder="Ex: TGA-202 ou INFO-01"
                     value={newCourseCode}
                     onChange={(e) => setNewCourseCode(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)] font-mono"
+                    className="w-full px-3.5 py-2.5 bg-[#171e1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-emerald-400 font-mono"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[var(--app-text)]">Professor(a) (Opcional)</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-white">Professor(a) (Opcional)</label>
                   <input
                     type="text"
-                    placeholder="Ex: Prof. João Silva"
+                    placeholder="Ex: Prof. Dr. Roberto Guimarães"
                     value={newCourseProfessor}
                     onChange={(e) => setNewCourseProfessor(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-xl text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
+                    className="w-full px-3.5 py-2.5 bg-[#171e1a] border border-white/10 rounded-xl text-xs text-white outline-none focus:border-emerald-400"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
               >
-                <Plus className="w-4 h-4" /> Adicionar à Minha Grade
+                <Plus className="w-4 h-4" />
+                <span>Adicionar Matéria ao Meu Perfil</span>
               </button>
             </form>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-[var(--app-border)] flex items-center justify-between bg-[var(--app-card-secondary)]">
-          <span className="text-xs text-[var(--app-text-muted)] font-mono">
-            {currentCourses.length} disciplina(s) ativa(s)
+        <div className="p-4 sm:p-5 border-t border-emerald-500/20 flex items-center justify-between bg-[#141b17]">
+          <span className="text-xs text-neutral-300 font-mono">
+            {currentCourses.length} disciplina(s) no perfil
           </span>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-transparent hover:bg-[var(--app-card)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-xl text-xs font-semibold transition cursor-pointer"
+              className="px-4 py-2 bg-transparent hover:bg-white/10 text-neutral-300 rounded-xl text-xs font-semibold transition cursor-pointer"
             >
-              Cancelar
+              Fechar
             </button>
             <button
               type="button"
               onClick={handleSaveAndClose}
-              className="px-5 py-2 bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+              className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4" /> Salvar Grade no Perfil
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Salvar Matérias no Perfil</span>
             </button>
           </div>
         </div>

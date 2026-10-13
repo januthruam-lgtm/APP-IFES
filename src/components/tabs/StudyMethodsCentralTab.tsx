@@ -1,142 +1,126 @@
 import React, { useState, useEffect } from "react";
 import {
-  Brain,
+  GraduationCap,
   Clock,
   Play,
   Pause,
   RotateCcw,
   Sparkles,
   BookOpen,
+  HelpCircle,
+  Brain,
   CheckCircle2,
-  Lightbulb,
-  ArrowRight,
+  Zap,
 } from "lucide-react";
-import { CourseTrack, UserProfile } from "../../types";
+import { UserProfile, CourseTrack } from "../../types";
 import confetti from "canvas-confetti";
 
 interface StudyMethodsCentralTabProps {
   user: UserProfile;
-  courses: CourseTrack[];
-  onRewardXp: (xp: number) => void;
-  onRewardCoins?: (coins: number) => void;
-  onNavigateToFlashcards: () => void;
-  onOpenSocraticWithTopic: (topic: string) => void;
+  courses?: CourseTrack[];
+  onRewardXp?: (xp: number) => void;
+  onRewardCoins?: (amount: number) => void;
+  onNavigateToTab?: (tabId: string) => void;
+  onNavigateToFlashcards?: () => void;
+  onOpenSocraticWithTopic?: (topic: string) => void;
 }
 
 export const StudyMethodsCentralTab: React.FC<StudyMethodsCentralTabProps> = ({
   user,
-  courses,
   onRewardXp,
-  onRewardCoins,
-  onNavigateToFlashcards,
-  onOpenSocraticWithTopic,
+  onNavigateToTab,
 }) => {
-  // Pomodoro state
+  // Pomodoro State
   const [pomodoroSeconds, setPomodoroSeconds] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
-  const [isBreak, setIsBreak] = useState(false);
-
-  // Feynman state
-  const [feynmanTopic, setFeynmanTopic] = useState("");
-  const [feynmanExplanation, setFeynmanExplanation] = useState("");
+  const [mode, setMode] = useState<"focus" | "break">("focus");
 
   useEffect(() => {
-    let interval: any = null;
+    let timer: NodeJS.Timeout;
     if (isRunning && pomodoroSeconds > 0) {
-      interval = setInterval(() => {
-        setPomodoroSeconds((prev) => prev - 1);
+      timer = setInterval(() => {
+        setPomodoroSeconds((s) => s - 1);
       }, 1000);
-    } else if (isRunning && pomodoroSeconds === 0) {
+    } else if (pomodoroSeconds === 0 && isRunning) {
       setIsRunning(false);
-      confetti({ particleCount: 40, spread: 70 });
-      if (!isBreak) {
-        onRewardXp(50);
-        if (onRewardCoins) onRewardCoins(10);
-        setIsBreak(true);
+      if (mode === "focus") {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+        if (onRewardXp) onRewardXp(50);
+        setMode("break");
         setPomodoroSeconds(5 * 60);
       } else {
-        setIsBreak(false);
+        setMode("focus");
         setPomodoroSeconds(25 * 60);
       }
     }
-    return () => clearInterval(interval);
-  }, [isRunning, pomodoroSeconds, isBreak, onRewardXp, onRewardCoins]);
+    return () => clearInterval(timer);
+  }, [isRunning, pomodoroSeconds, mode, onRewardXp]);
 
   const toggleTimer = () => setIsRunning(!isRunning);
-
   const resetTimer = () => {
     setIsRunning(false);
-    setPomodoroSeconds(isBreak ? 5 * 60 : 25 * 60);
+    setPomodoroSeconds(mode === "focus" ? 25 * 60 : 5 * 60);
   };
 
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  const minutes = Math.floor(pomodoroSeconds / 60);
+  const seconds = pomodoroSeconds % 60;
+  const timeFormatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+  // Feynman State
+  const [feynmanTopic, setFeynmanTopic] = useState("");
+  const [feynmanExplanation, setFeynmanExplanation] = useState("");
+  const [feynmanSubmitted, setFeynmanSubmitted] = useState(false);
+
+  const handleFeynmanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feynmanTopic.trim() || !feynmanExplanation.trim()) return;
+    setFeynmanSubmitted(true);
+    confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
+    if (onRewardXp) onRewardXp(35);
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in">
-      {/* Header */}
-      <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl space-y-1">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-          <Brain className="w-3.5 h-3.5" />
-          <span>Neurociência do Aprendizado</span>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Top Banner */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-700 text-white flex items-center justify-center shadow-md">
+          <GraduationCap className="w-6 h-6" />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary,#f8fafc)]">
-          Central de Métodos de Estudo
-        </h1>
-        <p className="text-xs sm:text-sm text-[var(--text-muted,#94a3b8)]">
-          Técnicas com evidência científica comprovada para foco sustentável e retenção máxima
-        </p>
+        <div>
+          <h2 className="text-lg font-black text-[var(--app-text)]">Central de Métodos Científicos de Estudo</h2>
+          <p className="text-xs text-[var(--app-text-muted)]">
+            Ferramentas validadas pela neurociência: Pomodoro de Hiperfoco, Método Feynman e Recordação Ativa.
+          </p>
+        </div>
       </div>
 
-      {/* Grid: Pomodoro & Feynman */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Method 1: Pomodoro */}
-        <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl flex flex-col justify-between space-y-6">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                {isBreak ? "Pausa Restauradora" : "Foco Profundo (25 min)"}
-              </span>
-              <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                +50 XP por ciclo
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-[var(--text-primary,#f8fafc)]">
-              Técnica Pomodoro
-            </h3>
-            <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-              Elimine distrações durante 25 minutos e descanse a mente por 5 minutos.
-            </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Method 1: Pomodoro Timer */}
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6 text-center">
+          <div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-500/10 text-red-500 border border-red-500/20">
+              {mode === "focus" ? "Modo Hiperfoco (25 min)" : "Pausa Regenerativa (5 min)"}
+            </span>
+            <h3 className="text-base font-bold text-[var(--app-text)] mt-2">Temporizador Pomodoro IFES</h3>
           </div>
 
-          <div className="text-center py-6">
-            <div className="text-5xl sm:text-6xl font-black font-mono tracking-tight text-[var(--text-primary,#f8fafc)]">
-              {formatTime(pomodoroSeconds)}
-            </div>
-            <p className="text-xs text-[var(--text-muted,#94a3b8)] mt-2">
-              {isRunning ? "Sessão ativa em andamento..." : "Cronômetro pausado"}
-            </p>
+          <div className="text-6xl sm:text-7xl font-mono font-black text-[var(--app-text)] tracking-wider">
+            {timeFormatted}
           </div>
 
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={toggleTimer}
-              className={`px-6 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 shadow-lg transition cursor-pointer ${
-                isRunning
-                  ? "bg-amber-500 hover:bg-amber-400 text-black"
-                  : "bg-[var(--btn-primary,#6366f1)] hover:bg-[var(--btn-primary-hover,#4f46e5)] text-white"
-              }`}
+              className="px-6 py-3 rounded-2xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-black text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
             >
               {isRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span>{isRunning ? "Pausar" : "Iniciar Foco"}</span>
             </button>
+
             <button
               onClick={resetTimer}
-              className="p-3 rounded-2xl bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-[var(--text-muted,#94a3b8)] hover:text-white transition cursor-pointer"
-              title="Reiniciar"
+              className="p-3 rounded-2xl bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition cursor-pointer"
+              title="Reiniciar timer"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -144,68 +128,67 @@ export const StudyMethodsCentralTab: React.FC<StudyMethodsCentralTabProps> = ({
         </div>
 
         {/* Method 2: Feynman Technique */}
-        <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl space-y-4 flex flex-col justify-between">
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
-              Simplificação & Maestria
+        <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm space-y-4">
+          <div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-purple-500/10 text-purple-500 border border-purple-500/20">
+              Método Feynman
             </span>
-            <h3 className="text-lg font-bold text-[var(--text-primary,#f8fafc)]">
-              Técnica de Feynman
+            <h3 className="text-base font-bold text-[var(--app-text)] mt-2">
+              Explicação em Linguagem Simples
             </h3>
-            <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-              Explique o conceito complexo como se estivesse ensinando para uma criança de 10 anos.
+            <p className="text-xs text-[var(--app-text-muted)] mt-1">
+              Se você não consegue explicar para uma criança de 10 anos, você ainda não dominou o conceito.
             </p>
           </div>
 
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={feynmanTopic}
-              onChange={(e) => setFeynmanTopic(e.target.value)}
-              placeholder="Qual conceito você quer explicar? Ex: Recursão..."
-              className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-xs text-[var(--text-primary,#f8fafc)] placeholder-neutral-500 rounded-xl px-3 py-2.5 focus:outline-none"
-            />
-            <textarea
-              value={feynmanExplanation}
-              onChange={(e) => setFeynmanExplanation(e.target.value)}
-              placeholder="Explique com palavras simples, analogias e sem jargões desnecessários..."
-              className="w-full bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-xs text-[var(--text-primary,#f8fafc)] placeholder-neutral-500 rounded-xl p-3 focus:outline-none h-24 resize-none"
-            />
-          </div>
+          {!feynmanSubmitted ? (
+            <form onSubmit={handleFeynmanSubmit} className="space-y-3">
+              <input
+                type="text"
+                required
+                value={feynmanTopic}
+                onChange={(e) => setFeynmanTopic(e.target.value)}
+                placeholder="Conceito a explicar (ex: Recursividade, Divisão de Trabalho)..."
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none"
+              />
 
-          <button
-            onClick={() => {
-              if (feynmanTopic) {
-                onOpenSocraticWithTopic(`Técnica de Feynman: Quero avaliar se minha explicação de ${feynmanTopic} está simples e correta.`);
-              }
-            }}
-            disabled={!feynmanTopic.trim()}
-            className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-          >
-            <Lightbulb className="w-4 h-4" />
-            <span>Avaliar Explicação com Lumina IA</span>
-          </button>
+              <textarea
+                rows={4}
+                required
+                value={feynmanExplanation}
+                onChange={(e) => setFeynmanExplanation(e.target.value)}
+                placeholder="Explique com analogias cotidianas sem jargões complexos..."
+                className="w-full p-3 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] outline-none resize-none"
+              />
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-[var(--app-primary)] text-white text-xs font-bold transition cursor-pointer"
+              >
+                Validar Compreensão (+35 XP)
+              </button>
+            </form>
+          ) : (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs space-y-2">
+              <p className="font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4" /> Excelente exercício de simplificação!
+              </p>
+              <p className="text-[11px]">
+                Você traduziu com clareza o tema <b>{feynmanTopic}</b>.
+              </p>
+              <button
+                onClick={() => {
+                  setFeynmanSubmitted(false);
+                  setFeynmanTopic("");
+                  setFeynmanExplanation("");
+                }}
+                className="mt-2 text-[11px] font-bold text-[var(--app-primary)] hover:underline cursor-pointer block"
+              >
+                Explicar outro conceito
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Spaced Repetition Link */}
-      <div className="p-6 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h3 className="text-base font-bold text-[var(--text-primary,#f8fafc)]">
-            Evocação Ativa & Repetição Espaçada
-          </h3>
-          <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-            O cérebro esquece 70% das informações novas em 24h sem revisão espaçada ativa.
-          </p>
-        </div>
-
-        <button
-          onClick={onNavigateToFlashcards}
-          className="px-5 py-2.5 rounded-2xl bg-[var(--btn-primary,#6366f1)] hover:bg-[var(--btn-primary-hover,#4f46e5)] text-white font-bold text-xs flex items-center gap-2 shadow-lg transition self-start sm:self-auto cursor-pointer"
-        >
-          <span>Abrir Baralhos Anki</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

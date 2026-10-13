@@ -50,7 +50,7 @@ export function convertToUserPet(data: Partial<StoredUserPetData>): UserPet {
     customSpeciesName: definition.nome,
     customSpeciesEmoji: definition.emoji,
     activePetId: definition.id,
-    unlockedPets: Array.isArray(data.desbloqueados) ? data.desbloqueados : [DEFAULT_PET_ID],
+    unlockedPets: (Array.isArray(data.desbloqueados) ? data.desbloqueados : [DEFAULT_PET_ID]) as any,
     lastFed: new Date(data.updatedAt || Date.now()).toISOString(),
   };
 }
@@ -218,3 +218,38 @@ export async function feedUserPetInDb(uid: string, foodAmount: number = 15): Pro
     return convertToUserPet({});
   }
 }
+
+/**
+ * Altera o nome personalizado do pet do usuário no Firestore (petsUsuario/{uid})
+ */
+export async function renameUserPet(uid: string, newName: string): Promise<UserPet> {
+  const cleanName = newName.trim();
+  if (!cleanName) {
+    throw new Error("O nome do mascote não pode ficar vazio.");
+  }
+
+  const ref = getUserPetDocRef(uid);
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const existing = snap.data() as StoredUserPetData;
+      const updated: Partial<StoredUserPetData> = {
+        nome: cleanName,
+        updatedAt: Date.now(),
+      };
+      await updateDoc(ref, updated);
+      return convertToUserPet({ ...existing, ...updated });
+    } else {
+      const initialPet = await initializeUserPet(uid);
+      await updateDoc(ref, { nome: cleanName, updatedAt: Date.now() });
+      return {
+        ...initialPet,
+        name: cleanName,
+      };
+    }
+  } catch (err) {
+    console.warn("[PetService] Aviso ao renomear pet no Firestore:", err);
+    return convertToUserPet({ nome: cleanName });
+  }
+}
+

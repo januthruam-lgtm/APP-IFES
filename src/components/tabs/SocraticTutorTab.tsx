@@ -1,30 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
+  Brain,
+  Send,
   Sparkles,
   Volume2,
   VolumeX,
-  Send,
-  Bot,
-  User,
-  Lightbulb,
+  RotateCcw,
   BookOpen,
+  Award,
+  HelpCircle,
+  Lightbulb,
+  MessageSquare,
+  ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
-import { CourseTrack, UserProfile } from "../../types";
+import { UserProfile, CourseTrack, SocraticMessage } from "../../types";
 import { speakText, stopSpeaking } from "../../utils/speech";
+import confetti from "canvas-confetti";
 
 interface SocraticTutorTabProps {
   user: UserProfile;
   voiceEnabled: boolean;
   onToggleVoice: () => void;
-  onRewardXp: (xp: number) => void;
+  onRewardXp?: (xp: number) => void;
   courses: CourseTrack[];
-}
-
-interface Message {
-  id: string;
-  sender: "user" | "lumina";
-  text: string;
-  timestamp: string;
 }
 
 export const SocraticTutorTab: React.FC<SocraticTutorTabProps> = ({
@@ -34,224 +33,288 @@ export const SocraticTutorTab: React.FC<SocraticTutorTabProps> = ({
   onRewardXp,
   courses,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(
+    courses[0]?.id || user.selectedCourseId || "general"
+  );
+  const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
+
+  const [messages, setMessages] = useState<SocraticMessage[]>([
     {
-      id: "intro-1",
-      sender: "lumina",
-      text: "Olá! Eu sou Lumina, sua tutora inteligente de estudos. Estou aqui para ajudá-lo a tirar dúvidas, aprofundar conceitos e estruturar seu aprendizado com as matérias do IFES. O que vamos estudar hoje?",
+      id: "msg-init",
+      role: "lumina",
+      text: `Olá, ${user.name.split(" ")[0]}! Sou Lumina, sua tutora socrática no Brain Studio. Em vez de apenas entregar respostas prontas, vou guiá-lo pelo método da maiêutica — fazendo perguntas pontuais para você descobrir o conceito com sua própria razão. Sobre o que vamos refletir hoje em ${
+        selectedCourse?.title || "seus estudos"
+      }?`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
 
-  const [input, setInput] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<string>(courses[0]?.title || "Geral");
+  const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const promptSuggestions = [
-    "Por que a busca binária requer que o vetor esteja ordenado?",
-    "O que significa dizer que a derivada de uma função mede sua taxa de variação instantânea?",
-    "Qual é a relação entre a camada de transporte e a garantia de integridade de pacotes?",
-    "Como a recursão consome a pilha de chamadas (call stack)?",
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  const quickPrompts = [
+    "Explique o princípio fundamental desta disciplina",
+    "Qual a diferença prática entre os dois métodos principais?",
+    "Como isso se aplica a um problema real do mercado capixaba?",
+    "Me faça uma pergunta instigante para testar meu raciocínio!",
   ];
 
   const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || input).trim();
-    if (!query || isLoading) return;
+    const text = (textToSend || inputText).trim();
+    if (!text || isLoading) return;
 
-    const userMsg: Message = {
+    const userMsg: SocraticMessage = {
       id: `user-${Date.now()}`,
-      sender: "user",
-      text: query,
+      role: "user",
+      text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+    setInputText("");
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/lumina/chat", {
+      const history = messages.slice(-8).map((m) => ({
+        role: m.role === "lumina" ? "assistant" : "user",
+        content: m.text,
+      }));
+
+      const res = await fetch("/api/socratic/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: query,
-          courseContext: selectedCourse,
-          userLevel: user.level,
+          message: text,
+          history,
+          courseName: selectedCourse?.title || "Geral",
+          currentModule: selectedCourse?.title || "Geral",
+          learningGoal: "Compreensão conceitual profunda e autonomia analítica",
         }),
       });
 
-      let replyText = "";
-      if (res.ok) {
-        const data = await res.json();
-        replyText = data.reply || data.response || "Excelente reflexão. Como você relacionaria isso ao conceito fundamental da matéria?";
-      } else {
-        replyText = `Uma pergunta instigante sobre ${selectedCourse}! Considere: se analisarmos os primeiros princípios desse conceito, o que aconteceria se a condição inicial fosse invertida?`;
+      if (!res.ok) {
+        throw new Error("Erro na comunicação com a Lumina");
       }
 
-      const luminaMsg: Message = {
+      const data = await res.json();
+      const replyText = data.reply || data.text || "Pense bem sobre isso: que fator determinante estamos esquecendo nesta premissa?";
+
+      const aiMsg: SocraticMessage = {
         id: `lumina-${Date.now()}`,
-        sender: "lumina",
+        role: "lumina",
         text: replyText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
-      setMessages((prev) => [...prev, luminaMsg]);
-      onRewardXp(15);
+      setMessages((prev) => [...prev, aiMsg]);
 
       if (voiceEnabled) {
         speakText(replyText);
       }
-    } catch (e) {
-      const fallbackText = "Interessante ponto de vista! Que evidência prática ou experimento mental você usaria para validar essa hipótese?";
-      const luminaMsg: Message = {
-        id: `lumina-${Date.now()}`,
-        sender: "lumina",
-        text: fallbackText,
+
+      if (onRewardXp) {
+        onRewardXp(15);
+      }
+    } catch {
+      const fallbackMsg: SocraticMessage = {
+        id: `lumina-err-${Date.now()}`,
+        role: "lumina",
+        text: "Uma excelente questão! Vamos quebrar essa ideia em partes menores: quando você observa esse cenário, qual é a primeira variável que parece entrar em conflito com o resultado esperado?",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-      setMessages((prev) => [...prev, luminaMsg]);
+      setMessages((prev) => [...prev, fallbackMsg]);
       if (voiceEnabled) {
-        speakText(fallbackText);
+        speakText(fallbackMsg.text);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleResetChat = () => {
+    stopSpeaking();
+    setMessages([
+      {
+        id: `msg-reset-${Date.now()}`,
+        role: "lumina",
+        text: `Conversa reiniciada para ${selectedCourse?.title || "seus estudos"}. Qual hipótese ou dilema você gostaria de investigar juntos agora?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ]);
+  };
+
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 flex flex-col h-[calc(100vh-6rem)] animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-3xl bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] shadow-xl">
+    <div className="h-full flex flex-col p-4 md:p-6 max-w-5xl mx-auto space-y-4">
+      {/* Top Header Card */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-            <Bot className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center text-white shadow-md shrink-0">
+            <Brain className="w-6 h-6 animate-pulse" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-[var(--text-primary,#f8fafc)] flex items-center gap-2">
-              Lumina • Tutora Inteligente
-            </h1>
-            <p className="text-xs text-[var(--text-muted,#94a3b8)]">
-              Tutoria e acompanhamento pedagógico para compreensão profunda de conceitos
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--app-text)]">
+                Lumina • Tutora Socrática
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                Maiêutica Profunda
+              </span>
+            </div>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Desenvolva pensamento crítico e autonomia através do questionamento guiado.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            className="bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-xs text-[var(--text-primary,#f8fafc)] rounded-xl px-3 py-2 focus:outline-none"
-          >
-            <option value="Geral">Contexto: Todas as Matérias</option>
-            {courses.map((c) => (
-              <option key={c.id} value={c.title}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+        {/* Controls */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          {courses.length > 0 && (
+            <select
+              value={selectedCourseId}
+              onChange={(e) => setSelectedCourseId(e.target.value)}
+              className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold cursor-pointer outline-none focus:ring-1 focus:ring-[var(--app-primary)]"
+            >
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          )}
 
           <button
-            onClick={() => {
-              if (voiceEnabled) stopSpeaking();
-              onToggleVoice();
-            }}
-            className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 ${
+            onClick={onToggleVoice}
+            className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
               voiceEnabled
-                ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
-                : "bg-[var(--bg-card-secondary,#334155)] text-[var(--text-muted,#94a3b8)] border-[var(--border-color,rgba(255,255,255,0.1))]"
+                ? "bg-[var(--app-primary)] text-white border-[var(--app-primary)] shadow-xs"
+                : "bg-[var(--app-bg)] text-[var(--app-text-muted)] border-[var(--app-border)] hover:text-[var(--app-text)]"
             }`}
-            title={voiceEnabled ? "Desativar Leitura por Voz" : "Ativar Leitura por Voz"}
+            title={voiceEnabled ? "Desativar Leitura em Voz Alta" : "Ativar Leitura em Voz Alta"}
           >
             {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={handleResetChat}
+            className="p-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition cursor-pointer"
+            title="Reiniciar diálogo"
+          >
+            <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto space-y-4 p-4 rounded-3xl bg-[var(--bg-card,#1e293b)]/70 border border-[var(--border-color,rgba(255,255,255,0.1))]">
-        {messages.map((msg) => {
-          const isLumina = msg.sender === "lumina";
+      {/* Chat Messages Log */}
+      <div className="flex-1 bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-6 overflow-y-auto space-y-4 min-h-[380px] shadow-sm">
+        {messages.map((m) => {
+          const isLumina = m.role === "lumina";
           return (
             <div
-              key={msg.id}
-              className={`flex items-start gap-3 ${isLumina ? "justify-start" : "justify-end"}`}
+              key={m.id}
+              className={`flex gap-3 max-w-[85%] ${isLumina ? "mr-auto" : "ml-auto flex-row-reverse"}`}
             >
-              {isLumina && (
-                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-              )}
               <div
-                className={`max-w-xl p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
                   isLumina
-                    ? "bg-[var(--bg-card-secondary,#334155)] text-[var(--text-primary,#f8fafc)] border border-white/5 shadow-md"
-                    : "bg-indigo-600 text-white shadow-md rounded-tr-none"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "bg-[var(--app-primary)] text-white"
                 }`}
               >
-                <p>{msg.text}</p>
-                <span className="block text-[10px] opacity-60 text-right mt-1.5">
-                  {msg.timestamp}
-                </span>
+                {isLumina ? "🦉" : user.name.slice(0, 1).toUpperCase()}
               </div>
-              {!isLumina && (
-                <div className="w-8 h-8 rounded-xl bg-neutral-700 text-white flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4" />
+
+              <div className="space-y-1">
+                <div
+                  className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                    isLumina
+                      ? "bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] shadow-xs"
+                      : "bg-[var(--app-primary)] text-white"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{m.text}</p>
                 </div>
-              )}
+                <div
+                  className={`text-[10px] text-[var(--app-text-muted)] px-1 ${
+                    isLumina ? "text-left" : "text-right"
+                  }`}
+                >
+                  {m.timestamp}
+                </div>
+              </div>
             </div>
           );
         })}
 
         {isLoading && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 animate-pulse">
-              <Sparkles className="w-4 h-4" />
+          <div className="flex gap-3 max-w-[85%] mr-auto">
+            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              🦉
             </div>
-            <div className="p-3 rounded-2xl bg-[var(--bg-card-secondary,#334155)] text-xs text-[var(--text-muted,#94a3b8)]">
-              Lumina analisando e formulando a explicação...
+            <div className="p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" />
+              <span
+                className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <span
+                className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
+              <span className="text-xs text-[var(--app-text-muted)] font-medium pl-1">
+                Lumina está formulando uma provocação maiêutica...
+              </span>
             </div>
           </div>
         )}
+
+        <div ref={chatEndRef} />
       </div>
 
-      {/* Suggestions */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-        <span className="text-[var(--text-muted,#94a3b8)] flex items-center gap-1 font-bold shrink-0">
-          <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Sugestões:
+      {/* Suggested Quick Prompts */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <span className="text-[10px] uppercase font-bold text-[var(--app-text-muted)] flex items-center gap-1 shrink-0">
+          <Lightbulb className="w-3 h-3 text-amber-500" /> Sugestões:
         </span>
-        {promptSuggestions.map((s, idx) => (
+        {quickPrompts.map((q, idx) => (
           <button
             key={idx}
-            onClick={() => handleSendMessage(s)}
-            className="px-3 py-1.5 rounded-xl bg-[var(--bg-card,#1e293b)] hover:bg-[var(--bg-card-secondary,#334155)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-[var(--text-muted,#94a3b8)] hover:text-white shrink-0 text-xs transition truncate max-w-xs"
+            onClick={() => handleSendMessage(q)}
+            disabled={isLoading}
+            className="px-3 py-1.5 rounded-full text-xs bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] shrink-0 transition cursor-pointer disabled:opacity-50"
           >
-            {s}
+            {q}
           </button>
         ))}
       </div>
 
-      {/* Input */}
+      {/* Chat Input Bar */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           handleSendMessage();
         }}
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--app-primary)] transition"
       >
         <input
           type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Faça uma pergunta sobre a matéria ou elabore seu raciocínio..."
-          className="flex-1 bg-[var(--bg-card,#1e293b)] border border-[var(--border-color,rgba(255,255,255,0.1))] text-xs sm:text-sm text-[var(--text-primary,#f8fafc)] placeholder-neutral-500 rounded-2xl px-4 py-3 focus:outline-none focus:border-indigo-500 shadow-md"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder={`Reflita ou faça uma pergunta sobre ${selectedCourse?.title || "sua matéria"}...`}
+          disabled={isLoading}
+          className="flex-1 px-3 py-2 bg-transparent text-sm text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none"
         />
         <button
           type="submit"
-          disabled={!input.trim() || isLoading}
-          className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
+          disabled={!inputText.trim() || isLoading}
+          className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition disabled:opacity-40 cursor-pointer"
         >
-          <Send className="w-4 h-4" />
-          <span className="hidden sm:inline">Perguntar</span>
+          <span>Investigar</span>
+          <Send className="w-3.5 h-3.5" />
         </button>
       </form>
     </div>
