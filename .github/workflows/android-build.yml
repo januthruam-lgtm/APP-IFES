@@ -23,7 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Configurar Java
         uses: actions/setup-java@v4
@@ -46,18 +45,18 @@ jobs:
           yes | sdkmanager --licenses || true
 
       - name: Preparar Gradle
-        run: |
-          chmod +x android/gradlew
+        run: chmod +x android/gradlew
 
       - name: Gerar APK
         run: |
           cd android
           ./gradlew assembleDebug
 
-      - name: Disponibilizar APK para download
+      - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: APP-IFES-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
