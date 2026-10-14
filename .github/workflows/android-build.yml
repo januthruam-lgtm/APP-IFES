@@ -12,8 +12,12 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Compilar APP-IFES
     runs-on: ubuntu-latest
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Baixar codigo
@@ -30,20 +34,41 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Verificar Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME"
+          find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f 2>/dev/null || true
+          ls -la "$ANDROID_HOME"
+
       - name: Instalar dependencias
         run: npm install
 
       - name: Compilar e sincronizar Capacitor
         run: npm run build:native
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Localizar sdkmanager
+        id: sdk
+        shell: bash
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -name sdkmanager -type f 2>/dev/null | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager nao encontrado no ambiente."
+            exit 1
+          fi
+
+          echo "path=$SDKMANAGER" >> "$GITHUB_OUTPUT"
+          echo "SDK encontrado: $SDKMANAGER"
 
       - name: Aceitar licencas Android
-        run: yes | sdkmanager --licenses
-
-      - name: Instalar ferramentas Android
-        run: sdkmanager --install "platform-tools"
+        shell: bash
+        run: |
+          set +o pipefail
+          yes | "${{ steps.sdk.outputs.path }}" --licenses
+          test "${PIPESTATUS[1]}" -eq 0
 
       - name: Preparar Gradle
         run: chmod +x android/gradlew
@@ -51,7 +76,7 @@ jobs:
       - name: Gerar APK
         run: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
