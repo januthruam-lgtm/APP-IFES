@@ -1,5 +1,5 @@
 
-name: Criar APK
+name: Criar APK para Android
 
 on:
   workflow_dispatch:
@@ -33,18 +33,17 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Compilar projeto web
+      - name: Compilar e sincronizar Capacitor
         run: npm run build:native
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools;platforms;platforms;build-tools;'
 
-      - name: Instalar componentes Android
-        run: |
-          sdkmanager --install "platform-tools"
-          yes | sdkmanager --licenses || true
+      - name: Aceitar licencas Android
+        run: yes | sdkmanager --licenses
+
+      - name: Instalar ferramentas Android
+        run: sdkmanager --install "platform-tools"
 
       - name: Preparar Gradle
         run: chmod +x android/gradlew
