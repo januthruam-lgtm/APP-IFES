@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +23,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Configurar Java
         uses: actions/setup-java@v4
@@ -32,19 +34,27 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Compilar projeto e sincronizar Android
+      - name: Compilar e sincronizar Capacitor
         run: npm run build:native
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Instalar ferramentas Android
+        run: |
+          sdkmanager --install "platform-tools"
+          yes | sdkmanager --licenses || true
+
+      - name: Preparar Gradle
+        run: |
+          chmod +x android/gradlew
+
       - name: Gerar APK
         run: |
           cd android
-          chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Disponibilizar APK
+      - name: Disponibilizar APK para download
         uses: actions/upload-artifact@v4
         with:
           name: APP-IFES-APK
