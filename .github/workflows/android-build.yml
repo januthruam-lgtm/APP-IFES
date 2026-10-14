@@ -1,5 +1,5 @@
 
-name: Build Android APK
+name: Criar APK
 
 on:
   workflow_dispatch:
@@ -12,11 +12,11 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar o codigo
+      - name: Baixar codigo
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -33,13 +33,15 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Compilar e sincronizar Capacitor
+      - name: Compilar projeto web
         run: npm run build:native
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools;platforms;platforms;build-tools;'
 
-      - name: Instalar ferramentas Android
+      - name: Instalar componentes Android
         run: |
           sdkmanager --install "platform-tools"
           yes | sdkmanager --licenses || true
@@ -59,4 +61,3 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
-
