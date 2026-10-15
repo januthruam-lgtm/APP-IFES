@@ -26,7 +26,7 @@ jobs:
           java-version: 21
 
       - name: Instalar dependências
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build web e sincronizar Capacitor
         env:
