@@ -1,22 +1,27 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: 'br.edu.ifes.brainstudio',
-  appName: 'Brain Studio',
-  webDir: 'dist',
+  // USE O MESMO appId DO SEU APK ATUAL
+  appId: "COLOQUE_AQUI_O_MESMO_APP_ID_DO_SEU_APK",
+  appName: "Brain Studio",
+  webDir: "dist",
   server: {
-    androidScheme: 'https',
-    cleartext: true,
+    androidScheme: "https",
+  },
+  android: {
+    allowMixedContent: false,
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#050512',
+      launchAutoHide: true,
+      backgroundColor: "#050512",
       showSpinner: false,
     },
     StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#050512',
+      style: "DARK",
+      backgroundColor: "#050512",
+      overlaysWebView: false,
     },
   },
 };
