@@ -1,87 +1,57 @@
-
-name: Criar APK para Android
+name: Android Release
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-
-permissions:
-  contents: read
+    tags: ["v*"]
 
 jobs:
   build:
-    name: Compilar APP-IFES
     runs-on: ubuntu-latest
-
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
-      - name: Baixar codigo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
+      - name: Conferir projeto Android
+        run: test -d android || (echo "Pasta android/ não está no repositório" && exit 1)
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Configurar Java
-        uses: actions/setup-java@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: 21
 
-      - name: Verificar Android SDK
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Build web e sincronizar Capacitor
+        env:
+          VITE_REVENUECAT_ANDROID_KEY: ${{ secrets.VITE_REVENUECAT_ANDROID_KEY }}
+        run: bun run build:native
+
+      - name: Restaurar keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Gerar APK e AAB assinados
+        working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -d "$ANDROID_HOME"
-          find "$ANDROID_HOME/cmdline-tools" \
-            -name sdkmanager -type f 2>/dev/null || true
-          ls -la "$ANDROID_HOME"
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
 
-      - name: Instalar dependencias
-        run: npm install
-
-      - name: Compilar e sincronizar Capacitor
-        run: npm run build:native
-
-      - name: Localizar sdkmanager
-        id: sdk
-        shell: bash
-        run: |
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
-            -name sdkmanager -type f 2>/dev/null | head -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager nao encontrado no ambiente."
-            exit 1
-          fi
-
-          echo "path=$SDKMANAGER" >> "$GITHUB_OUTPUT"
-          echo "SDK encontrado: $SDKMANAGER"
-
-      - name: Aceitar licencas Android
-        shell: bash
-        run: |
-          set +o pipefail
-          yes | "${{ steps.sdk.outputs.path }}" --licenses
-          test "${PIPESTATUS[1]}" -eq 0
-
-      - name: Preparar Gradle
-        run: chmod +x android/gradlew
-
-      - name: Gerar APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Disponibilizar APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: APP-IFES-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
+          name: brain-studio-release
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
