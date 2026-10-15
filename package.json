@@ -9,7 +9,8 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "build:native": "npm run build && npx cap sync",
+    "build:native": "npm run clean && vite build && npx cap sync android",
+    "android:open": "npx cap open android",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
