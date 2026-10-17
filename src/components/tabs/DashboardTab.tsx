@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { UserProfile, TrackModule, CourseTrack, IfesAssignment, IfesClassSchedule, UserPet } from "../../types";
 import { TabId } from "../Sidebar";
-import { PuppetPetView } from "../PuppetPetView";
+import { Pet3DView } from "../pet3d/Pet3DView";
 import { DailyStudyChallenges } from "../DailyStudyChallenges";
 import { NativeAppButton } from "../NativeAppButton";
 import {
@@ -184,7 +184,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 {user.energy}/{user.maxEnergy || 50} ⚡
               </span>
               <span className="px-3 py-1.5 rounded-full border border-[var(--app-border)] text-[11px] text-[var(--app-text)] bg-[var(--app-bg)] font-semibold flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {user.streakDays} Dias de Ofensiva
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {user.streakDays || 1} {user.streakDays === 1 ? "Dia de Ofensiva" : "Dias de Ofensiva"}
               </span>
               <span
                 onClick={() => onNavigate("store")}
@@ -200,85 +200,78 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
 
-        {/* Bento Accent Card - Pet & Energy (Span 4) */}
+        {/* Bento Accent Card - 3D Pet & Energy (Span 4) */}
         <div className="lg:col-span-4 bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] rounded-3xl p-6 sm:p-7 flex flex-col justify-between shadow-xs relative overflow-hidden">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <div
-                onClick={() => onNavigate("store")}
-                className="cursor-pointer hover:scale-105 transition"
-                title="Abrir Loja de Pets para evoluir ou alimentar seu mascote"
-              >
-                <PuppetPetView
-                  pet={pet}
-                  size="md"
-                  interactive={true}
-                  accessoryBadgeStyle={{ fontSize: "0px", lineHeight: "0px" }}
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {isRenamingPet ? (
-                    <div className="flex items-center gap-1 bg-[var(--app-bg)] px-2 py-0.5 rounded-xl border border-[var(--app-primary)] shadow-xs">
-                      <input
-                        type="text"
-                        value={petRenameInput}
-                        onChange={(e) => setPetRenameInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSavePetName();
-                          if (e.key === "Escape") setIsRenamingPet(false);
+          {/* Top Header: Chosen Pet Name, Species & Energy */}
+          <div className="flex justify-between items-start gap-3">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                {isRenamingPet ? (
+                  <div className="flex items-center gap-1 bg-[var(--app-bg)] px-2 py-0.5 rounded-xl border border-[var(--app-primary)] shadow-xs">
+                    <input
+                      type="text"
+                      value={petRenameInput}
+                      onChange={(e) => setPetRenameInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSavePetName();
+                        if (e.key === "Escape") setIsRenamingPet(false);
+                      }}
+                      autoFocus
+                      placeholder="Nome do mascote..."
+                      className="text-xs font-bold bg-transparent text-[var(--app-text)] outline-none w-28 sm:w-36"
+                      maxLength={25}
+                    />
+                    <button
+                      onClick={handleSavePetName}
+                      className="p-1 rounded-md bg-[var(--app-primary)] text-white hover:opacity-90 transition cursor-pointer"
+                      title="Salvar novo nome"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => setIsRenamingPet(false)}
+                      className="p-1 rounded-md bg-gray-500/20 text-[var(--app-text-muted)] hover:bg-gray-500/30 transition cursor-pointer"
+                      title="Cancelar"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-black text-base text-[var(--app-text)] flex items-center gap-1.5">
+                      <span>{pet?.name || petDef.nome}</span>
+                      <button
+                        onClick={() => {
+                          setPetRenameInput(pet?.name || petDef.nome);
+                          setIsRenamingPet(true);
                         }}
-                        autoFocus
-                        placeholder="Nome do mascote..."
-                        className="text-xs font-bold bg-transparent text-[var(--app-text)] outline-none w-28 sm:w-36"
-                        maxLength={25}
-                      />
-                      <button
-                        onClick={handleSavePetName}
-                        className="p-1 rounded-md bg-[var(--app-primary)] text-white hover:opacity-90 transition cursor-pointer"
-                        title="Salvar novo nome"
+                        className="p-1 rounded-lg hover:bg-[var(--app-primary)]/15 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition cursor-pointer"
+                        title="Alterar nome do Mascote"
                       >
-                        <Check className="w-3 h-3" />
+                        <Pencil className="w-3 h-3" />
                       </button>
-                      <button
-                        onClick={() => setIsRenamingPet(false)}
-                        className="p-1 rounded-md bg-gray-500/20 text-[var(--app-text-muted)] hover:bg-gray-500/30 transition cursor-pointer"
-                        title="Cancelar"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <h3 className="font-extrabold text-base text-[var(--app-text)] flex items-center gap-1.5">
-                        <span>{pet?.name || "Mascote"}</span>
-                        <button
-                          onClick={() => {
-                            setPetRenameInput(pet?.name || "Mascote");
-                            setIsRenamingPet(true);
-                          }}
-                          className="p-1 rounded-lg hover:bg-[var(--app-primary)]/15 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition cursor-pointer"
-                          title="Alterar nome do Mascote"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </h3>
-                    </>
-                  )}
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--app-primary)]/15 text-[var(--app-primary)]"
-                    style={{ paddingRight: "26px" }}
-                  >
-                    Nível {pet?.level || 1}
-                  </span>
-                </div>
-                <span className="text-[11px] text-[var(--app-text-muted)] font-mono block">
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[var(--app-primary)]/15 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
+                      Nível {pet?.level || 1}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Informações detalhadas do Pet Escolhido */}
+              <div className="flex items-center gap-1.5 text-xs text-[var(--app-text-muted)] flex-wrap">
+                <span className="font-semibold text-[var(--app-text)] flex items-center gap-1">
+                  <span>{petEmoji}</span>
+                  <span>{pet?.customSpeciesName || petDef.nome}</span>
+                </span>
+                <span>•</span>
+                <span className="font-mono text-[11px]">
                   {pet?.exp || 0} / {pet?.maxExp || 100} EXP
                 </span>
               </div>
             </div>
 
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <div className="text-2xl font-black tracking-tight text-[var(--app-primary)]">
                 {user.energy}/{user.maxEnergy || 50} ⚡
               </div>
@@ -288,17 +281,37 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          {/* Pet EXP Progression Bar (Sem índices de saciedade/felicidade) */}
-          <div className="space-y-2 my-4 p-4 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+          {/* 3D Pet Viewport com movimento fluido (andar, respirar e pular com toque) */}
+          <div
+            onClick={() => onNavigate("store")}
+            className="my-3 py-1.5 flex flex-col items-center justify-center cursor-pointer relative group rounded-2xl bg-[var(--app-bg)]/50 border border-[var(--app-border)]/50 hover:border-[var(--app-primary)]/30 transition"
+            title="Toque no Mascote 3D para brincar ou acessar a Loja de Pets"
+          >
+            <div className="w-44 h-44 sm:w-52 sm:h-52 relative flex items-center justify-center overflow-visible">
+              <Pet3DView
+                pet={pet}
+                size="md"
+                className="w-full h-full"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-[var(--app-text-muted)] font-mono -mt-1 pb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{petDef.tituloBadge || "Mascote Ativo"} • Toque para interagir</span>
+            </div>
+          </div>
+
+          {/* Pet EXP Progression Bar & Habilidade Passiva */}
+          <div className="space-y-2 mb-4 p-3.5 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)]">
             <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 font-bold text-[var(--app-text)]">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Progresso para o Próximo Nível
+              <span className="flex items-center gap-1.5 font-bold text-[var(--app-text)] text-[11px]">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>{petDef.habilidadePassiva || "Bônus de Aprendizagem Ativo"}</span>
               </span>
-              <span className="font-mono font-bold text-[var(--app-primary)]">
+              <span className="font-mono font-bold text-[var(--app-primary)] text-xs">
                 {Math.round(((pet?.exp || 0) / (pet?.maxExp || 100)) * 100)}%
               </span>
             </div>
-            <div className="w-full h-2.5 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, Math.max(5, ((pet?.exp || 0) / (pet?.maxExp || 100)) * 100))}%` }}
@@ -306,6 +319,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
+          {/* Botões de Ação do Mascote */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => onNavigate("store")}
@@ -336,7 +350,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         onNavigate={onNavigate}
       />
 
-      {/* AVA IFES Connection Status Banner */}
+      {/* AVA IFES Connection Status Banner (Sem menção de campus) */}
       <div className={`p-4 sm:p-5 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
         user.ifesAccount?.connected
           ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-200"
@@ -355,7 +369,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span className={`w-2 h-2 rounded-full ${user.ifesAccount?.connected ? "bg-emerald-500" : "bg-amber-500 animate-ping"}`} />
               <h4 className="text-xs sm:text-sm font-extrabold text-[var(--app-text)]">
                 {user.ifesAccount?.connected
-                  ? `Conexão Permanente com AVA IFES (${user.ifesAccount?.campusName || "IFES"})`
+                  ? "Conexão Permanente com AVA IFES"
                   : "Conexão com AVA IFES Pendente"}
               </h4>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] font-bold text-[var(--app-text-muted)]">

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { PetType, UserPet } from "../types";
+import { Pet3DView } from "./pet3d/Pet3DView";
 
 interface FirstLaunchTutorialProps {
   isOpen: boolean;
@@ -30,12 +31,28 @@ interface StarterPetOption {
 
 const STARTER_PETS: StarterPetOption[] = [
   {
+    type: "coruja",
+    defaultName: "Athena",
+    emoji: "🦉",
+    badge: "Sabedoria & Síntese",
+    description: "Símbolo ancestral da sabedoria acadêmica do IFES. Vigia com carinho cada sessão noturna de estudos.",
+    trait: "+10% de ganho de XP em tarefas",
+  },
+  {
     type: "bunny",
     defaultName: "Bolin",
     emoji: "🐰",
     badge: "Agilidade & Foco",
     description: "Rápido nas revisões de flashcards e sempre alerta para sessões de estudo focadas.",
-    trait: "+10% de velocidade de foco",
+    trait: "+10% de agilidade em revisões",
+  },
+  {
+    type: "raposa",
+    defaultName: "Foxy",
+    emoji: "🦊",
+    badge: "Astúcia & Lógica",
+    description: "Veloz e perspicaz na resolução de problemas matemáticos e exercícios práticos.",
+    trait: "+15% de velocidade de resposta",
   },
   {
     type: "bird",
@@ -51,15 +68,31 @@ const STARTER_PETS: StarterPetOption[] = [
     emoji: "🐘",
     badge: "Memória Lendária",
     description: "Guarda todos os conceitos na memória de longo prazo para as provas do semestre.",
-    trait: "+15% de retenção de conceitos",
+    trait: "+20% de retenção de conceitos",
   },
   {
     type: "tiger",
     defaultName: "Tigrão",
     emoji: "🐯",
-    badge: "Garra & Lógica",
+    badge: "Garra & Força",
     description: "Determinado e competitivo, adora questionários difíceis e desafios lógicos.",
-    trait: "+15% de garra em simulados",
+    trait: "+15% de precisão em simulados",
+  },
+  {
+    type: "gato_robo",
+    defaultName: "Byte",
+    emoji: "🤖",
+    badge: "Precisão & Cálculo",
+    description: "Forjado nos laboratórios de informática do IFES. Otimiza cada ciclo de aprendizado.",
+    trait: "Economiza energia em sessões de estudo",
+  },
+  {
+    type: "dragao_livro",
+    defaultName: "Draco",
+    emoji: "🐉",
+    badge: "Mestria Ancestral",
+    description: "Guardião místico dos acervos bibliotecários do IFES. Inspira foco e concentração profunda.",
+    trait: "+25% de bônus de XP em leituras densas",
   },
 ];
 
@@ -68,8 +101,8 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
   onComplete,
 }) => {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [selectedPetType, setSelectedPetType] = useState<PetType | null>(null);
-  const [petCustomName, setPetCustomName] = useState<string>("");
+  const [selectedPetType, setSelectedPetType] = useState<PetType>("coruja");
+  const [petCustomName, setPetCustomName] = useState<string>("Athena");
 
   if (!isOpen) return null;
 
@@ -81,24 +114,27 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
   };
 
   const handleFinish = () => {
-    if (!selectedPetType) return;
-
-    const chosenOption = STARTER_PETS.find((p) => p.type === selectedPetType);
-    const finalName = petCustomName.trim() || chosenOption?.defaultName || "Bolin";
+    const chosenOption = STARTER_PETS.find((p) => p.type === selectedPetType) || STARTER_PETS[0];
+    const finalName = petCustomName.trim() || chosenOption.defaultName;
 
     const newPet: UserPet = {
+      id: selectedPetType,
       type: selectedPetType,
+      activePetId: selectedPetType,
       name: finalName,
+      customSpeciesName: chosenOption.badge,
+      customSpeciesEmoji: chosenOption.emoji,
       level: 1,
       exp: 0,
       maxExp: 100,
       happiness: 100,
-      hunger: 80,
+      hunger: 90,
       energy: 100,
       totalMeals: 0,
       lastFedTimestamp: new Date().toISOString(),
       lastFed: new Date().toISOString(),
       unlockedPets: [selectedPetType],
+      customAccessory: "none",
     };
 
     confetti({
@@ -321,7 +357,7 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
                   </p>
                 </div>
 
-                {/* Pet Selection Grid */}
+                {/* Pet Selection Grid com Mascotes 3D Reais */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                   {STARTER_PETS.map((pet) => {
                     const isSelected = selectedPetType === pet.type;
@@ -334,20 +370,26 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSelectPet(pet);
                         }}
-                        className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center space-y-2 select-none ${
+                        className={`relative p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center space-y-1.5 select-none ${
                           isSelected
-                            ? "border-[var(--app-primary)] bg-[var(--app-primary)]/15 scale-[1.03]"
+                            ? "border-[var(--app-primary)] bg-[var(--app-primary)]/15 scale-[1.03] shadow-md"
                             : "border-[var(--app-border)] bg-[var(--app-card-secondary)] hover:border-[var(--app-primary)]/50"
                         }`}
                       >
                         {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--app-primary)] text-white flex items-center justify-center shadow-sm">
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--app-primary)] text-white flex items-center justify-center shadow-sm z-10">
                             <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />
                           </div>
                         )}
 
-                        <div className="text-4xl sm:text-5xl py-1 filter drop-shadow-md transition-transform group-hover:scale-110">
-                          {pet.emoji}
+                        {/* Visualizador 3D do Mascote sem cortes na cabeça */}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 relative rounded-xl bg-[var(--app-card)]/40 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center pointer-events-none p-1">
+                          <Pet3DView
+                            petType={pet.type}
+                            petName={pet.defaultName}
+                            size="sm"
+                            className="w-full h-full"
+                          />
                         </div>
 
                         <div>
@@ -369,30 +411,43 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
                   })}
                 </div>
 
-                {/* Optional Custom Name */}
+                {/* Painel Interativo 3D do Pet Selecionado com Nome */}
                 {selectedPetType && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex flex-col sm:flex-row items-center justify-between gap-2.5"
+                    className="p-3.5 rounded-3xl bg-[var(--app-card-secondary)] border-2 border-[var(--app-primary)]/30 flex flex-col sm:flex-row items-center gap-4"
                   >
-                    <div className="text-left w-full sm:w-auto">
-                      <label htmlFor="pet-name-input" className="text-xs font-bold text-[var(--app-text)] block">
-                        Nome do seu Pet Companheiro:
-                      </label>
-                      <span className="text-[10px] text-[var(--app-text-muted)]">
-                        Você pode manter o nome original ou dar um apelido único
-                      </span>
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl bg-[var(--app-bg)]/80 border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-1 shadow-inner">
+                      <Pet3DView
+                        petType={selectedPetType}
+                        petName={petCustomName || (STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName)}
+                        size="md"
+                        className="w-full h-full"
+                      />
                     </div>
-                    <input
-                      id="pet-name-input"
-                      type="text"
-                      maxLength={18}
-                      value={petCustomName}
-                      onChange={(e) => setPetCustomName(e.target.value)}
-                      placeholder="Nome do pet..."
-                      className="w-full sm:w-56 px-3 py-1.5 rounded-xl bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold focus:outline-none focus:border-[var(--app-primary)]"
-                    />
+                    <div className="flex-1 space-y-1.5 text-left w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-[var(--app-text)]">
+                          Mascote 3D: {STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName}
+                        </span>
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-[var(--app-primary)]/15 text-[var(--app-primary)] font-bold">
+                          3D Ativo • Corpo & Cabeça Completos
+                        </span>
+                      </div>
+                      <label htmlFor="pet-name-input" className="text-[11px] font-bold text-[var(--app-text)] block">
+                        Nome do seu Mascote Companheiro:
+                      </label>
+                      <input
+                        id="pet-name-input"
+                        type="text"
+                        maxLength={20}
+                        value={petCustomName}
+                        onChange={(e) => setPetCustomName(e.target.value)}
+                        placeholder={STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName || "Nome do pet..."}
+                        className="w-full sm:w-64 px-3 py-1.5 rounded-xl bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold focus:outline-none focus:border-[var(--app-primary)] shadow-xs"
+                      />
+                    </div>
                   </motion.div>
                 )}
               </motion.div>

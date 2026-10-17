@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { Pet3DView } from "./pet3d/Pet3DView";
 
 type PetOption = {
   type: string;
@@ -357,19 +358,24 @@ export default function TutorialInicial({ isOpen, onComplete }: TutorialInicialP
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSelectPet(pet);
                         }}
-                        className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center space-y-2 select-none ${
+                        className={`relative p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center space-y-1.5 select-none ${
                           active
                             ? "border-[var(--app-primary)] bg-[var(--app-primary)]/15 scale-[1.03]"
                             : "border-[var(--app-border)] bg-[var(--app-card-secondary)] hover:border-[var(--app-primary)]/50"
                         }`}
                       >
                         {active && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--app-primary)] text-white flex items-center justify-center shadow-sm">
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--app-primary)] text-white flex items-center justify-center shadow-sm z-10">
                             <Check className="w-3.5 h-3.5 stroke-[3]" />
                           </div>
                         )}
-                        <div className="text-4xl sm:text-5xl py-1 filter drop-shadow-md transition-transform">
-                          {pet.emoji}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 relative rounded-xl bg-[var(--app-card)]/40 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center pointer-events-none p-1">
+                          <Pet3DView
+                            petType={pet.type}
+                            petName={pet.defaultName}
+                            size="sm"
+                            className="w-full h-full"
+                          />
                         </div>
                         <div>
                           <h4 className="text-xs font-black text-[var(--app-text)]">
@@ -394,28 +400,36 @@ export default function TutorialInicial({ isOpen, onComplete }: TutorialInicialP
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex flex-col sm:flex-row items-center justify-between gap-2.5"
+                    className="p-3.5 rounded-3xl bg-[var(--app-card-secondary)] border-2 border-[var(--app-primary)]/30 flex flex-col sm:flex-row items-center gap-4"
                   >
-                    <div className="text-left w-full sm:w-auto">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl bg-[var(--app-bg)]/80 border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-1 shadow-inner">
+                      <Pet3DView
+                        petType={selectedPet}
+                        petName={petName || (PETS.find((p) => p.type === selectedPet)?.defaultName)}
+                        size="md"
+                        className="w-full h-full"
+                      />
+                    </div>
+                    <div className="text-left w-full sm:w-auto flex-1">
                       <label
                         htmlFor="pet-name-input"
                         className="text-xs font-bold text-[var(--app-text)] block"
                       >
-                        Nome do seu Pet Companheiro:
+                        Nome do seu Mascote 3D:
                       </label>
                       <span className="text-[10px] text-[var(--app-text-muted)]">
                         Você pode manter o nome original ou dar um apelido único
                       </span>
+                      <input
+                        id="pet-name-input"
+                        type="text"
+                        maxLength={18}
+                        value={petName}
+                        onChange={(e) => setPetName(e.target.value)}
+                        placeholder="Nome do pet..."
+                        className="w-full sm:w-60 mt-1 px-3 py-1.5 rounded-xl bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold focus:outline-none focus:border-[var(--app-primary)]"
+                      />
                     </div>
-                    <input
-                      id="pet-name-input"
-                      type="text"
-                      maxLength={18}
-                      value={petName}
-                      onChange={(e) => setPetName(e.target.value)}
-                      placeholder="Nome do pet..."
-                      className="w-full sm:w-56 px-3 py-1.5 rounded-xl bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold focus:outline-none focus:border-[var(--app-primary)]"
-                    />
                   </motion.div>
                 )}
               </motion.div>

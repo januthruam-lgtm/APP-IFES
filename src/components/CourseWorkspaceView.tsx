@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft,
   BookOpen,
@@ -20,11 +21,13 @@ import {
   Search,
   Check,
   ChevronRight,
+  ChevronDown,
   Shield,
   Send,
   HelpCircle,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { useAccessibility } from "../lib/accessibility";
 import { CourseTrack, IfesCourse, IfesAssignment, UserProfile, TrackModule } from "../types";
 import {
   loadSubmissions,
@@ -103,6 +106,45 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
   const [participants, setParticipants] = useState<CourseMember[]>([]);
   const [searchParticipant, setSearchParticipant] = useState("");
   const [selectedForGroupCall, setSelectedForGroupCall] = useState<string[]>([]);
+
+  const { isReducedMotion } = useAccessibility();
+  const sectionStorageKey = `brain_studio_course_sections_${course.id}`;
+  const [expandedSectionIds, setExpandedSectionIds] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(sectionStorageKey);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { "sec-0": true }; // Padrão: primeiro tópico aberto
+  });
+
+  const handleToggleSection = (secKey: string) => {
+    setExpandedSectionIds((prev) => {
+      const next = { ...prev, [secKey]: !prev[secKey] };
+      try {
+        localStorage.setItem(sectionStorageKey, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleExpandAllSections = () => {
+    const next: Record<string, boolean> = {};
+    courseSections.forEach((s, idx) => {
+      const k = String(s.id ?? `sec-${idx}`);
+      next[k] = true;
+    });
+    setExpandedSectionIds(next);
+    try {
+      localStorage.setItem(sectionStorageKey, JSON.stringify(next));
+    } catch {}
+  };
+
+  const handleCollapseAllSections = () => {
+    setExpandedSectionIds({});
+    try {
+      localStorage.setItem(sectionStorageKey, JSON.stringify({}));
+    } catch {}
+  };
 
   const courseTitle = "title" in course ? course.title : "name" in course ? (course as any).name : "Disciplina";
   const courseCategory = (course as any).category || "Técnico em Administração IFES";

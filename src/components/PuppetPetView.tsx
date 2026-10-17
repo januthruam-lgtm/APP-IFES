@@ -3,6 +3,7 @@ import { UserPet, PuppetRigConfig, PuppetRigPin } from "../types";
 import { DEFAULT_PUPPET_CONFIG, getRiggingCssVariables, MASCOT_TEMPLATES } from "../utils/puppetRigging";
 import { getPetStageInfo } from "../utils/petEvolution";
 import confetti from "canvas-confetti";
+import { Pet3DView } from "./pet3d/Pet3DView";
 
 interface PuppetPetViewProps {
   pet?: UserPet;
@@ -233,20 +234,14 @@ export const PuppetPetView: React.FC<PuppetPetViewProps> = ({
             </div>
           </div>
         ) : (
-          /* Standard Built-in Emoji Pet with Puppet Anatomy */
-          <div className="relative w-full h-full flex items-center justify-center puppet-body-anim">
-            <span
-              className="inline-block select-none transform transition-transform duration-200"
-              style={avatarEmojiStyle}
-            >
-              {stageInfo.avatarEmoji}
-            </span>
-            <span
-              className="absolute top-2 right-2 text-xl select-none filter drop-shadow"
-              style={accessoryBadgeStyle}
-            >
-              {stageInfo.accessoryBadge}
-            </span>
+          /* Mascote Oficial em Formato 3D com enquadramento completo */
+          <div className="relative w-full h-full flex items-center justify-center overflow-visible">
+            <Pet3DView
+              pet={pet}
+              size={size === "sm" ? "sm" : size === "lg" ? "lg" : size === "hero" ? "hero" : "md"}
+              className="w-full h-full"
+              onPetClick={onPetClick}
+            />
           </div>
         )}
 

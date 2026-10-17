@@ -41,7 +41,7 @@ export function convertToUserPet(data: Partial<StoredUserPetData>): UserPet {
   return {
     id: data.petId || DEFAULT_PET_ID,
     name: data.nome || definition.nome,
-    type: "coruja" as any, // Mantém compatibilidade com tipos existentes
+    type: ((data.petId || definition.id || DEFAULT_PET_ID) as any),
     level: typeof data.nivel === "number" && data.nivel > 0 ? data.nivel : 1,
     exp: typeof data.exp === "number" ? data.exp : 0,
     maxExp: typeof data.maxExp === "number" ? data.maxExp : 100,
@@ -50,7 +50,7 @@ export function convertToUserPet(data: Partial<StoredUserPetData>): UserPet {
     customSpeciesName: definition.nome,
     customSpeciesEmoji: definition.emoji,
     activePetId: definition.id,
-    unlockedPets: (Array.isArray(data.desbloqueados) ? data.desbloqueados : [DEFAULT_PET_ID]) as any,
+    unlockedPets: (Array.isArray(data.desbloqueados) ? data.desbloqueados : [definition.id || DEFAULT_PET_ID]) as any,
     lastFed: new Date(data.updatedAt || Date.now()).toISOString(),
   };
 }

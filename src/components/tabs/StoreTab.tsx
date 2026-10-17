@@ -15,7 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors, StoreItem, UserPet } from "../../types";
-import { PuppetPetView } from "../PuppetPetView";
+import { Pet3DView } from "../pet3d/Pet3DView";
+import { OFFICIAL_PET_CATALOG, getPetDefinition } from "../../features/gamificacao/petCatalog";
 import confetti from "canvas-confetti";
 
 interface StoreTabProps {
@@ -84,6 +85,61 @@ export const StoreTab: React.FC<StoreTabProps> = ({
     setIsRenamingPet(false);
     showToast(`🎉 Nome do mascote alterado para "${trimmed}"!`);
     confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
+  };
+
+  const handleSwitchPet = (petId: string, defaultName: string) => {
+    if (!user.pet) return;
+    const petDef = getPetDefinition(petId);
+    const existingName = user.pet.name;
+    const updatedPet: UserPet = {
+      ...user.pet,
+      id: petId,
+      type: petId as any,
+      activePetId: petId,
+      customSpeciesName: petDef.nome,
+      customSpeciesEmoji: petDef.emoji,
+      name: existingName || defaultName,
+    };
+    if (onUpdatePet) {
+      onUpdatePet(updatedPet);
+    }
+    showToast(`Mascote 3D alterado para ${petDef.nome} (${existingName || defaultName})! 🐾`);
+  };
+
+  const handleAdoptPet = (petId: string, defaultName: string, cost: number) => {
+    if (user.coins < cost) {
+      showToast("Moedas insuficientes para adotar este mascote! 🪙");
+      return;
+    }
+    if (onRewardCoins) {
+      onRewardCoins(-cost);
+    }
+    const petDef = getPetDefinition(petId);
+    const unlocked = Array.isArray(user.pet?.unlockedPets) ? [...user.pet.unlockedPets] : [];
+    if (!unlocked.includes(petId as any)) {
+      unlocked.push(petId as any);
+    }
+    const updatedPet: UserPet = {
+      ...(user.pet || {
+        level: 1,
+        exp: 0,
+        maxExp: 100,
+        happiness: 95,
+        hunger: 90,
+      }),
+      id: petId,
+      type: petId as any,
+      activePetId: petId,
+      customSpeciesName: petDef.nome,
+      customSpeciesEmoji: petDef.emoji,
+      name: user.pet?.name || defaultName,
+      unlockedPets: unlocked,
+    };
+    if (onUpdatePet) {
+      onUpdatePet(updatedPet);
+    }
+    confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+    showToast(`🎉 Incrível! Você adotou o 3D ${petDef.nome}!`);
   };
 
   const handleBuyEnergy = (amount: number, cost: number) => {
@@ -179,12 +235,19 @@ export const StoreTab: React.FC<StoreTabProps> = ({
         </div>
       </div>
 
-      {/* Pet Interactive Showcase Card na Loja de Pets */}
+      {/* Pet Interactive 3D Showcase Card na Loja de Pets */}
       {user.pet && (
-        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/25 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/25 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            <div className="cursor-pointer hover:scale-105 transition shrink-0" title="Clique para interagir com o Pet!">
-              <PuppetPetView pet={user.pet} size="lg" interactive={true} />
+            <div
+              className="cursor-pointer hover:scale-105 transition shrink-0 w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-[var(--app-bg)]/60 border border-[var(--app-border)]/60 p-1 flex items-center justify-center relative shadow-inner overflow-hidden"
+              title="Clique no Mascote 3D para brincar e fazer carinho!"
+            >
+              <Pet3DView
+                pet={user.pet}
+                size="md"
+                className="w-full h-full"
+              />
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
@@ -235,9 +298,12 @@ export const StoreTab: React.FC<StoreTabProps> = ({
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                   Nível {user.pet.level || 1}
                 </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--app-bg)] text-[var(--app-text-muted)] border border-[var(--app-border)]">
+                  {user.pet.customSpeciesName || "Mascote 3D"}
+                </span>
               </div>
               <p className="text-xs text-[var(--app-text-muted)] max-w-sm">
-                Seu companheiro leal de estudos no IFES! Clique nele para fazer carinho e evolua seu nível dando petiscos da loja.
+                Seu companheiro 3D de estudos no IFES! Clique nele para brincar, caminhar e evoluir seu nível com itens da loja.
               </p>
               <div className="w-48 sm:w-64 space-y-1 pt-1">
                 <div className="flex items-center justify-between text-[11px] font-mono text-[var(--app-text-muted)]">
@@ -267,6 +333,99 @@ export const StoreTab: React.FC<StoreTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Galeria & Berçário Oficial de Mascotes 3D do IFES */}
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-black text-[var(--app-text)] flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Berçário de Mascotes 3D do IFES</span>
+            </h3>
+            <p className="text-xs text-[var(--app-text-muted)]">
+              Todos os mascotes do IFES em formato 3D com corpo e cabeça completos e animação fluida.
+            </p>
+          </div>
+          <span className="text-xs font-mono font-bold text-[var(--app-text-muted)]">
+            Mascote Ativo: <span className="text-[var(--app-primary)]">{user.pet?.name || "Mascote"}</span>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+          {OFFICIAL_PET_CATALOG.map((catalogPet) => {
+            const isActive =
+              user.pet?.type === catalogPet.id ||
+              (user.pet as any)?.activePetId === catalogPet.id ||
+              (user.pet?.type === "coruja" && catalogPet.id === "coruja");
+            const isUnlocked =
+              catalogPet.custoMoedas === 0 ||
+              user.pet?.unlockedPets?.includes(catalogPet.id as any);
+
+            return (
+              <div
+                key={catalogPet.id}
+                className={`relative p-3.5 rounded-2xl border-2 transition-all flex flex-col items-center text-center space-y-2.5 ${
+                  isActive
+                    ? "border-[var(--app-primary)] bg-[var(--app-primary)]/10 shadow-sm"
+                    : "border-[var(--app-border)] bg-[var(--app-bg)] hover:border-[var(--app-primary)]/40"
+                }`}
+              >
+                {isActive && (
+                  <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-black bg-[var(--app-primary)] text-white shadow-xs">
+                    Ativo
+                  </span>
+                )}
+
+                {/* 3D Model Box - Enquadramento perfeito sem cortar a cabeça */}
+                <div className="w-24 h-24 sm:w-28 sm:h-28 relative rounded-xl bg-[var(--app-card)]/50 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center p-1">
+                  <Pet3DView
+                    petType={catalogPet.id}
+                    petName={catalogPet.nome}
+                    size="sm"
+                    className="w-full h-full"
+                  />
+                </div>
+
+                <div className="w-full">
+                  <h4 className="text-xs font-black text-[var(--app-text)] truncate">{catalogPet.nome}</h4>
+                  <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-[var(--app-card)] text-[var(--app-text-muted)] border border-[var(--app-border)]">
+                    {catalogPet.tituloBadge}
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-[var(--app-text-muted)] leading-tight line-clamp-2">
+                  {catalogPet.descricao}
+                </p>
+
+                <div className="w-full pt-1.5 border-t border-[var(--app-border)] text-[9px] font-bold text-[var(--app-primary)] truncate">
+                  {catalogPet.habilidadePassiva}
+                </div>
+
+                {isActive ? (
+                  <div className="w-full py-1 text-[11px] font-bold text-[var(--app-primary)] bg-[var(--app-primary)]/15 rounded-xl text-center">
+                    ✓ Companheiro Atual
+                  </div>
+                ) : isUnlocked ? (
+                  <button
+                    onClick={() => handleSwitchPet(catalogPet.id, catalogPet.nome)}
+                    className="w-full py-1.5 rounded-xl bg-[var(--app-primary)] hover:opacity-90 text-white font-black text-xs transition cursor-pointer"
+                  >
+                    Trocar para Este
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleAdoptPet(catalogPet.id, catalogPet.nome, catalogPet.custoMoedas)}
+                    disabled={user.coins < catalogPet.custoMoedas}
+                    className="w-full py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black text-xs transition cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    Adotar ({catalogPet.custoMoedas} 🪙)
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Grid of Store Items */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

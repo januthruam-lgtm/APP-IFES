@@ -1,19 +1,21 @@
 import { UserProfile, UserPet } from "../types";
 
 export const INITIAL_PET: UserPet = {
-  type: "bunny",
-  name: "Pompom",
+  id: "coruja",
+  type: "coruja",
+  activePetId: "coruja",
+  name: "Athena",
   level: 1,
   exp: 0,
   maxExp: 100,
-  happiness: 90,
-  hunger: 85,
+  happiness: 95,
+  hunger: 90,
   energy: 100,
   totalMeals: 0,
   lastFedTimestamp: new Date().toISOString(),
-  unlockedPets: ["bunny"],
+  unlockedPets: ["coruja"],
   customAccessory: "none",
-  customSpeciesName: "Coelhinho Sábio",
+  customSpeciesName: "Coruja da Sabedoria",
 };
 
 export const createBlankUser = (name?: string, email?: string): UserProfile => ({

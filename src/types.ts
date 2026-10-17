@@ -1,6 +1,19 @@
 export type ThemeId = "default" | "cyberpunk" | "solar" | "emerald" | "sunset" | "custom" | "paper" | "dark" | "nordic";
 
-export type PetType = "bunny" | "bird" | "elephant" | "tiger" | "custom";
+export type PetType =
+  | "bunny"
+  | "bird"
+  | "elephant"
+  | "tiger"
+  | "coruja"
+  | "owl"
+  | "raposa"
+  | "fox"
+  | "gato_robo"
+  | "cat"
+  | "dragao_livro"
+  | "dragon"
+  | "custom";
 
 export interface PuppetRigPin {
   x: number; // Percentage 0 - 100

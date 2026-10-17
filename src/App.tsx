@@ -65,6 +65,7 @@ import {
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
 import { saveUserProfileToFirestore, getUserProfileFromFirestore } from "./lib/firebase";
 import confetti from "canvas-confetti";
+import { sanitizeUserStreak, getSaoPauloDateString } from "./utils/streakCalculator";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -490,36 +491,26 @@ export default function App() {
     return () => window.removeEventListener("brainstudio:courses-updated", handleCoursesChanged);
   }, [handleUpdateCourses]);
 
-  // Synchronize streak based on calendar days
+  // Synchronize and calibrate streak based on real calendar days & study activity
   useEffect(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const lastActiveStr = user.lastActiveDate ? user.lastActiveDate.slice(0, 10) : "";
+    const todayStr = getSaoPauloDateString();
+    setUser((prev) => {
+      const accurateStreak = sanitizeUserStreak(prev, todayStr);
+      const isToday = prev.lastActiveDate && prev.lastActiveDate.slice(0, 10) === todayStr;
 
-    if (!lastActiveStr || lastActiveStr === todayStr) {
-      if (!user.lastActiveDate || user.lastActiveDate.slice(0, 10) !== todayStr) {
-        setUser((prev) => ({
+      if (accurateStreak !== prev.streakDays || !isToday) {
+        const updated: UserProfile = {
           ...prev,
+          streakDays: accurateStreak,
           lastActiveDate: new Date().toISOString(),
-        }));
+        };
+        try {
+          localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        } catch {}
+        return updated;
       }
-    } else {
-      const diffMs = new Date(todayStr).getTime() - new Date(lastActiveStr).getTime();
-      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        setUser((prev) => ({
-          ...prev,
-          streakDays: prev.streakDays + 1,
-          lastActiveDate: new Date().toISOString(),
-        }));
-      } else if (diffDays > 1) {
-        setUser((prev) => ({
-          ...prev,
-          streakDays: 1,
-          lastActiveDate: new Date().toISOString(),
-        }));
-      }
-    }
+      return prev;
+    });
   }, []);
 
   // Auto-Regenerate Energy: +1 energy every 5 minutes (max user.maxEnergy)
@@ -865,9 +856,15 @@ export default function App() {
           const remoteProfile = await getUserProfileFromFirestore(uid);
           if (remoteProfile) {
             setUser((prev) => {
-              // Se o pet local já possui nome personalizado pelo aluno, preservamos o nome atualizado
+              // Se o pet local já possui nome e espécie escolhidos pelo aluno, preservamos ambos estritamente
               const mergedPet = prev.pet?.name
-                ? { ...remoteProfile.pet, ...prev.pet, name: prev.pet.name }
+                ? {
+                    ...(remoteProfile.pet || {}),
+                    ...prev.pet,
+                    id: prev.pet.id || prev.pet.type || remoteProfile.pet?.id,
+                    type: prev.pet.type || remoteProfile.pet?.type || "coruja",
+                    name: prev.pet.name,
+                  }
                 : (remoteProfile.pet || prev.pet);
               return {
                 ...prev,

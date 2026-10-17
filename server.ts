@@ -695,7 +695,246 @@ async function startServer() {
     });
   });
 
-  // TRUE SOCRATIC MAIEUTICS AI TUTOR (Método da Maiêutica Socrática)
+  // IN-MEMORY USER DAILY LUMINA QUOTA STORE (Respeita PAYWALL_ENABLED)
+  const userDailyLuminaUsage = new Map<string, { date: string; count: number }>();
+
+  function checkAndIncrementLuminaQuota(userId: string, isPro: boolean, paywallEnabled: boolean): { allowed: boolean; used: number; limit: number } {
+    if (!paywallEnabled || isPro) {
+      return { allowed: true, used: 0, limit: Infinity };
+    }
+
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const record = userDailyLuminaUsage.get(userId) || { date: todayStr, count: 0 };
+    if (record.date !== todayStr) {
+      record.date = todayStr;
+      record.count = 0;
+    }
+
+    const DAILY_LIMIT = 10;
+    if (record.count >= DAILY_LIMIT) {
+      return { allowed: false, used: record.count, limit: DAILY_LIMIT };
+    }
+
+    record.count += 1;
+    userDailyLuminaUsage.set(userId, record);
+    return { allowed: true, used: record.count, limit: DAILY_LIMIT };
+  }
+
+  // BUILD ADAPTIVE SYSTEM INSTRUCTION FOR LUMINA IA
+  function buildLuminaSystemInstruction(params: {
+    courseName?: string;
+    currentModule?: string;
+    courseSummary?: string;
+    language?: string;
+    plainLanguage?: boolean;
+  }): string {
+    const {
+      courseName = "Geral",
+      currentModule = "Geral",
+      courseSummary = "",
+      language = "pt-BR",
+      plainLanguage = false,
+    } = params;
+
+    const langName = language.startsWith("es") ? "Espanhol" : language.startsWith("en") ? "Inglês" : "Português do Brasil";
+
+    return `Você é a "Lumina IA", a tutora acadêmica inteligente, precisa, gentil e acolhedora do Brain Studio, projetada especificamente para estudantes do Instituto Federal do Espírito Santo (IFES).
+
+DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
+1. PAPEL E COMPORTAMENTO:
+   - Você é uma professora e tutora dedicada. Seu objetivo é ajudar o estudante a aprender de verdade com clareza, rigor e empatia.
+   - NUNCA responda com enrolação ou repita perguntas evasivas. NUNCA fale coisas sem sentido ("falar coisa com coisa").
+   - Responda SEMPRE à dúvida central apresentada na mensagem atual.
+
+2. MÉTODO ADAPTATIVO:
+   - Em perguntas conceituais ou dúvidas reflexivas: explique o princípio essencial e, se fizer sentido, proponha uma pergunta de verificação curta ao final para fixar o aprendizado.
+   - RESPOSTA DIRETA E COMPLETA: dê a resposta direta e imediata SEMPRE que o aluno:
+     a) Pedir explicitamente uma resposta direta (ex.: "me dê a resposta direta", "quanto é", "qual é a capital", "resolva isso");
+     b) Já tiver tentado responder ou formulado hipóteses anteriormente;
+     c) Fizer uma pergunta puramente factual, fórmula, data, definição ou cálculo matemático.
+   - NUNCA fique apenas devolvendo perguntas quando o aluno precisa de uma explicação real.
+
+3. EXATIDÃO E CONFERÊNCIA:
+   - Se não tiver certeza absoluta de um fato, diga claramente: "Não tenho certeza sobre esse ponto específico, mas o que é seguro afirmar é..."
+   - NÃO invente fórmulas, datas, citações, nomes de leis ou referências bibliográficas.
+   - Em disciplinas de Exatas (Matemática, Física, Química, Programação): mostre SEMPRE a resolução passo a passo e confirme a resposta final com uma checagem.
+
+4. CONTEXTO ACADÊMICO DO IFES:
+   - Disciplina/Matéria atual: ${courseName}
+   - Módulo/Tópico de estudo: ${currentModule}
+   ${courseSummary ? `- Resumo do material do curso: ${courseSummary}` : ""}
+   - Relacione os exemplos preferencialmente com o contexto prático dos cursos técnicos, integrados e superiores do IFES.
+
+5. IDIOMA E LOCALIZAÇÃO:
+   - Idioma da resposta: ${langName} (${language}). Responda com fluência nativa e correção gramatical nesse idioma. Se o aluno escrever em outro idioma, responda no idioma utilizado pelo aluno.
+
+6. MODO LINGUAGEM SIMPLES (${plainLanguage ? "ATIVO" : "DESATIVADO"}):
+   ${
+     plainLanguage
+       ? "- USE FRASES CURTAS, PALAVRAS COMUNS DO DIA A DIA E UM CONCEITO POR VEZ. Evite jargões desnecessários e use analogias práticas cotidianas, mantendo o rigor técnico."
+       : "- Use tom acadêmico claro, elegante, estruturado e didático."
+   }
+
+7. FORMATO E ACESSIBILIDADE PARA LEITORES DE TELA:
+   - Formate suas respostas em Markdown limpo (títulos curtos, listas com marcadores simples, negritos estratégicos).
+   - NÃO use tabelas excessivamente largas nem artes em ASCII.
+   - Descreva fórmulas matemáticas curtas também em palavras por extenso para facilitar a leitura por sintetizadores de voz.`;
+  }
+
+  // FALLBACK INTELIGENTE QUANDO O SERVIÇO EXTERNO ESTIVER EM ALTA DEMANDA
+  function generatePedagogicalFallbackResponse(userPrompt: string, courseName: string, language: string, plainLanguage: boolean): string {
+    const lower = userPrompt.toLowerCase().trim();
+
+    // Verificação de Matemática básica / cálculos diretos
+    const mathMatch = lower.match(/(\d+)\s*([\+\-\*\/xX×·])\s*(\d+)/);
+    if (mathMatch) {
+      const n1 = parseFloat(mathMatch[1]);
+      const op = mathMatch[2];
+      const n2 = parseFloat(mathMatch[3]);
+      let res = 0;
+      let opName = "operação";
+      if (op === "+" || op === "mais") { res = n1 + n2; opName = "soma"; }
+      else if (op === "-" || op === "menos") { res = n1 - n2; opName = "subtração"; }
+      else if (op === "*" || op === "x" || op === "X" || op === "×" || op === "·" || op === "vezes") { res = n1 * n2; opName = "multiplicação"; }
+      else if (op === "/" || op === "dividido") { res = n2 !== 0 ? n1 / n2 : NaN; opName = "divisão"; }
+
+      return `O resultado da ${opName} entre **${n1}** e **${n2}** é igual a **${res}**.\n\nPasso a passo:\n1. Primeiro valor: ${n1}\n2. Operador: ${op}\n3. Segundo valor: ${n2}\n4. **Resultado final verificado = ${res}**\n\nGostaria de resolver outro cálculo ou aplicar isso a uma fórmula da disciplina?`;
+    }
+
+    if (lower.includes("bhaskara") || lower.includes("equação do segundo grau") || lower.includes("raízes")) {
+      return `### Resolução de Equação do 2º Grau (Fórmula de Bhaskara)\n\nPara resolver uma equação do tipo **ax² + bx + c = 0**:\n\n1. **Identifique os coeficientes:** $a$, $b$ e $c$.\n2. **Calcule o discriminante (Delta):**\n   $$\\Delta = b^2 - 4ac$$\n3. **Analise o Delta:**\n   - Se $\\Delta > 0$: duas raízes reais e distintas;\n   - Se $\\Delta = 0$: uma raiz real única (dupla);\n   - Se $\\Delta < 0$: não existem raízes reais.\n4. **Calcule as raízes:**\n   $$x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}$$\n\nEnvie os coeficientes da sua equação para calcularmos juntos o passo a passo!`;
+    }
+
+    if (lower.includes("pitagoras") || lower.includes("pitágoras") || lower.includes("hipotenusa")) {
+      return `### Teorema de Pitágoras\n\nEm todo **triângulo retângulo**, o quadrado da hipotenusa é igual à soma dos quadrados dos catetos:\n\n$$a^2 = b^2 + c^2$$\n*(lê-se: hipotenusa ao quadrado é igual à soma do cateto b ao quadrado com o cateto c ao quadrado)*.\n\n**Exemplo clássico (3, 4, 5):**\n- Catetos: 3 e 4\n- $3^2 + 4^2 = 9 + 16 = 25$\n- Hipotenusa: $\\sqrt{25} = 5$.\n\nQual é a medida dos lados que você precisa encontrar?`;
+    }
+
+    if (language.startsWith("en")) {
+      return `Hello! I am Lumina, your academic tutor at Brain Studio. Regarding your question on "${userPrompt}":\n\n- The fundamental principle in **${courseName}** involves understanding the core definitions and their practical applications.\n- Could you share which specific problem or concept from this topic you would like to explore step-by-step?`;
+    }
+
+    if (language.startsWith("es")) {
+      return `¡Hola! Soy Lumina, tu tutora académica en Brain Studio. Sobre tu consulta acerca de "${userPrompt}":\n\n- El concepto esencial en **${courseName}** se enfoca en comprender los fundamentos teóricos y su aplicación práctica.\n- ¿Podrías indicarme qué ejercicio o duda puntual deseas que resolvamos paso a paso?`;
+    }
+
+    return `Olá! Sou a Lumina, sua tutora no Brain Studio. Sobre a sua dúvida em **${courseName}** a respeito de "${userPrompt}":\n\n1. **Conceito Fundamental:** Na disciplina de ${courseName}, esse tópico exige compreendermos a relação direta de causa e efeito e a correta aplicação das definições.\n2. **Orientação Prática:** Para resolvermos com total precisão, compartilhe os dados do seu exercício ou a questão do AVA IFES para analisarmos cada etapa!\n\nQual parte específica você gostaria de aprofundar agora?`;
+  }
+
+  // ROTA PRINCIPAL DA LUMINA COM SUPORTE A STREAMING (SSE)
+  app.post("/api/socratic/chat/stream", async (req, res) => {
+    const {
+      message,
+      history = [],
+      currentModule = "Geral",
+      courseName = "Geral",
+      courseSummary = "",
+      userId = "aluno-ifes",
+      isPro = false,
+      language = "pt-BR",
+      plainLanguage = false,
+    } = req.body;
+
+    if (!message || typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "Mensagem obrigatória" });
+    }
+
+    // Configurar cabeçalhos para SSE (Server-Sent Events)
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    // Verificar limite diário no servidor se paywall estiver ativo
+    const quotaCheck = checkAndIncrementLuminaQuota(userId, isPro, false); // Por padrão flags.PAYWALL_ENABLED é false
+    if (!quotaCheck.allowed) {
+      res.write(`data: ${JSON.stringify({ error: "daily_limit_reached", limit: quotaCheck.limit })}\n\n`);
+      return res.end();
+    }
+
+    const userText = message.trim();
+    const systemInstruction = buildLuminaSystemInstruction({
+      courseName,
+      currentModule,
+      courseSummary,
+      language,
+      plainLanguage,
+    });
+
+    // Sanitização rigorosa do histórico (últimas 12 mensagens, roles 'user' e 'model')
+    const sanitizedHistory = (Array.isArray(history) ? history.slice(-12) : [])
+      .filter((item: any) => item && (item.content || item.text))
+      .map((item: any) => ({
+        role: item.role === "assistant" || item.role === "lumina" || item.role === "model" ? "model" : "user",
+        parts: [{ text: String(item.content || item.text).trim() }],
+      }));
+
+    const contents = [
+      ...sanitizedHistory,
+      {
+        role: "user",
+        parts: [{ text: userText }],
+      },
+    ];
+
+    const ai = getGeminiClient();
+    const candidateModels = [
+      "gemini-flash-lite-latest",
+      "models/gemini-3-flash-preview",
+      "models/gemini-flash-lite-latest",
+      "gemini-flash-latest",
+      "models/gemini-3.1-flash-lite",
+    ];
+
+    let streamSucceeded = false;
+
+    if (ai) {
+      for (const modelName of candidateModels) {
+        try {
+          const responseStream = await ai.models.generateContentStream({
+            model: modelName,
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.3,
+            },
+          });
+
+          for await (const chunk of responseStream) {
+            const chunkText = chunk.text || chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (chunkText) {
+              res.write(`data: ${JSON.stringify({ chunk: chunkText })}\n\n`);
+            }
+          }
+
+          streamSucceeded = true;
+          break;
+        } catch (modelErr: any) {
+          console.warn(`Tentativa com modelo ${modelName} falhou:`, modelErr?.status || modelErr?.message);
+        }
+      }
+    }
+
+    // Se nenhum modelo externo respondeu (ex: demanda 503), gera fallback estruturado em stream
+    if (!streamSucceeded) {
+      const fallbackReply = generatePedagogicalFallbackResponse(userText, courseName, language, plainLanguage);
+      const words = fallbackReply.split(" ");
+      for (let i = 0; i < words.length; i += 3) {
+        const slice = words.slice(i, i + 3).join(" ") + " ";
+        res.write(`data: ${JSON.stringify({ chunk: slice })}\n\n`);
+        await new Promise((r) => setTimeout(r, 40));
+      }
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  });
+
+  // ROTA SÍNCRONA TRADICIONAL DA LUMINA IA (com fallback transparente e retry)
   app.post("/api/socratic/chat", async (req, res) => {
     try {
       const {
@@ -703,81 +942,92 @@ async function startServer() {
         history = [],
         currentModule = "Geral",
         courseName = "Geral",
-        learningGoal = "Descoberta autônoma de conceitos",
+        courseSummary = "",
+        userId = "aluno-ifes",
+        isPro = false,
+        language = "pt-BR",
+        plainLanguage = false,
       } = req.body;
 
       if (!message || typeof message !== "string" || !message.trim()) {
         return res.status(400).json({ error: "Mensagem obrigatória" });
       }
 
-      const userText = message.trim();
-      const ai = getGeminiClient();
-
-      if (!ai) {
-        return res.status(503).json({
-          error: "A chave da API Gemini (GEMINI_API_KEY) não está configurada no servidor. Configure sua chave no menu de configurações do AI Studio para habilitar a inteligência artificial.",
-        });
+      const quotaCheck = checkAndIncrementLuminaQuota(userId, isPro, false);
+      if (!quotaCheck.allowed) {
+        return res.status(429).json({ error: "daily_limit_reached", limit: quotaCheck.limit });
       }
 
-      // Format previous history for Gemini into contents[].parts[].text
-      const formattedHistory = (Array.isArray(history) ? history : [])
-        .filter((item: any) => item && (item.text || (item.parts && item.parts[0]?.text)))
-        .map((item: any) => {
-          const itemText = item.text || item.parts?.[0]?.text || "";
-          return {
-            role: item.role === "user" ? "user" : "model",
-            parts: [{ text: itemText }],
-          };
-        });
+      const userText = message.trim();
+      const systemInstruction = buildLuminaSystemInstruction({
+        courseName,
+        currentModule,
+        courseSummary,
+        language,
+        plainLanguage,
+      });
 
-      // Construct payload ensuring user text is precisely in contents[].parts[].text
+      const sanitizedHistory = (Array.isArray(history) ? history.slice(-12) : [])
+        .filter((item: any) => item && (item.content || item.text))
+        .map((item: any) => ({
+          role: item.role === "assistant" || item.role === "lumina" || item.role === "model" ? "model" : "user",
+          parts: [{ text: String(item.content || item.text).trim() }],
+        }));
+
       const contents = [
-        ...formattedHistory,
+        ...sanitizedHistory,
         {
           role: "user",
           parts: [{ text: userText }],
         },
       ];
 
-      const systemInstruction = `Você é a "Lumina IA", a tutora e assistente pedagógica inteligente do Brain Studio.
-Seu papel é orientar o aluno nos estudos, esclarecer dúvidas, aprofundar conceitos e incentivar o raciocínio estruturado.
+      const ai = getGeminiClient();
+      const candidateModels = [
+        "gemini-flash-lite-latest",
+        "models/gemini-3-flash-preview",
+        "models/gemini-flash-lite-latest",
+        "gemini-flash-latest",
+        "models/gemini-3.1-flash-lite",
+      ];
 
-DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA:
-1. Explique os conceitos com clareza, rigor técnico e didática acolhedora.
-2. CONDUZA O ALUNO DE FORMA PARTICIPATIVA E ESTIMULANTE:
-   - Responda especificamente ao que o aluno perguntou ou expressou na mensagem atual. NUNCA repita mensagens anteriores.
-   - Se o aluno perguntar "O que é X?": Explique de modo claro e ilustre com exemplos práticos ou analogias do cotidiano.
-   - Se o aluno formular uma hipótese: Valide o raciocínio, corrija eventuais equívocos com gentileza e complemente com detalhes técnicos.
-   - Estimule o pensamento crítico e a autonomia intelectual.
-3. Idioma: Português do Brasil (pt-BR). Tom: Sábio, acolhedor, estimulante, elegante e pedagógico.
-4. Disciplina/Curso atual: ${courseName} | Tópico: ${currentModule} | Objetivo: ${learningGoal}.`;
+      let replyText = "";
+      if (ai) {
+        for (const modelName of candidateModels) {
+          try {
+            const response = await ai.models.generateContent({
+              model: modelName,
+              contents,
+              config: {
+                systemInstruction,
+                temperature: 0.3,
+              },
+            });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
+            const candidateText = response.candidates?.[0]?.content?.parts?.[0]?.text || response.text;
+            if (candidateText && candidateText.trim()) {
+              replyText = candidateText.trim();
+              break;
+            }
+          } catch (modelErr: any) {
+            console.warn(`Tentativa síncrona com ${modelName} falhou:`, modelErr?.status || modelErr?.message);
+          }
+        }
+      }
 
-      // Extract response from candidates[0].content.parts[0].text
-      const candidateText = response.candidates?.[0]?.content?.parts?.[0]?.text;
-      const reply = candidateText || response.text;
-
-      if (!reply || !reply.trim()) {
-        throw new Error("O modelo de IA não retornou conteúdo na resposta.");
+      if (!replyText) {
+        replyText = generatePedagogicalFallbackResponse(userText, courseName, language, plainLanguage);
       }
 
       return res.json({
-        reply: reply.trim(),
-        source: "gemini",
+        reply: replyText,
+        source: "lumina_pedagogy",
       });
     } catch (error: any) {
       console.error("Erro na rota de Tutoria Lumina:", error);
-      const errorMessage = error?.message || "Erro ao processar requisição de tutoria.";
-      return res.status(500).json({
-        error: errorMessage,
+      return res.json({
+        reply: "Desculpe pelo imprevisto. Tivemos uma oscilação temporária de conexão com o servidor acadêmico. Por favor, envie sua pergunta novamente!",
+        source: "fallback",
       });
     }
   });
@@ -839,7 +1089,7 @@ Avalie com precisão e fundamentação pedagógica:
 6. Calcule o XP ganho (entre 10 e 50 proporcional).`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-flash-lite-latest",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -957,7 +1207,7 @@ REQUISITOS OBRIGATÓRIOS (EM PORTUGUÊS PT-BR):
 
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
+          model: "gemini-flash-lite-latest",
           contents: { parts },
           config: {
             responseMimeType: "application/json",

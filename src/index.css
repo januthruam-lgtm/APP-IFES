@@ -218,3 +218,97 @@ div#root:nth-of-type(1) > div#app-body:nth-of-type(1) > main:nth-of-type(1) > di
   line-height: 0px;
 }
 
+
+/* =========================================================
+   ACCESSIBILITY & INCLUSION ENHANCEMENTS (PARTE 7)
+   ========================================================= */
+@import "@fontsource/opendyslexic/index.css";
+
+/* Focus visible universally at min 3px */
+:focus-visible {
+  outline: 3px solid var(--app-primary, #059669) !important;
+  outline-offset: 2px !important;
+}
+
+/* Skip link to main content */
+.skip-link {
+  position: absolute;
+  top: -9999px;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--app-primary, #059669);
+  color: #ffffff;
+  font-weight: 800;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* Font Scales */
+html[data-font-scale="large"] {
+  font-size: 112.5%;
+}
+
+html[data-font-scale="larger"] {
+  font-size: 125%;
+}
+
+html[data-font-scale="max"] {
+  font-size: 137.5%;
+}
+
+/* OpenDyslexic Font Option */
+html[data-dyslexic="true"],
+html[data-dyslexic="true"] * {
+  font-family: "OpenDyslexic", system-ui, sans-serif !important;
+  letter-spacing: 0.04em;
+}
+
+/* High Contrast Mode (7:1 standard) */
+html[data-contrast="high"] {
+  --app-border: #000000 !important;
+  --app-text-muted: #1e293b !important;
+}
+
+html.dark[data-contrast="high"] {
+  --app-border: #ffffff !important;
+  --app-text-muted: #f8fafc !important;
+}
+
+/* Reduced Motion Mode */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Large Touch Target Mode (min 48px) */
+html[data-large-touch="true"] button,
+html[data-large-touch="true"] a,
+html[data-large-touch="true"] input,
+html[data-large-touch="true"] [role="button"] {
+  min-height: 48px !important;
+  min-width: 48px !important;
+}
+
+/* Solid Transparency (No backdrop-blur) */
+html[data-transparency="solid"] .backdrop-blur-md,
+html[data-transparency="solid"] .backdrop-blur-lg,
+html[data-transparency="solid"] .backdrop-blur-sm,
+html[data-transparency="solid"] .backdrop-blur-xs {
+  backdrop-filter: none !important;
+  background-color: var(--app-card, #ffffff) !important;
+}
+
+/* Focus Mode (Hides secondary clutter) */
+html[data-focus-mode="active"] [data-distraction="true"] {
+  display: none !important;
+}

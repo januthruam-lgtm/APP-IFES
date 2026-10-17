@@ -26,8 +26,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors } from "../types";
-import { getPetStageInfo } from "../utils/petEvolution";
-import { PuppetPetView } from "./PuppetPetView";
+import { Pet3DView } from "./pet3d/Pet3DView";
 import { NativeAppButton } from "./NativeAppButton";
 import { BrandLogoBanner } from "./BrandLogoBanner";
 
@@ -232,17 +231,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 e.stopPropagation();
                 onTabChange("store");
               }}
-              title={`Mascote: ${user.pet?.name || "Mascote"} (Clique para abrir Loja de Pets)`}
-              className="hover:scale-110 transition cursor-pointer"
+              title={`Mascote 3D: ${user.pet?.name || "Mascote"} (Clique para abrir Loja de Pets)`}
+              className="hover:scale-110 transition cursor-pointer w-10 h-10 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-0.5 shadow-xs"
             >
-              <PuppetPetView
+              <Pet3DView
                 pet={user.pet}
-                size="sm"
-                interactive={false}
-                className="w-9 h-9"
-                avatarEmojiStyle={{ marginLeft: "-7px", marginTop: "-19px" }}
-                accessoryBadgeStyle={{ fontSize: "0px" }}
-                stageBadgeStyle={{ marginLeft: "-32px", marginTop: "-4px" }}
+                size="xs"
+                className="w-full h-full"
               />
             </div>
           </div>

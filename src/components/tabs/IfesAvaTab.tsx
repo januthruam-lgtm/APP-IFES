@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Building2,
   BookOpen,
@@ -8,6 +10,7 @@ import {
   RefreshCw,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
   Search,
   BookMarked,
   Clipboard,
@@ -23,6 +26,7 @@ import {
   Globe,
   ExternalLink,
 } from "lucide-react";
+import { useAccessibility } from "../../lib/accessibility";
 import { UserProfile, IfesCourse, IfesAssignment, IfesAccountInfo } from "../../types";
 import {
   loadSyncedCourses,
@@ -82,12 +86,51 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
   const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
   const [diagLogs, setDiagLogs] = useState<SyncLogEntry[]>(() => getSyncDiagnosticLogs());
   const [copiedLogs, setCopiedLogs] = useState(false);
+  const { t, i18n } = useTranslation();
+  const { isReducedMotion } = useAccessibility();
 
-  useEffect(() => {
-    return subscribeSyncDiagnosticLogs((logs) => {
-      setDiagLogs(logs);
+  // Acordeão de Matérias com persistência por usuário
+  const userAccordionKey = `brain_studio_courses_accordion_${user.id || user.uid || "local"}`;
+  const [expandedCourseIds, setExpandedCourseIds] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(userAccordionKey);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    // Padrão: matérias fechadas e a mais recente (primeira) aberta
+    const initial: Record<string, boolean> = {};
+    if (courses.length > 0) {
+      initial[courses[0].id] = true;
+    }
+    return initial;
+  });
+
+  const handleToggleCourse = (courseId: string) => {
+    setExpandedCourseIds((prev) => {
+      const next = { ...prev, [courseId]: !prev[courseId] };
+      try {
+        localStorage.setItem(userAccordionKey, JSON.stringify(next));
+      } catch {}
+      return next;
     });
-  }, []);
+  };
+
+  const handleExpandAllCourses = () => {
+    const next: Record<string, boolean> = {};
+    filteredCourses.forEach((c) => {
+      next[c.id] = true;
+    });
+    setExpandedCourseIds(next);
+    try {
+      localStorage.setItem(userAccordionKey, JSON.stringify(next));
+    } catch {}
+  };
+
+  const handleCollapseAllCourses = () => {
+    setExpandedCourseIds({});
+    try {
+      localStorage.setItem(userAccordionKey, JSON.stringify({}));
+    } catch {}
+  };
 
   // Sync with prop courses if parent updates
   useEffect(() => {
@@ -356,30 +399,58 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
         </button>
       </div>
 
+      {/* Aviso de Idioma Original (se idioma não for pt-BR) */}
+      {i18n.language && !i18n.language.startsWith("pt") && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+          <Info className="w-4 h-4 shrink-0 text-amber-500" aria-hidden="true" />
+          <span>{t("ava.aviso_idioma_original")}</span>
+        </div>
+      )}
+
       {/* Sub-tab views */}
       {activeSubTab === "courses" && (
         <div className="space-y-4">
-          {/* Search & filter toolbar */}
+          {/* Search, Accordion Controls & Toolbar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" aria-hidden="true" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar matéria por nome, sigla ou professor..."
-                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition"
+                placeholder={t("ava.buscar_materia")}
+                aria-label={t("ava.buscar_materia")}
+                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition min-h-[44px]"
               />
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-[var(--app-text-muted)] font-semibold">
-              <span>Exibindo <strong>{filteredCourses.length}</strong> de {courses.length} disciplinas</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botões Expandir Tudo e Recolher Tudo */}
+              <div className="flex items-center gap-1.5 bg-[var(--app-card)] p-1 rounded-2xl border border-[var(--app-border)]">
+                <button
+                  type="button"
+                  onClick={handleExpandAllCourses}
+                  aria-label={t("ava.expandir_tudo")}
+                  className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
+                >
+                  {t("ava.expandir_tudo")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCollapseAllCourses}
+                  aria-label={t("ava.recolher_tudo")}
+                  className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
+                >
+                  {t("ava.recolher_tudo")}
+                </button>
+              </div>
+
               <button
                 onClick={() => setShowProfileManager(true)}
-                className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold transition flex items-center gap-1 cursor-pointer"
+                className="px-3.5 py-2 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer min-h-[44px]"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Adicionar / Importar</span>
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{t("ava.adicionar_manual")}</span>
               </button>
             </div>
           </div>
@@ -387,11 +458,11 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
           {filteredCourses.length === 0 ? (
             <div className="p-8 sm:p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
               <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <BookOpen className="w-7 h-7" />
+                <BookOpen className="w-7 h-7" aria-hidden="true" />
               </div>
               <div className="max-w-md mx-auto space-y-1">
                 <h3 className="text-base font-black text-[var(--app-text)]">
-                  Nenhuma Disciplina do AVA IFES Sincronizada
+                  {t("ava.nenhuma_disciplina")}
                 </h3>
                 <p className="text-xs text-[var(--app-text-muted)]">
                   Insira suas credenciais institucionais do IFES (matrícula e senha) para autenticar no seu perfil e baixar suas matérias e conteúdos reais do AVA Moodle.
@@ -406,74 +477,136 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                       setShowProfileManager(true);
                     }
                   }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95 min-h-[48px]"
                 >
-                  <Building2 className="w-4 h-4" />
-                  <span>Digitar Credenciais e Sincronizar AVA</span>
+                  <Building2 className="w-4 h-4" aria-hidden="true" />
+                  <span>{t("ava.digitar_credenciais")}</span>
                 </button>
                 <button
                   onClick={() => setShowProfileManager(true)}
-                  className="px-4 py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 min-h-[48px]"
                 >
-                  <Clipboard className="w-3.5 h-3.5" />
+                  <Clipboard className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Colar Texto ou Grade Manual</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCourses.map((course) => (
-                <div
-                  key={course.id}
-                  className="p-5 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/50 transition flex flex-col justify-between space-y-4 shadow-xs group"
-                >
-                  <div className="space-y-2.5">
-                    {/* Unboxed metadata header adhering to zero-pill rules */}
-                    <div className="flex items-center justify-between text-xs text-[var(--app-text-muted)] font-mono">
-                      <span>{course.code || "IFES"}</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold font-sans">
-                        {course.progressPercent || 45}% concluído
-                      </span>
-                    </div>
+            <div className="space-y-3" role="region" aria-label={t("ava.materias")}>
+              {filteredCourses.map((course) => {
+                const isExpanded = Boolean(expandedCourseIds[course.id]);
 
-                    <h3 className="text-base font-bold text-[var(--app-text)] group-hover:text-[var(--app-primary)] transition leading-snug">
-                      {course.name}
-                    </h3>
-
-                    <p className="text-xs text-[var(--app-text-muted)]">
-                      <span>{course.professor || "Corpo Docente IFES"}</span>
-                      <span className="mx-1.5 opacity-40">·</span>
-                      <span>{course.campus || campusName}</span>
-                    </p>
-
-                    {/* Progress Track bar */}
-                    <div className="w-full bg-[var(--app-bg)] h-1.5 rounded-full overflow-hidden border border-[var(--app-border)]">
-                      <div
-                        className="bg-[var(--app-primary)] h-full rounded-full transition-all duration-300"
-                        style={{ width: `${course.progressPercent || 45}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[var(--app-border)] flex items-center justify-between">
+                return (
+                  <div
+                    key={course.id}
+                    className="rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden transition shadow-xs"
+                  >
+                    {/* Botão Acordeão Principal acessível via teclado */}
                     <button
-                      onClick={() => handleDeleteCourse(course.id, course.name)}
-                      className="p-1.5 text-[var(--app-text-muted)] hover:text-red-500 rounded-lg transition cursor-pointer"
-                      title={`Remover ${course.name}`}
+                      type="button"
+                      onClick={() => handleToggleCourse(course.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`course-details-${course.id}`}
+                      className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-[var(--app-card-secondary)]/50 transition cursor-pointer min-h-[56px] focus-visible:ring-2 focus-visible:ring-[var(--app-primary)]"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 flex items-center justify-center font-bold text-base shrink-0">
+                          {(course as any).icon || "📚"}
+                        </div>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono font-bold text-[var(--app-text-muted)] bg-[var(--app-bg)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
+                              {course.code || "IFES"}
+                            </span>
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                              {t("ava.concluido", { percent: course.progressPercent || 45 })}
+                            </span>
+                          </div>
+                          <h3 className="text-sm sm:text-base font-bold text-[var(--app-text)] truncate">
+                            {course.name}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-[var(--app-text-muted)] hidden sm:inline">
+                          {isExpanded ? "Contrair" : "Expandir"}
+                        </span>
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--app-bg)] text-[var(--app-text-muted)] border border-[var(--app-border)] transition-transform duration-200 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        >
+                          <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                        </div>
+                      </div>
                     </button>
 
-                    <button
-                      onClick={() => setSelectedCourse(course)}
-                      className="px-3.5 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-                    >
-                      <span>Acessar Sala</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Conteúdo Expansível com Motion */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          id={`course-details-${course.id}`}
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={isReducedMotion ? { duration: 0 } : { duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden border-t border-[var(--app-border)] bg-[var(--app-bg)]/40"
+                        >
+                          <div className="p-5 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--app-text-muted)]">
+                              <div>
+                                <span className="font-bold text-[var(--app-text)] block">Docente:</span>
+                                <span>{course.professor || "Corpo Docente IFES"}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold text-[var(--app-text)] block">Campus:</span>
+                                <span>{course.campus || campusName}</span>
+                              </div>
+                            </div>
+
+                            {/* Barra de Progresso */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between text-[11px] font-mono">
+                                <span className="text-[var(--app-text-muted)]">Andamento da Disciplina</span>
+                                <span className="font-bold text-[var(--app-primary)]">{course.progressPercent || 45}%</span>
+                              </div>
+                              <div className="w-full bg-[var(--app-card)] h-2 rounded-full overflow-hidden border border-[var(--app-border)]">
+                                <div
+                                  className="bg-[var(--app-primary)] h-full rounded-full transition-all duration-300"
+                                  style={{ width: `${course.progressPercent || 45}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Ações da Disciplina */}
+                            <div className="pt-2 flex items-center justify-between gap-3 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCourse(course.id, course.name)}
+                                className="p-2.5 text-[var(--app-text-muted)] hover:text-red-500 rounded-xl hover:bg-red-500/10 transition cursor-pointer min-h-[44px] flex items-center gap-1.5 text-xs font-bold"
+                                title={`Remover ${course.name}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Remover</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCourse(course)}
+                                className="px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:opacity-90 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer min-h-[48px]"
+                              >
+                                <span>{t("ava.acessar_sala")}</span>
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

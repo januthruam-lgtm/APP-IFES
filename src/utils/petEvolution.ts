@@ -18,6 +18,22 @@ const PET_EMOJIS: Record<PetType, { base: string[]; names: string[] }> = {
     base: ["🐣", "🐥", "🦅", "🦉"],
     names: ["Pintinho Aprendiz", "Pássaro Leitor", "Águia Estrategista", "Coruja da Sabedoria"],
   },
+  coruja: {
+    base: ["🦉", "🦉✨", "👑🦉", "🏛️🦉🏛️"],
+    names: ["Corujinha Curiosa", "Coruja Sábia", "Coruja da Sabedoria", "Coruja Erudita Ancestral"],
+  },
+  owl: {
+    base: ["🦉", "🦉✨", "👑🦉", "🏛️🦉🏛️"],
+    names: ["Corujinha Curiosa", "Coruja Sábia", "Coruja da Sabedoria", "Coruja Erudita Ancestral"],
+  },
+  raposa: {
+    base: ["🦊", "🦊✨", "⚡🦊", "👑🦊👑"],
+    names: ["Raposinha Ágil", "Raposa Astuta", "Estrategista Veloz", "Raposa Mística Lendária"],
+  },
+  fox: {
+    base: ["🦊", "🦊✨", "⚡🦊", "👑🦊👑"],
+    names: ["Raposinha Ágil", "Raposa Astuta", "Estrategista Veloz", "Raposa Mística Lendária"],
+  },
   elephant: {
     base: ["🐘", "🐘✨", "👑🐘", "🐘💎"],
     names: ["Elefantinho da Memória", "Elefante Focado", "Guardião dos Registros", "Titã Gnosiológico"],
@@ -25,6 +41,22 @@ const PET_EMOJIS: Record<PetType, { base: string[]; names: string[] }> = {
   tiger: {
     base: ["🐯", "🐅", "⚡🐅", "🔥🐅🔥"],
     names: ["Tigrinho Veloz", "Tigre Persistente", "Guerreiro do Saber", "Predador de Desafios"],
+  },
+  gato_robo: {
+    base: ["🐱", "🤖", "⚡🤖", "🚀🐱🤖"],
+    names: ["Gatinho Aprendiz", "Gato-Robô Alfa", "Cibernético IFES", "Supercomputador Sentiente"],
+  },
+  cat: {
+    base: ["🐱", "🤖", "⚡🤖", "🚀🐱🤖"],
+    names: ["Gatinho Aprendiz", "Gato-Robô Alfa", "Cibernético IFES", "Supercomputador Sentiente"],
+  },
+  dragao_livro: {
+    base: ["🦎", "🐉", "✨🐉✨", "🔥👑🐉👑🔥"],
+    names: ["Dragãozinho de Biblioteca", "Dragão Guardião", "Dragão-Livro Mítico", "Soberano do Conhecimento"],
+  },
+  dragon: {
+    base: ["🦎", "🐉", "✨🐉✨", "🔥👑🐉👑🔥"],
+    names: ["Dragãozinho de Biblioteca", "Dragão Guardião", "Dragão-Livro Mítico", "Soberano do Conhecimento"],
   },
   custom: {
     base: ["🤖", "🚀", "🌟", "👑"],
