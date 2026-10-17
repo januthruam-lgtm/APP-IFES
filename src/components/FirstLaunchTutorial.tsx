@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Sparkles,
@@ -103,6 +103,12 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [selectedPetType, setSelectedPetType] = useState<PetType>("coruja");
   const [petCustomName, setPetCustomName] = useState<string>("Athena");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Ao trocar de passo, volta ao topo da área rolável
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [currentStep]);
 
   if (!isOpen) return null;
 
@@ -147,15 +153,23 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none">
+    // Fundo: tela cheia, respeitando as áreas seguras do Android
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+      }}
+    >
+      {/* Card: altura limitada à tela, em coluna. Quem rola é o miolo. */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-2xl bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl shadow-2xl text-[var(--app-text)] overflow-hidden my-auto"
+        className="w-full max-w-2xl max-h-full flex flex-col bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl shadow-2xl text-[var(--app-text)] overflow-hidden"
       >
-        {/* Top Progress Bar & Header */}
-        <div className="p-4 sm:p-6 pb-3 border-b border-[var(--app-border)] flex items-center justify-between gap-3">
+        {/* Top Progress Bar & Header (fixo) */}
+        <div className="p-4 sm:p-6 pb-3 border-b border-[var(--app-border)] flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center shadow-md shrink-0 border border-[var(--app-primary)]/30">
               <GraduationCap className="w-5 h-5 font-black" />
@@ -192,8 +206,11 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
           </div>
         </div>
 
-        {/* Dynamic Step Content */}
-        <div className="p-5 sm:p-7 min-h-[380px] flex flex-col justify-between">
+        {/* Miolo rolável: é aqui que a rolagem acontece */}
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] p-5 sm:p-7"
+        >
           <AnimatePresence mode="wait">
             {/* STEP 1: BOAS-VINDAS */}
             {currentStep === 1 && (
@@ -203,296 +220,3 @@ export const FirstLaunchTutorial: React.FC<FirstLaunchTutorialProps> = ({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
-              >
-                <div className="text-center space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20 mb-1">
-                    <img
-                      src="/logo.png"
-                      alt="Brain Studio Logo"
-                      className="w-44 sm:w-52 h-auto object-contain mx-auto"
-                    />
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-black text-[var(--app-text)]">
-                    Bem-vindo ao Brain Studio!
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[var(--app-text-muted)] max-w-lg mx-auto leading-relaxed">
-                    Seu ecossistema inteligente de alta performance acadêmica. Conecte seus estudos, 
-                    exercite sua mente com mentoria socrática e evolua junto com seu Pet.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                  <div className="p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-center space-y-1.5">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] mx-auto flex items-center justify-center">
-                      <BookOpen className="w-4 h-4" />
-                    </div>
-                    <h4 className="text-xs font-bold text-[var(--app-text)]">Matérias IFES</h4>
-                    <p className="text-[11px] text-[var(--app-text-muted)]">
-                      Sincronize ou importe suas disciplinas com resumos estruturados.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-center space-y-1.5">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--app-accent)]/15 text-[var(--app-accent)] mx-auto flex items-center justify-center">
-                      <MessageSquareCode className="w-4 h-4" />
-                    </div>
-                    <h4 className="text-xs font-bold text-[var(--app-text)]">Tutor Socrático</h4>
-                    <p className="text-[11px] text-[var(--app-text-muted)]">
-                      IA Lumina que desafia seu raciocínio com perguntas investigativas.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-center space-y-1.5">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 mx-auto flex items-center justify-center">
-                      <Heart className="w-4 h-4" />
-                    </div>
-                    <h4 className="text-xs font-bold text-[var(--app-text)]">Pet Interativo</h4>
-                    <p className="text-[11px] text-[var(--app-text-muted)]">
-                      Ganhe XP para alimentar e subir o nível do seu companheiro de estudos.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* STEP 2: EXPLICAÇÃO DAS ABAS */}
-            {currentStep === 2 && (
-              <motion.div
-                key="step-2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <div className="space-y-1">
-                  <h3 className="text-lg sm:text-xl font-black text-[var(--app-text)] flex items-center gap-2">
-                    <Compass className="w-5 h-5 text-[var(--app-primary)]" />
-                    <span>Navegando no Brain Studio</span>
-                  </h3>
-                  <p className="text-xs text-[var(--app-text-muted)]">
-                    Conheça as abas fundamentais que organizam sua jornada acadêmica diária:
-                  </p>
-                </div>
-
-                <div className="space-y-2.5">
-                  <div className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                      📊
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-[var(--app-text)]">Dashboard Geral</h4>
-                      <p className="text-[11px] text-[var(--app-text-muted)]">
-                        Visão panorâmica da sua ofensiva (dias seguidos de estudo), barra de energia vital, cartas colecionáveis e status do seu pet.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--app-primary)]/15 text-[var(--app-primary)] flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                      📚
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-[var(--app-text)]">Matérias & Trilhas de Aprendizagem</h4>
-                      <p className="text-[11px] text-[var(--app-text-muted)]">
-                        Acesse suas matérias com módulos conceituais, simulados automáticos, flashcards e verificação detalhada de respostas com IA.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--app-accent)]/15 text-[var(--app-accent)] flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                      💡
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-[var(--app-text)]">Tutor Socrático Lumina</h4>
-                      <p className="text-[11px] text-[var(--app-text-muted)]">
-                        Diálogo maiêutico inteligente com histórico instantâneo e sínteses automáticas salvas direto na sua biblioteca.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                      📖
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-[var(--app-text)]">Biblioteca & Cadernos</h4>
-                      <p className="text-[11px] text-[var(--app-text-muted)]">
-                        Armazenamento dos seus resumos acadêmicos, conversas salvas com o tutor e histórico de exercícios.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">
-                      🐾
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-[var(--app-text)]">Loja & Cuidados com o Pet</h4>
-                      <p className="text-[11px] text-[var(--app-text-muted)]">
-                        Alimente seu companheiro, compre recargas e expansões permanentes de energia e desbloqueie distintivos exclusivos.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* STEP 3: ESCOLHA OBRIGATÓRIA DO PET INICIAL */}
-            {currentStep === 3 && (
-              <motion.div
-                key="step-3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-4"
-              >
-                <div className="text-center space-y-1">
-                  <h3 className="text-lg sm:text-xl font-black text-[var(--app-text)] flex items-center justify-center gap-2">
-                    <Sparkles className="w-5 h-5 text-[var(--app-primary)]" />
-                    <span>Escolha seu Pet Inicial</span>
-                  </h3>
-                  <p className="text-xs text-[var(--app-text-muted)] max-w-md mx-auto">
-                    Selecione obrigatoriamente um pet companheiro para iniciar sua jornada. Ele evoluirá conforme você estuda!
-                  </p>
-                </div>
-
-                {/* Pet Selection Grid com Mascotes 3D Reais */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                  {STARTER_PETS.map((pet) => {
-                    const isSelected = selectedPetType === pet.type;
-                    return (
-                      <div
-                        key={pet.type}
-                        onClick={() => handleSelectPet(pet)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSelectPet(pet);
-                        }}
-                        className={`relative p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center space-y-1.5 select-none ${
-                          isSelected
-                            ? "border-[var(--app-primary)] bg-[var(--app-primary)]/15 scale-[1.03] shadow-md"
-                            : "border-[var(--app-border)] bg-[var(--app-card-secondary)] hover:border-[var(--app-primary)]/50"
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--app-primary)] text-white flex items-center justify-center shadow-sm z-10">
-                            <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />
-                          </div>
-                        )}
-
-                        {/* Visualizador 3D do Mascote sem cortes na cabeça */}
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 relative rounded-xl bg-[var(--app-card)]/40 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center pointer-events-none p-1">
-                          <Pet3DView
-                            petType={pet.type}
-                            petName={pet.defaultName}
-                            size="sm"
-                            className="w-full h-full"
-                          />
-                        </div>
-
-                        <div>
-                          <h4 className="text-xs font-black text-[var(--app-text)]">{pet.defaultName}</h4>
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-[var(--app-card)] text-[var(--app-text-muted)] border border-[var(--app-border)]">
-                            {pet.badge}
-                          </span>
-                        </div>
-
-                        <p className="text-[10px] text-[var(--app-text-muted)] leading-snug line-clamp-2">
-                          {pet.description}
-                        </p>
-
-                        <div className="w-full pt-1 border-t border-[var(--app-border)] text-[9px] font-bold text-[var(--app-primary)]">
-                          {pet.trait}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Painel Interativo 3D do Pet Selecionado com Nome */}
-                {selectedPetType && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3.5 rounded-3xl bg-[var(--app-card-secondary)] border-2 border-[var(--app-primary)]/30 flex flex-col sm:flex-row items-center gap-4"
-                  >
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 rounded-2xl bg-[var(--app-bg)]/80 border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-1 shadow-inner">
-                      <Pet3DView
-                        petType={selectedPetType}
-                        petName={petCustomName || (STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName)}
-                        size="md"
-                        className="w-full h-full"
-                      />
-                    </div>
-                    <div className="flex-1 space-y-1.5 text-left w-full">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-[var(--app-text)]">
-                          Mascote 3D: {STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName}
-                        </span>
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-[var(--app-primary)]/15 text-[var(--app-primary)] font-bold">
-                          3D Ativo • Corpo & Cabeça Completos
-                        </span>
-                      </div>
-                      <label htmlFor="pet-name-input" className="text-[11px] font-bold text-[var(--app-text)] block">
-                        Nome do seu Mascote Companheiro:
-                      </label>
-                      <input
-                        id="pet-name-input"
-                        type="text"
-                        maxLength={20}
-                        value={petCustomName}
-                        onChange={(e) => setPetCustomName(e.target.value)}
-                        placeholder={STARTER_PETS.find((p) => p.type === selectedPetType)?.defaultName || "Nome do pet..."}
-                        className="w-full sm:w-64 px-3 py-1.5 rounded-xl bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold focus:outline-none focus:border-[var(--app-primary)] shadow-xs"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Bottom Navigation Buttons */}
-          <div className="pt-6 border-t border-[var(--app-border)] flex items-center justify-between gap-3 mt-4">
-            {currentStep > 1 ? (
-              <button
-                onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
-                className="px-4 py-2 rounded-xl bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-xs font-bold text-[var(--app-text)] transition flex items-center gap-1.5 cursor-pointer border border-[var(--app-border)]"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Voltar</span>
-              </button>
-            ) : (
-              <div />
-            )}
-
-            {currentStep < 3 ? (
-              <button
-                onClick={() => setCurrentStep((prev) => (prev + 1) as any)}
-                className="px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-black text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
-              >
-                <span>Avançar</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                disabled={!selectedPetType}
-                onClick={handleFinish}
-                className={`px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 shadow-lg transition cursor-pointer ${
-                  selectedPetType
-                    ? "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white shadow-sm scale-[1.02]"
-                    : "bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] cursor-not-allowed border border-[var(--app-border)]"
-                }`}
-              >
-                <span>{selectedPetType ? "Concluir e Ir para o Dashboard" : "Selecione um Pet para Começar"}</span>
-                <Sparkles className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
