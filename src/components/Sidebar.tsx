@@ -24,11 +24,14 @@ import {
   Timer,
   Video,
   GraduationCap,
+  Eye,
+  Globe,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors } from "../types";
 import { Pet3DView } from "./pet3d/Pet3DView";
 import { NativeAppButton } from "./NativeAppButton";
 import { BrandLogoBanner } from "./BrandLogoBanner";
+import { SettingsTabId } from "./SettingsModal";
 
 export type TabId =
   | "dashboard"
@@ -54,6 +57,8 @@ interface SidebarProps {
   onQuickSyncCourses?: () => void;
   onOpenOfflineModal?: () => void;
   onOpenProfileSettings?: () => void;
+  onOpenSettings?: (initialTab?: SettingsTabId) => void;
+  onOpenAccessibility?: () => void;
   isOnline?: boolean;
   currentTheme?: CustomThemeColors;
 }
@@ -66,6 +71,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onQuickSyncCourses,
   onOpenOfflineModal,
   onOpenProfileSettings,
+  onOpenSettings,
+  onOpenAccessibility,
   isOnline = true,
 }) => {
   const navSections = [
@@ -190,13 +197,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--app-success)]" />
             </div>
 
-            <button
-              onClick={onOpenProfileSettings}
-              className="w-7 h-7 rounded-lg bg-[var(--app-bg)] hover:bg-[var(--app-primary)]/10 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition flex items-center justify-center border border-[var(--app-border)] cursor-pointer"
-              title="Configurações e Perfil do Aluno"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {onOpenAccessibility && (
+                <button
+                  onClick={onOpenAccessibility}
+                  className="w-7 h-7 rounded-lg bg-[var(--app-bg)] hover:bg-[var(--app-primary)]/10 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition flex items-center justify-center border border-[var(--app-border)] cursor-pointer"
+                  title="Acessibilidade & Inclusão (WCAG AAA)"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={() => (onOpenSettings ? onOpenSettings("idioma") : onOpenProfileSettings?.())}
+                className="w-7 h-7 rounded-lg bg-[var(--app-bg)] hover:bg-[var(--app-primary)]/10 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition flex items-center justify-center border border-[var(--app-border)] cursor-pointer"
+                title="Configurações do App, Idioma e Perfil"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <BrandLogoBanner compact className="w-full" />
@@ -309,6 +328,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer / Offline status, Native App & Logout */}
       <div className="pt-3 border-t border-[var(--app-border)] space-y-2.5">
+        <div className="grid grid-cols-2 gap-1.5">
+          {onOpenAccessibility && (
+            <button
+              onClick={onOpenAccessibility}
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold text-[var(--app-text)] hover:text-[var(--app-primary)] bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] border border-[var(--app-border)] transition cursor-pointer"
+              title="Opções de Acessibilidade e Inclusão"
+            >
+              <Eye className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+              <span>Acessibilidade</span>
+            </button>
+          )}
+
+          {onOpenSettings && (
+            <button
+              onClick={() => onOpenSettings("idioma")}
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold text-[var(--app-text)] hover:text-[var(--app-primary)] bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] border border-[var(--app-border)] transition cursor-pointer"
+              title="Configurações do Aplicativo e Idioma"
+            >
+              <Settings className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+              <span>Ajustes</span>
+            </button>
+          )}
+        </div>
+
         <NativeAppButton variant="sidebar" />
 
         <div className="flex items-center justify-between text-[11px] px-2 text-[var(--app-text-muted)]">

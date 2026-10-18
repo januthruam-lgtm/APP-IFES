@@ -5,6 +5,9 @@ import { AuthModal } from "./components/AuthModal";
 import { LessonModal } from "./components/LessonModal";
 import { OfflineCacheModal } from "./components/OfflineCacheModal";
 import { ProfileSettingsModal } from "./components/ProfileSettingsModal";
+import { SettingsModal, SettingsTabId } from "./components/SettingsModal";
+import { AccessibilityModal } from "./components/AccessibilityModal";
+import PaywallModal from "./components/PaywallModal";
 import { NotificationSettingsModal } from "./components/NotificationSettingsModal";
 import { DashboardTab } from "./components/tabs/DashboardTab";
 import { SocraticTutorTab } from "./components/tabs/SocraticTutorTab";
@@ -214,6 +217,10 @@ export default function App() {
     }
   });
   const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>("idioma");
+  const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [activeLessonModule, setActiveLessonModule] = useState<TrackModule | null>(null);
@@ -1010,7 +1017,7 @@ export default function App() {
       {/* Authentication Modal */}
       <AuthModal isOpen={isAuthOpen} onLogin={handleLogin} />
 
-      {/* Profile & Matrícula Settings Modal */}
+      {/* Profile & Matrícula Settings Modal (Fallback direto) */}
       <ProfileSettingsModal
         isOpen={isProfileSettingsOpen}
         onClose={() => setIsProfileSettingsOpen(false)}
@@ -1020,6 +1027,51 @@ export default function App() {
         onReopenTutorial={() => {
           setIsProfileSettingsOpen(false);
           setShowTutorial(true);
+        }}
+      />
+
+      {/* Central de Configurações Geral do App (Idioma, Acessibilidade, Perfil, Notificações, Cache, Planos) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        user={user}
+        onSaveUser={handleUpdateProfile}
+        onResetCourses={handleResetCourses}
+        onReopenTutorial={() => {
+          setIsSettingsOpen(false);
+          setShowTutorial(true);
+        }}
+        onOpenAccessibilityDetail={() => {
+          setIsSettingsOpen(false);
+          setIsAccessibilityOpen(true);
+        }}
+        onOpenOfflineDetail={() => {
+          setIsSettingsOpen(false);
+          setIsOfflineModalOpen(true);
+        }}
+        onOpenNotificationDetail={() => {
+          setIsSettingsOpen(false);
+          setIsNotificationModalOpen(true);
+        }}
+        onOpenPaywall={() => {
+          setIsSettingsOpen(false);
+          setIsPaywallOpen(true);
+        }}
+        initialTab={settingsInitialTab}
+      />
+
+      {/* Painel Especializado de Inclusão e Acessibilidade (WCAG AAA) */}
+      <AccessibilityModal
+        isOpen={isAccessibilityOpen}
+        onClose={() => setIsAccessibilityOpen(false)}
+      />
+
+      {/* Modal de Planos e Assinatura Lumina Pro */}
+      <PaywallModal
+        isOpen={isPaywallOpen}
+        onClose={() => setIsPaywallOpen(false)}
+        onUnlocked={() => {
+          setIsPaywallOpen(false);
         }}
       />
 
@@ -1061,7 +1113,15 @@ export default function App() {
         user={user}
         onLogout={handleLogout}
         onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-        onOpenProfileSettings={() => setIsProfileSettingsOpen(true)}
+        onOpenProfileSettings={() => {
+          setSettingsInitialTab("perfil");
+          setIsSettingsOpen(true);
+        }}
+        onOpenSettings={(tab) => {
+          setSettingsInitialTab(tab || "idioma");
+          setIsSettingsOpen(true);
+        }}
+        onOpenAccessibility={() => setIsAccessibilityOpen(true)}
         isOnline={isOnline}
         currentTheme={currentTheme}
       />
@@ -1086,10 +1146,18 @@ export default function App() {
           onLogout={handleLogout}
           onRechargeEnergy={() => setCurrentTab("store")}
           onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-          onOpenProfileSettings={() => setIsProfileSettingsOpen(true)}
+          onOpenProfileSettings={() => {
+            setSettingsInitialTab("perfil");
+            setIsSettingsOpen(true);
+          }}
           onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
           onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
           onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
+          onOpenSettings={(tab) => {
+            setSettingsInitialTab(tab || "idioma");
+            setIsSettingsOpen(true);
+          }}
+          onOpenAccessibility={() => setIsAccessibilityOpen(true)}
           onlineCount={onlineCount}
           isOnline={isOnline}
           currentTheme={currentTheme}

@@ -22,11 +22,15 @@ import {
   Video,
   Bell,
   GraduationCap,
+  Eye,
+  Globe,
 } from "lucide-react";
 import { TabId } from "./Sidebar";
 import { UserProfile, CustomThemeColors } from "../types";
 import { NativeAppButton } from "./NativeAppButton";
 import { BrandLogoBanner } from "./BrandLogoBanner";
+import { LanguageSelector } from "./LanguageSelector";
+import { SettingsTabId } from "./SettingsModal";
 
 interface HeaderProps {
   currentTab: TabId;
@@ -43,6 +47,8 @@ interface HeaderProps {
   onOpenNotificationSettings?: () => void;
   onOpenOnlineUsers?: () => void;
   onOpenAvaConnect?: () => void;
+  onOpenSettings?: (initialTab?: SettingsTabId) => void;
+  onOpenAccessibility?: () => void;
   onlineCount?: number;
   isOnline?: boolean;
   currentTheme?: CustomThemeColors;
@@ -62,6 +68,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNotificationSettings,
   onOpenOnlineUsers,
   onOpenAvaConnect,
+  onOpenSettings,
+  onOpenAccessibility,
   onlineCount = 1,
   isOnline = true,
 }) => {
@@ -278,6 +286,24 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
+          {/* ACCESSIBILITY TRIGGER */}
+          {onOpenAccessibility && (
+            <button
+              id="header-accessibility-btn"
+              onClick={onOpenAccessibility}
+              title="Acessibilidade & Inclusão (WCAG AAA)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
+            >
+              <Eye className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
+              <span className="hidden xl:inline text-xs font-bold">Acessibilidade</span>
+            </button>
+          )}
+
+          {/* LANGUAGE SELECTOR */}
+          <div className="hidden md:flex items-center">
+            <LanguageSelector variant="dropdown" />
+          </div>
+
           {/* NOTIFICATION SETTINGS TRIGGER */}
           {onOpenNotificationSettings && (
             <button
@@ -288,6 +314,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Bell className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
               <span className="hidden sm:inline text-xs font-bold">Notificações</span>
+            </button>
+          )}
+
+          {/* SETTINGS MODAL TRIGGER */}
+          {onOpenSettings && (
+            <button
+              id="header-settings-btn"
+              onClick={() => onOpenSettings("idioma")}
+              title="Configurações do App"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
+            >
+              <Settings className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:rotate-45 transition-transform" />
+              <span className="hidden sm:inline text-xs font-bold">Configurações</span>
             </button>
           )}
         </div>
@@ -382,6 +421,59 @@ export const Header: React.FC<HeaderProps> = ({
               })}
             </div>
 
+            {/* Idioma no Mobile */}
+            <div
+              className="p-3 rounded-2xl border space-y-2"
+              style={{
+                backgroundColor: "var(--app-bg)",
+                borderColor: "var(--app-border)",
+              }}
+            >
+              <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "var(--app-text)" }}>
+                <Globe className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
+                <span>Idioma do Aplicativo:</span>
+              </div>
+              <LanguageSelector variant="dropdown" className="w-full" />
+            </div>
+
+            {/* Configurações Gerais */}
+            {onOpenSettings && (
+              <button
+                onClick={() => {
+                  onOpenSettings("idioma");
+                  setMobileMenuOpen(false);
+                }}
+                style={{
+                  backgroundColor: "var(--app-bg)",
+                  color: "var(--app-text)",
+                  borderColor: "var(--app-border)",
+                }}
+                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
+              >
+                <Settings className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
+                <span>Menu de Configurações do App</span>
+              </button>
+            )}
+
+            {/* Inclusão & Acessibilidade */}
+            {onOpenAccessibility && (
+              <button
+                onClick={() => {
+                  onOpenAccessibility();
+                  setMobileMenuOpen(false);
+                }}
+                style={{
+                  backgroundColor: "var(--app-bg)",
+                  color: "var(--app-text)",
+                  borderColor: "var(--app-border)",
+                }}
+                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
+              >
+                <Eye className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
+                <span>Inclusão & Acessibilidade (WCAG AAA)</span>
+              </button>
+            )}
+
             {onOpenProfileSettings && (
               <button
                 onClick={() => {
@@ -395,8 +487,8 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
-                <Settings className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>Editar Matrícula & Perfil</span>
+                <GraduationCap className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
+                <span>Editar Matrícula & Perfil IFES</span>
               </button>
             )}
 
