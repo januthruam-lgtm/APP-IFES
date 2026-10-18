@@ -10,6 +10,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    // 0. Health check de conectividade do Firestore
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // 1. Boletins: leitura pelo dono (ou aberto em modo preview), escrita via sync
     match /boletins/{uid} {
       allow read: if isOwner(uid) || !isAuthenticated();

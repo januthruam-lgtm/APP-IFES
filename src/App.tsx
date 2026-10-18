@@ -1017,6 +1017,10 @@ export default function App() {
         user={user}
         onSaveUser={handleUpdateProfile}
         onResetCourses={handleResetCourses}
+        onReopenTutorial={() => {
+          setIsProfileSettingsOpen(false);
+          setShowTutorial(true);
+        }}
       />
 
       {/* Strict Notification Settings & Dynamic Lead Time Modal */}

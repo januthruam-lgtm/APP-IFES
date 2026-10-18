@@ -17,6 +17,14 @@
       },
       "required": ["uid", "nome", "status", "lastSeen"]
     },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Health check de conexão com o Cloud Firestore",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" }
+      }
+    },
     "Chamada": {
       "title": "Chamada",
       "description": "Sessão de chamada WebRTC de áudio e vídeo entre alunos",
@@ -185,6 +193,10 @@
     }
   },
   "firestore": {
+    "/test/{docId}": {
+      "schema": "TestConnection",
+      "description": "Health check doc de validação de conectividade do Firebase"
+    },
     "/users/{uid}": {
       "schema": "PerfilUsuario",
       "description": "Dados de perfil e configurações do aluno"

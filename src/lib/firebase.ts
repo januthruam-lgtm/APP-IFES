@@ -17,6 +17,7 @@ import {
   updateDoc,
   arrayUnion,
   addDoc,
+  getDocFromServer,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
@@ -35,9 +36,30 @@ const firebaseConfig = {
 // Initialize App
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firestore with custom database ID
-export const db = initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore with custom database ID and robust long polling to prevent WebChannel stream 10s timeouts in iframe/proxy environments
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+  },
+  firebaseConfig.firestoreDatabaseId
+);
 export const auth = getAuth(app);
+
+// Health check connection test to Cloud Firestore backend as mandated by skill
+export async function testFirestoreConnection() {
+  try {
+    await getDocFromServer(doc(db, "test", "connection"));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("the client is offline")) {
+      console.warn("[Firebase] Operating in offline-first mode with IndexedDB local cache.");
+    }
+  }
+}
+
+if (typeof window !== "undefined") {
+  testFirestoreConnection();
+}
 
 // ==========================================
 // 1. PRESENCE (Heartbeat real-time)

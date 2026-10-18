@@ -29,6 +29,7 @@ interface ProfileSettingsModalProps {
   user: UserProfile;
   onSaveUser: (updatedUser: Partial<UserProfile>) => void;
   onResetCourses?: () => void;
+  onReopenTutorial?: () => void;
 }
 
 const CAMPUS_OPTIONS = IFES_CAMPUSES_LIST;
@@ -39,6 +40,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   user,
   onSaveUser,
   onResetCourses,
+  onReopenTutorial,
 }) => {
   const [name, setName] = useState(user.name || "Ruam Sérgio de Sousa Januth");
   const [email, setEmail] = useState(user.email || "ruamsergioj@gmail.com");
@@ -343,6 +345,20 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   <span>Resetar Aplicativo</span>
                 </button>
               </div>
+
+              {onReopenTutorial && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onReopenTutorial();
+                  }}
+                  className="w-full py-2.5 px-3 bg-[var(--app-primary)]/10 hover:bg-[var(--app-primary)]/20 text-[var(--app-primary)] border border-[var(--app-primary)]/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4 text-[var(--app-primary)]" />
+                  <span>Rever Tutorial & Escolher Mascote 3D</span>
+                </button>
+              )}
             </div>
 
             {/* Action Buttons */}

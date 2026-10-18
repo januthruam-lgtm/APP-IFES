@@ -29,6 +29,28 @@ interface Pet3DViewProps {
   isJoyful?: boolean;
 }
 
+class PetErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err: any) {
+    console.warn("[Pet3DView] WebGL/Canvas error caught by boundary, using safe fallback:", err);
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
 export const Pet3DView: React.FC<Pet3DViewProps> = ({
   pet,
   petType: petTypeProp,
@@ -103,28 +125,6 @@ export const Pet3DView: React.FC<Pet3DViewProps> = ({
   const isCustomSized = size === "full" || (className.includes("w-") && className.includes("h-"));
   const containerClasses = isCustomSized ? "w-full h-full" : sizeClasses[size];
 
-class PetErrorBoundary extends React.Component<
-  { fallback: React.ReactNode; children: React.ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(err: any) {
-    console.warn("[Pet3DView] WebGL/Canvas error caught by boundary, using safe fallback:", err);
-  }
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
   const emojiFallback = (
     <div className="w-full h-full flex flex-col items-center justify-center animate-bounce">
       <span className={`${size === "xs" ? "text-xl" : size === "sm" ? "text-3xl" : "text-6xl sm:text-7xl"} select-none filter drop-shadow-md`}>
@@ -166,3 +166,5 @@ class PetErrorBoundary extends React.Component<
     </div>
   );
 };
+
+export default Pet3DView;

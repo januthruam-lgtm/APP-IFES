@@ -240,12 +240,12 @@ export const StoreTab: React.FC<StoreTabProps> = ({
         <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/25 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
             <div
-              className="cursor-pointer hover:scale-105 transition shrink-0 w-36 h-36 sm:w-44 sm:h-44 rounded-3xl bg-[var(--app-bg)]/60 border border-[var(--app-border)]/60 p-1 flex items-center justify-center relative shadow-inner overflow-hidden"
+              className="cursor-pointer hover:scale-105 transition shrink-0 w-44 h-44 sm:w-52 sm:h-52 rounded-3xl bg-[var(--app-bg)]/60 border border-[var(--app-border)]/60 p-1 flex items-center justify-center relative shadow-inner overflow-hidden"
               title="Clique no Mascote 3D para brincar e fazer carinho!"
             >
               <Pet3DView
                 pet={user.pet}
-                size="md"
+                size="lg"
                 className="w-full h-full"
               />
             </div>
@@ -377,7 +377,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
                 )}
 
                 {/* 3D Model Box - Enquadramento perfeito sem cortar a cabeça */}
-                <div className="w-24 h-24 sm:w-28 sm:h-28 relative rounded-xl bg-[var(--app-card)]/50 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center p-1">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 relative rounded-2xl bg-[var(--app-card)]/50 border border-[var(--app-border)]/50 overflow-hidden flex items-center justify-center p-1">
                   <Pet3DView
                     petType={catalogPet.id}
                     petName={catalogPet.nome}

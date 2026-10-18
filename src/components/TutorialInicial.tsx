@@ -45,6 +45,15 @@ type TutorialInicialProps = {
 
 export const PETS: PetOption[] = [
   {
+    type: "coruja",
+    defaultName: "Athena",
+    emoji: "🦉",
+    badge: "Sabedoria & Síntese",
+    description:
+      "Símbolo ancestral da sabedoria acadêmica do IFES. Vigia atentamente cada sessão de estudos.",
+    trait: "+10% de ganho de XP",
+  },
+  {
     type: "bunny",
     defaultName: "Bolin",
     emoji: "🐰",
@@ -63,6 +72,15 @@ export const PETS: PetOption[] = [
     trait: "+10% de absorção de leitura",
   },
   {
+    type: "raposa",
+    defaultName: "Faísca",
+    emoji: "🦊",
+    badge: "Astúcia & Resolução",
+    description:
+      "Extremamente ágil e analítica na resolução de exercícios práticos e lógica.",
+    trait: "+15% de rapidez em testes",
+  },
+  {
     type: "elephant",
     defaultName: "Pipoca",
     emoji: "🐘",
@@ -79,6 +97,24 @@ export const PETS: PetOption[] = [
     description:
       "Determinado e competitivo, adora questionários difíceis e desafios lógicos.",
     trait: "+15% de garra em simulados",
+  },
+  {
+    type: "gato_robo",
+    defaultName: "Byte",
+    emoji: "🤖",
+    badge: "Precisão Algorítmica",
+    description:
+      "Forjado nos laboratórios de engenharia e informática do IFES. Otimiza o foco.",
+    trait: "Economia de energia em quizzes",
+  },
+  {
+    type: "dragao_livro",
+    defaultName: "Ignis",
+    emoji: "🐉",
+    badge: "Mestre Lendário",
+    description:
+      "Criatura mítica protetora da sabedoria e do acervo bibliotecário do instituto.",
+    trait: "+25% de XP em provas",
   },
 ];
 

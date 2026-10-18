@@ -232,7 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onTabChange("store");
               }}
               title={`Mascote 3D: ${user.pet?.name || "Mascote"} (Clique para abrir Loja de Pets)`}
-              className="hover:scale-110 transition cursor-pointer w-10 h-10 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-0.5 shadow-xs"
+              className="hover:scale-110 transition cursor-pointer w-11 h-11 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] overflow-hidden flex items-center justify-center p-0.5 shadow-xs shrink-0"
             >
               <Pet3DView
                 pet={user.pet}

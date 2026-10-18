@@ -287,10 +287,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             className="my-3 py-1.5 flex flex-col items-center justify-center cursor-pointer relative group rounded-2xl bg-[var(--app-bg)]/50 border border-[var(--app-border)]/50 hover:border-[var(--app-primary)]/30 transition"
             title="Toque no Mascote 3D para brincar ou acessar a Loja de Pets"
           >
-            <div className="w-44 h-44 sm:w-52 sm:h-52 relative flex items-center justify-center overflow-visible">
+            <div className="w-52 h-52 sm:w-60 sm:h-60 relative flex items-center justify-center overflow-visible">
               <Pet3DView
                 pet={pet}
-                size="md"
+                size="lg"
                 className="w-full h-full"
               />
             </div>

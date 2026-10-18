@@ -3,17 +3,17 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   BunnyMesh,
+  OwlMesh,
   BirdMesh,
+  FoxMesh,
   ElephantMesh,
   TigerMesh,
-  OwlMesh,
-  FoxMesh,
   CatMesh,
   DragonMesh,
 } from "./ProceduralPetMeshes";
 
 interface Pet3DSceneProps {
-  type: string;
+  type?: string;
   hunger?: number;
   energy?: number;
   happiness?: number;
@@ -23,36 +23,33 @@ interface Pet3DSceneProps {
 }
 
 const PetActor: React.FC<Pet3DSceneProps> = ({
-  type,
-  hunger = 100,
-  energy = 100,
+  type = "coruja",
+  hunger = 85,
+  energy = 90,
   reducedMotion = false,
   onPetClick,
   isJoyful = false,
 }) => {
   const rootRef = useRef<THREE.Group>(null);
-
-  // Estados de animação e locomoção suave
   const [posX, setPosX] = useState(0);
-  const targetXRef = useRef(0);
-  const directionRef = useRef<1 | -1>(1);
-  const pauseTimeRef = useRef(0);
-  const isWalkingRef = useRef(true);
-
-  // Controle de pulo interativo
-  const jumpVelRef = useRef(0);
-  const jumpHeightRef = useRef(0);
-
-  // Ângulos animados de membros
+  const [legAngle, setLegAngle] = useState(0);
   const [earAngle, setEarAngle] = useState(0);
   const [wingAngle, setWingAngle] = useState(0);
-  const [legAngle, setLegAngle] = useState(0);
+
+  // Estados de IA procedurais do pet
+  const isWalkingRef = useRef<boolean>(false);
+  const targetXRef = useRef<number>(0);
+  const directionRef = useRef<number>(1);
+  const pauseTimeRef = useRef<number>(1.5);
+  const jumpHeightRef = useRef<number>(0);
+  const jumpVelRef = useRef<number>(0);
 
   const isTired = hunger < 30 || energy < 30;
 
-  const handlePointerDown = () => {
-    // Pulo de alegria imediato ao tocar
-    jumpVelRef.current = 0.08;
+  const handlePointerDown = (e: any) => {
+    e.stopPropagation?.();
+    // Pulo de alegria imediato e carinhoso ao tocar
+    jumpVelRef.current = 0.06;
     if (onPetClick) {
       onPetClick();
     }
@@ -62,16 +59,16 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
     if (reducedMotion || !rootRef.current) return;
 
     const time = state.clock.getElapsedTime();
-    const clampedDelta = Math.min(delta, 0.1);
+    const clampedDelta = Math.min(delta, 0.05);
 
-    // 1. Pulo de alegria ao clicar ou ganhar XP
-    if (isJoyful && jumpHeightRef.current <= 0) {
-      jumpVelRef.current = 0.08;
+    // 1. Pulo de alegria ao clicar, ganhar XP ou alimentar
+    if (isJoyful && jumpHeightRef.current <= 0 && jumpVelRef.current <= 0) {
+      jumpVelRef.current = 0.06;
     }
 
     if (jumpVelRef.current !== 0 || jumpHeightRef.current > 0) {
       jumpHeightRef.current += jumpVelRef.current;
-      jumpVelRef.current -= 0.3 * clampedDelta; // Gravidade suave
+      jumpVelRef.current -= 0.28 * clampedDelta * 60 * 0.016; // Gravidade suave estabilizada
 
       if (jumpHeightRef.current <= 0) {
         jumpHeightRef.current = 0;
@@ -84,14 +81,14 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
       pauseTimeRef.current -= clampedDelta;
       if (pauseTimeRef.current <= 0) {
         if (!isWalkingRef.current) {
-          // Voltar a caminhar em direção oposta
+          // Voltar a caminhar em direção oposta dentro dos limites seguros da tela
           directionRef.current = directionRef.current === 1 ? -1 : 1;
-          targetXRef.current = directionRef.current * (0.18 + Math.random() * 0.18);
+          targetXRef.current = directionRef.current * (0.12 + Math.random() * 0.14);
           isWalkingRef.current = true;
         } else {
           // Verificar se chegou ao destino
           const dist = Math.abs(targetXRef.current - posX);
-          if (dist < 0.05) {
+          if (dist < 0.04) {
             isWalkingRef.current = false;
             pauseTimeRef.current = 2.0 + Math.random() * 2.5; // Pausa para descansar
           }
@@ -102,7 +99,7 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
     }
 
     // Interpolação de movimento (lerp suave sem engasgos)
-    const walkSpeed = isWalkingRef.current ? (isTired ? 0.3 : 0.7) : 0;
+    const walkSpeed = isWalkingRef.current ? (isTired ? 0.3 : 0.65) : 0;
     const nextX = THREE.MathUtils.lerp(
       posX,
       isWalkingRef.current ? targetXRef.current : 0,
@@ -111,24 +108,24 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
     setPosX(nextX);
 
     // 3. Rotação do corpo na direção do movimento
-    const targetRotY = isWalkingRef.current ? (directionRef.current === 1 ? 0.35 : -0.35) : 0;
+    const targetRotY = isWalkingRef.current ? (directionRef.current === 1 ? 0.3 : -0.3) : 0;
     rootRef.current.rotation.y = THREE.MathUtils.lerp(rootRef.current.rotation.y, targetRotY, clampedDelta * 5);
 
-    // 4. Respiração suave e ajuste de altura para NUNCA cortar a cabeça
-    const breathSpeed = isTired ? 1.5 : 3.0;
-    const breathBob = Math.sin(time * breathSpeed) * (isTired ? 0.015 : 0.025);
-    const baseGroundY = -0.46;
+    // 4. Respiração suave e ajuste vertical para NUNCA cortar a cabeça
+    const breathSpeed = isTired ? 1.5 : 2.8;
+    const breathBob = Math.sin(time * breathSpeed) * (isTired ? 0.01 : 0.018);
+    const baseGroundY = -0.40;
     rootRef.current.position.y = baseGroundY + breathBob + jumpHeightRef.current;
     rootRef.current.position.x = nextX;
 
     // 5. Movimentação dos membros (orelhas, asas e patinhas)
     const legFreq = isWalkingRef.current ? 8 : 0;
-    setLegAngle(Math.sin(time * legFreq) * 0.35);
+    setLegAngle(Math.sin(time * legFreq) * 0.32);
 
-    const earSway = Math.sin(time * 4) * 0.15;
+    const earSway = Math.sin(time * 3.5) * 0.12;
     setEarAngle(earSway);
 
-    const wingFlap = isWalkingRef.current ? Math.sin(time * 12) * 0.35 : Math.sin(time * 3) * 0.1;
+    const wingFlap = isWalkingRef.current ? Math.sin(time * 12) * 0.32 : Math.sin(time * 2.8) * 0.09;
     setWingAngle(wingFlap);
   });
 
@@ -159,7 +156,7 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
   };
 
   return (
-    <group ref={rootRef} scale={0.65} onPointerDown={handlePointerDown}>
+    <group ref={rootRef} scale={0.58} onPointerDown={handlePointerDown}>
       {renderSpecies()}
     </group>
   );
@@ -168,9 +165,9 @@ const PetActor: React.FC<Pet3DSceneProps> = ({
 const CameraController: React.FC = () => {
   const { camera } = useThree();
   useEffect(() => {
-    // Alinhamento perpendicular com elevação no centro do mascote para enquadramento total
-    camera.position.set(0, 0.26, 3.8);
-    camera.lookAt(0, 0.26, 0);
+    // Alinhamento perpendicular com elevação no centro do mascote para enquadramento 100% completo
+    camera.position.set(0, 0.20, 4.3);
+    camera.lookAt(0, 0.20, 0);
   }, [camera]);
   return null;
 };
@@ -179,19 +176,19 @@ export const Pet3DScene: React.FC<Pet3DSceneProps> = (props) => {
   return (
     <div className="w-full h-full relative cursor-pointer select-none">
       <Canvas
-        camera={{ position: [0, 0.26, 3.8], fov: 40 }}
+        camera={{ position: [0, 0.20, 4.3], fov: 42 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
         frameloop={props.reducedMotion ? "demand" : "always"}
       >
         <CameraController />
-        <ambientLight intensity={1.2} />
+        <ambientLight intensity={1.25} />
         <directionalLight position={[2, 4, 3]} intensity={1.2} />
         <directionalLight position={[-2, 2, -1]} intensity={0.5} />
 
         {/* Sombra suave de contato no chão para assentar o mascote perfeitamente */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.48, 0]}>
-          <circleGeometry args={[0.55, 32]} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.42, 0]}>
+          <circleGeometry args={[0.6, 32]} />
           <meshBasicMaterial color="#000000" opacity={0.14} transparent />
         </mesh>
 
