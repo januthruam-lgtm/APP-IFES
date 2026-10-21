@@ -1,31 +1,37 @@
-import React, { useState } from 'react';
-import { Layers, Download, Smartphone, Sparkles, CheckCircle2 } from 'lucide-react';
-import { NativeAppModal } from './NativeAppModal';
-import { useNativeApp } from '../hooks/useNativeApp';
+import React, { useState } from "react";
+import { Layers, Download, Sparkles } from "lucide-react";
+import { NativeAppModal } from "./NativeAppModal";
+import { useNativeApp } from "../hooks/useNativeApp";
 
 interface NativeAppButtonProps {
   className?: string;
-  variant?: 'header' | 'sidebar' | 'banner' | 'pill' | 'card';
+  variant?: "header" | "sidebar" | "banner" | "pill" | "card";
 }
 
 export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
-  className = '',
-  variant = 'header',
+  className = "",
+  variant = "header",
 }) => {
-  const { isStandalone, triggerInstall, promptEvent } = useNativeApp();
+  const { isInstalled, canInstall, triggerInstall, promptEvent } = useNativeApp();
   const [showModal, setShowModal] = useState(false);
+
+  // Se já estiver instalado ou rodando nativo no APK, NUNCA renderizar
+  // Se o navegador não estiver oferecendo instalação (sem beforeinstallprompt ou dispensado), não renderizar
+  if (isInstalled || !canInstall) {
+    return null;
+  }
 
   const handleOpen = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (promptEvent) {
       const res = await triggerInstall();
-      if (res === 'accepted') return;
+      if (res === "accepted") return;
     }
     setShowModal(true);
   };
 
   // SIDEBAR VARIANT
-  if (variant === 'sidebar') {
+  if (variant === "sidebar") {
     return (
       <>
         <div
@@ -34,7 +40,7 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleOpen();
+            if (e.key === "Enter") handleOpen();
           }}
           className={`w-full flex items-center justify-between p-3 rounded-2xl bg-[var(--app-primary)]/10 border-2 border-[var(--app-primary)]/40 hover:border-[var(--app-primary)] transition cursor-pointer text-left shadow-xs select-none ${className}`}
         >
@@ -44,13 +50,13 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
             </div>
             <div>
               <div className="text-xs font-black text-[var(--app-text)] flex items-center gap-1.5">
-                <span>{isStandalone ? "App Instalado ✓" : "Instalar App Oficial"}</span>
+                <span>Instalar App Oficial</span>
                 <span className="px-1.5 py-0.2 rounded text-[9px] bg-[var(--app-primary)] text-white font-extrabold">
-                  {isStandalone ? "INSTALADO" : "INSTALAR"}
+                  INSTALAR
                 </span>
               </div>
               <div className="text-[10px] text-[var(--app-text-muted)]">
-                {isStandalone ? "Rodando fora do navegador" : "Sem navegador • Janela própria"}
+                Sem navegador • Janela própria
               </div>
             </div>
           </div>
@@ -63,7 +69,7 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
   }
 
   // PILL VARIANT
-  if (variant === 'pill') {
+  if (variant === "pill") {
     return (
       <>
         <button
@@ -72,7 +78,7 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
           className={`px-3 py-1.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer ${className}`}
         >
           <Download className="w-3.5 h-3.5" />
-          <span>{isStandalone ? "App Instalado ✓" : "Instalar App"}</span>
+          <span>Instalar App</span>
         </button>
 
         <NativeAppModal isOpen={showModal} onClose={() => setShowModal(false)} />
@@ -80,8 +86,8 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
     );
   }
 
-  // CARD VARIANT (Dashboard / Profile)
-  if (variant === 'card') {
+  // CARD VARIANT
+  if (variant === "card") {
     return (
       <>
         <div className="bg-[var(--app-card)] border border-[var(--app-border)] hover:border-[var(--app-primary)]/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition shadow-xs">
@@ -104,11 +110,10 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
 
           <button
             onClick={handleOpen}
-            id="native-app-card-btn"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
+            className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer shrink-0"
           >
-            <Smartphone className="w-4 h-4" />
-            <span>{isStandalone ? "App Já Instalado (Abrir)" : "Instalar Aplicativo Oficial"}</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Instalar</span>
           </button>
         </div>
 
@@ -117,24 +122,17 @@ export const NativeAppButton: React.FC<NativeAppButtonProps> = ({
     );
   }
 
-  // DEFAULT HEADER VARIANT
+  // DEFAULT / HEADER VARIANT
   return (
     <>
       <button
         onClick={handleOpen}
         id="native-app-header-btn"
-        className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs hover:scale-[1.03] active:scale-[0.97] transition cursor-pointer border ${
-          isStandalone
-            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-            : "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white border-transparent"
-        } ${className}`}
-        title="Instalar Brain Studio no seu dispositivo para abrir fora do navegador"
+        className={`px-3 py-1.5 rounded-full border border-[var(--app-border)] bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs ${className}`}
+        title="Instalar aplicativo oficial (PWA / Standalone)"
       >
-        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        <span className="hidden sm:inline">
-          {isStandalone ? "App Instalado" : "Instalar App"}
-        </span>
-        <span className="sm:hidden">{isStandalone ? "Instalado" : "Instalar"}</span>
+        <Download className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+        <span className="hidden md:inline">Instalar App</span>
       </button>
 
       <NativeAppModal isOpen={showModal} onClose={() => setShowModal(false)} />

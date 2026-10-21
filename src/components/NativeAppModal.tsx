@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useNativeApp } from '../hooks/useNativeApp';
+import { setDontShowInstallPrompt } from '../utils/pwaInstall';
 
 interface NativeAppModalProps {
   isOpen: boolean;
@@ -264,8 +265,18 @@ export const NativeAppModal: React.FC<NativeAppModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-[var(--app-border)] bg-[var(--app-card-secondary)] flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
-          <span>Brain Studio • IFES • Aplicativo Instalável</span>
           <button
+            type="button"
+            onClick={() => {
+              setDontShowInstallPrompt();
+              onClose();
+            }}
+            className="text-[var(--app-text-muted)] hover:text-rose-500 hover:underline cursor-pointer"
+          >
+            Não mostrar mais
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             className="font-bold text-[var(--app-primary)] hover:underline cursor-pointer"
           >

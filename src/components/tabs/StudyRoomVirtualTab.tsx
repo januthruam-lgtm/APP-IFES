@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Video,
   VideoOff,
@@ -51,6 +52,7 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
   onStartCallWithMember,
   onOpenPrivateChatWithMember,
 }) => {
+  const { t } = useTranslation();
   const activePeer = targetPeer || targetCallPeer;
   const clearPeer = onClearTargetPeer || onClearTargetCallPeer;
 
@@ -312,7 +314,7 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-sm sm:text-base font-bold text-[var(--app-text)]">
-                {activePeer ? `Chamada com ${activePeer.name}` : "Sala de Estudos Ao Vivo"}
+                {activePeer ? `Chamada com ${activePeer.name}` : t("sala_estudo.titulo", "Grupo de Estudos Virtual ao Vivo")}
               </h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -321,7 +323,7 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
             </div>
             <p className="text-xs text-[var(--app-text-muted)] flex items-center gap-2 mt-0.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Conexão WebRTC Estável e Criptografada</span>
+              <span>{t("sala_estudo.subtitulo", "Videoconferência acadêmica, compartilhamento de tela e chat colaborativo")}</span>
             </p>
           </div>
         </div>
@@ -432,37 +434,40 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
           {/* Controls Bar */}
           <div className="flex items-center justify-center gap-3 pt-4 border-t border-neutral-800/80 mt-3">
             <button
+              type="button"
               onClick={handleToggleMic}
               className={`p-3 rounded-2xl transition cursor-pointer ${
                 isMicOn
                   ? "bg-neutral-800 hover:bg-neutral-700 text-white"
                   : "bg-red-500 hover:bg-red-600 text-white"
               }`}
-              title={isMicOn ? "Silenciar Microfone" : "Ativar Microfone"}
+              title={isMicOn ? t("sala_estudo.desligar_mic", "Desligar Microfone") : t("sala_estudo.ligar_mic", "Ligar Microfone")}
             >
               {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
 
             <button
+              type="button"
               onClick={handleToggleVideo}
               className={`p-3 rounded-2xl transition cursor-pointer ${
                 isVideoOn
                   ? "bg-neutral-800 hover:bg-neutral-700 text-white"
                   : "bg-red-500 hover:bg-red-600 text-white"
               }`}
-              title={isVideoOn ? "Desativar Câmera" : "Ativar Câmera"}
+              title={isVideoOn ? t("sala_estudo.desligar_video", "Desligar Câmera") : t("sala_estudo.ligar_video", "Ligar Câmera")}
             >
               {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </button>
 
             <button
+              type="button"
               onClick={handleToggleScreenShare}
               className={`p-3 rounded-2xl transition cursor-pointer ${
                 isScreenSharing
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
                   : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
-              title={isScreenSharing ? "Parar Compartilhamento" : "Compartilhar Tela"}
+              title={isScreenSharing ? t("sala_estudo.parar_compartilhamento", "Parar Compartilhamento") : t("sala_estudo.compartilhar_tela", "Compartilhar Tela")}
             >
               <ScreenShare className="w-5 h-5" />
             </button>
@@ -484,7 +489,7 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
           <div className="bg-[#075e54] dark:bg-[#202c33] text-white px-4 py-3 flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-emerald-300" />
-              <h4 className="text-xs font-bold text-white">Chat da Sala de Estudos</h4>
+              <h4 className="text-xs font-bold text-white">{t("sala_estudo.chat_ao_vivo", "Chat ao Vivo da Sala")}</h4>
             </div>
             <span className="text-[10px] text-emerald-200">Tempo Real</span>
           </div>
@@ -559,14 +564,14 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
               placeholder={
                 roomTypers.length > 0
                   ? `${roomTypers.join(", ")} digitando...`
-                  : "Digite no chat da sala..."
+                  : t("sala_estudo.enviar_mensagem", "Enviar mensagem para o grupo...")
               }
               className="flex-1 px-3.5 py-2 text-xs rounded-full bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef] outline-none shadow-xs"
             />
             <button
               type="submit"
               className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center transition cursor-pointer shrink-0"
-              title="Enviar mensagem"
+              title={t("chat_direto.enviar", "Enviar mensagem")}
             >
               <Send className="w-3.5 h-3.5 ml-0.5" />
             </button>

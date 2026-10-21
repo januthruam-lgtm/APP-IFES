@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Sparkles,
   Zap,
@@ -70,6 +71,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onOpenAvaConnect,
   onUpdatePet,
 }) => {
+  const { t } = useTranslation();
   const [assignments, setAssignments] = useState<IfesAssignment[]>(() => loadSyncedAssignments());
   const [schedules] = useState<IfesClassSchedule[]>(() => loadSyncedSchedules());
   const [selectedDay, setSelectedDay] = useState<string>("Segunda");
@@ -166,7 +168,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="uppercase text-[11px] tracking-widest text-[var(--app-primary)] font-extrabold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[var(--app-primary)] animate-pulse" />
-                Brain Studio • Assistente de Aprendizagem IFES
+                {t("dashboard.subtitulo_hero", "Brain Studio • Assistente de Aprendizagem IFES")}
               </div>
               <span className="px-3 py-1 rounded-full border border-[var(--app-border)] text-[10px] uppercase tracking-widest text-[var(--app-text-muted)] font-mono">
                 {currentCourse?.category || "Técnico / Ensino Médio"}
@@ -174,7 +176,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-[1.1] tracking-tight max-w-xl text-[var(--app-text)]">
-              Potencialize seus estudos com inteligência acadêmica.
+              {t("dashboard.titulo_hero", "Potencialize seus estudos com inteligência acadêmica.")}
             </h1>
 
             {/* Quick Status Badges */}
@@ -184,17 +186,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 {user.energy}/{user.maxEnergy || 50} ⚡
               </span>
               <span className="px-3 py-1.5 rounded-full border border-[var(--app-border)] text-[11px] text-[var(--app-text)] bg-[var(--app-bg)] font-semibold flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {user.streakDays || 1} {user.streakDays === 1 ? "Dia de Ofensiva" : "Dias de Ofensiva"}
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {t("dashboard.ofensiva_dias", { count: user.streakDays || 1 })}
               </span>
               <span
                 onClick={() => onNavigate("store")}
                 className="px-3 py-1.5 rounded-full border border-emerald-500/30 text-[11px] text-emerald-600 bg-emerald-500/10 font-black font-mono flex items-center gap-1.5 cursor-pointer hover:scale-105 transition"
-                title="Ver Loja de Baús e Cartas"
+                title={t("dashboard.loja_pets", "Ver Loja de Pets")}
               >
-                <span>🪙 {user.coins ?? 250} Moedas</span>
+                <span>🪙 {t("comum.moedas", { count: user.coins ?? 250 })}</span>
               </span>
               <span className="px-3 py-1.5 rounded-full border border-[var(--app-primary)]/30 text-[11px] text-[var(--app-primary)] bg-[var(--app-primary)]/10 font-semibold font-mono">
-                {progressPercent}% Progresso Geral
+                {progressPercent}% {t("dashboard.progresso_geral", "Progresso Geral")}
               </span>
             </div>
           </div>
@@ -276,7 +278,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 {user.energy}/{user.maxEnergy || 50} ⚡
               </div>
               <div className="text-[10px] uppercase font-bold tracking-widest text-[var(--app-text-muted)]">
-                Energia
+                {t("dashboard.energia", "Energia")}
               </div>
             </div>
           </div>
@@ -369,8 +371,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span className={`w-2 h-2 rounded-full ${user.ifesAccount?.connected ? "bg-emerald-500" : "bg-amber-500 animate-ping"}`} />
               <h4 className="text-xs sm:text-sm font-extrabold text-[var(--app-text)]">
                 {user.ifesAccount?.connected
-                  ? "Conexão Permanente com AVA IFES"
-                  : "Conexão com AVA IFES Pendente"}
+                  ? t("dashboard.conexao_permanente_ava", "Conexão Permanente com AVA IFES")
+                  : t("dashboard.conexao_pendente_ava", "Conexão com AVA IFES Pendente")}
               </h4>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--app-card)] border border-[var(--app-border)] font-bold text-[var(--app-text-muted)]">
                 {user.ifesAccount?.connected ? "ESTÁVEL" : "DESCONECTADO"}
@@ -408,7 +410,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-extrabold uppercase tracking-wider text-[var(--app-text)]">
-                  Atividades & Prazos ({pendingAssignments.length} Pendentes)
+                  {t("dashboard.atividades_prazos", "Atividades & Prazos")} ({t("dashboard.atividades_pendentes", { count: pendingAssignments.length })})
                 </h3>
                 <p className="text-[11px] text-[var(--app-text-muted)]">
                   Entregue tarefas para ganhar +50 XP e evoluir seu mascote
@@ -426,12 +428,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
           {assignments.length === 0 ? (
             <div className="p-6 text-center bg-[var(--app-bg)] rounded-2xl border border-[var(--app-border)] text-[var(--app-text-muted)] text-xs space-y-2">
-              <p>Nenhuma atividade cadastrada no momento.</p>
+              <p>{t("dashboard.nenhuma_atividade", "Nenhuma atividade cadastrada no momento.")}</p>
               <button
                 onClick={() => onNavigate("ifes")}
                 className="px-4 py-2 bg-[var(--app-primary)] text-white font-bold rounded-xl text-xs cursor-pointer"
               >
-                Conectar ao AVA Moodle IFES
+                {t("dashboard.conectar_ava", "Acessar AVA IFES")}
               </button>
             </div>
           ) : (
@@ -564,21 +566,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg font-bold text-[var(--app-text)] flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-[var(--app-primary)]" /> Minhas Matérias do AVA IFES (
-            {courses.length} Disciplinas)
+            <BookOpen className="w-4 h-4 text-[var(--app-primary)]" /> {t("dashboard.minhas_materias", "Minhas Matérias do AVA IFES")} {t("dashboard.disciplinas_count", { count: courses.length })}
           </h2>
           <div className="flex items-center gap-3">
             <button
               onClick={() => onNavigate("ifes")}
               className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
-              Gerenciar Matérias Reais
+              {t("dashboard.gerenciar_materias", "Gerenciar Matérias Reais")}
             </button>
             <button
               onClick={() => onNavigate("sequence")}
               className="text-xs text-[var(--app-primary)] hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
-              Ver Trilhas <ArrowRight className="w-3.5 h-3.5" />
+              {t("dashboard.ver_trilhas", "Ver Trilhas")} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -587,7 +588,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="p-8 text-center bg-[var(--app-card)] rounded-3xl border border-[var(--app-border)] space-y-3">
             <div className="text-3xl">📚</div>
             <h4 className="text-sm font-bold text-[var(--app-text)]">
-              Nenhuma disciplina cadastrada
+              {t("dashboard.nenhuma_materia", "Nenhuma disciplina cadastrada")}
             </h4>
             <p className="text-xs text-[var(--app-text-muted)] max-w-md mx-auto">
               Conecte sua matrícula institucional no AVA IFES para carregar sua grade curricular e trilhas de aprendizagem.
@@ -596,7 +597,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               onClick={() => onNavigate("ifes")}
               className="px-5 py-2.5 bg-[var(--app-primary)] text-white font-extrabold text-xs uppercase rounded-xl cursor-pointer"
             >
-              Acessar AVA IFES
+              {t("dashboard.conectar_ava", "Acessar AVA IFES")}
             </button>
           </div>
         ) : (

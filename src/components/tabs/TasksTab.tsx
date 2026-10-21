@@ -1,13 +1,11 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ListTodo,
   CheckCircle2,
   Circle,
   Plus,
   Trash2,
-  Calendar,
-  AlertCircle,
-  Sparkles,
 } from "lucide-react";
 import { UserProfile, CourseTrack, TaskItem, TaskPriority } from "../../types";
 import confetti from "canvas-confetti";
@@ -57,6 +55,8 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   onRewardXp,
   onRewardCoins,
 }) => {
+  const { t } = useTranslation();
+
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TASKS);
@@ -80,23 +80,23 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   };
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskCategory, setNewTaskCategory] = useState(courses[0]?.title || "Geral");
+  const [newTaskCategory, setNewTaskCategory] = useState(courses[0]?.title || t("tarefas.geral", "Geral"));
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>("média");
   const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().split("T")[0]);
 
   const handleToggleTask = (id: string) => {
     updateTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const nextCompleted = !t.completed;
+      prev.map((tItem) => {
+        if (tItem.id === id) {
+          const nextCompleted = !tItem.completed;
           if (nextCompleted) {
             confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
             if (onRewardXp) onRewardXp(20);
             if (onRewardCoins) onRewardCoins(5);
           }
-          return { ...t, completed: nextCompleted };
+          return { ...tItem, completed: nextCompleted };
         }
-        return t;
+        return tItem;
       })
     );
   };
@@ -120,36 +120,38 @@ export const TasksTab: React.FC<TasksTabProps> = ({
   };
 
   const handleDeleteTask = (id: string) => {
-    updateTasks((prev) => prev.filter((t) => t.id !== id));
+    updateTasks((prev) => prev.filter((tItem) => tItem.id !== id));
   };
 
-  const completedCount = tasks.filter((t) => t.completed).length;
+  const completedCount = tasks.filter((tItem) => tItem.completed).length;
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Top Banner */}
-      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
             <ListTodo className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-[var(--app-text)]">Gerenciador de Tarefas de Estudo</h2>
+            <h2 className="text-lg font-black text-[var(--app-text)]">
+              {t("tarefas.gerenciador", "Gerenciador de Tarefas de Estudo")}
+            </h2>
             <p className="text-xs text-[var(--app-text-muted)]">
-              Organize seus deveres, leituras e entregas por disciplina com recompensas em moedas e XP.
+              {t("tarefas.gerenciador_desc", "Organize seus deveres, leituras e entregas por disciplina com recompensas em moedas e XP.")}
             </p>
           </div>
         </div>
 
         <span className="text-xs font-bold text-[var(--app-primary)] px-3 py-1.5 rounded-xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20">
-          {completedCount} de {tasks.length} concluídas
+          {t("tarefas.tarefas_concluidas_count", { completed: completedCount, total: tasks.length, defaultValue: `${completedCount} de ${tasks.length} concluídas` })}
         </span>
       </div>
 
       {/* Add Task Form */}
       <form
         onSubmit={handleAddTask}
-        className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-sm space-y-3"
+        className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-xs space-y-3"
       >
         <div className="flex flex-col sm:flex-row gap-2.5">
           <input
@@ -157,7 +159,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             required
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="O que você precisa estudar ou entregar hoje?..."
+            placeholder={t("tarefas.placeholder_nova_tarefa", "O que você precisa estudar ou entregar hoje?...")}
             className="flex-1 px-3.5 py-2.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text)] outline-none"
           />
 
@@ -171,7 +173,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
                 {c.title}
               </option>
             ))}
-            <option value="Geral">Geral</option>
+            <option value="Geral">{t("tarefas.geral", "Geral")}</option>
           </select>
 
           <select
@@ -179,9 +181,9 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
             className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold"
           >
-            <option value="alta">Prioridade Alta</option>
-            <option value="média">Prioridade Média</option>
-            <option value="baixa">Prioridade Baixa</option>
+            <option value="alta">{t("tarefas.prioridade_alta", "Alta")}</option>
+            <option value="média">{t("tarefas.prioridade_media", "Média")}</option>
+            <option value="baixa">{t("tarefas.prioridade_baixa", "Baixa")}</option>
           </select>
 
           <button
@@ -189,70 +191,81 @@ export const TasksTab: React.FC<TasksTabProps> = ({
             className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
-            <span>Adicionar</span>
+            <span>{t("tarefas.adicionar_tarefa", "Adicionar")}</span>
           </button>
         </div>
       </form>
 
       {/* Tasks List */}
       <div className="space-y-2.5">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 bg-[var(--app-card)] shadow-xs ${
-              task.completed ? "opacity-60 border-[var(--app-border)]" : "border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
-            }`}
-          >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <button
-                onClick={() => handleToggleTask(task.id)}
-                className="text-[var(--app-primary)] shrink-0 cursor-pointer"
-              >
-                {task.completed ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />
-                ) : (
-                  <Circle className="w-5 h-5 text-neutral-400" />
-                )}
-              </button>
-
-              <div className="space-y-0.5 min-w-0 flex-1">
-                <p
-                  className={`text-xs sm:text-sm font-bold truncate ${
-                    task.completed ? "line-through text-[var(--app-text-muted)]" : "text-[var(--app-text)]"
-                  }`}
+        {tasks.length === 0 ? (
+          <div className="p-8 text-center bg-[var(--app-card)] rounded-2xl border border-[var(--app-border)] text-xs text-[var(--app-text-muted)]">
+            {t("tarefas.sem_tarefas", "Nenhuma tarefa cadastrada nesta categoria.")}
+          </div>
+        ) : (
+          tasks.map((task) => (
+            <div
+              key={task.id}
+              className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 bg-[var(--app-card)] shadow-xs ${
+                task.completed ? "opacity-60 border-[var(--app-border)]" : "border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
+              }`}
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => handleToggleTask(task.id)}
+                  className="text-[var(--app-primary)] shrink-0 cursor-pointer"
+                  title={task.completed ? t("tarefas.marcar_pendente", "Marcar como pendente") : t("tarefas.marcar_concluida", "Marcar como concluída")}
                 >
-                  {task.title}
-                </p>
-                <div className="flex items-center gap-2 text-[10px] text-[var(--app-text-muted)]">
-                  <span>{task.category}</span>
-                  <span>•</span>
-                  <span>Prazo: {task.dueDate}</span>
-                  <span>•</span>
-                  <span
-                    className={`font-bold uppercase ${
-                      task.priority === "alta"
-                        ? "text-red-500"
-                        : task.priority === "média"
-                        ? "text-amber-500"
-                        : "text-blue-500"
+                  {task.completed ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-neutral-400" />
+                  )}
+                </button>
+
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <p
+                    className={`text-xs sm:text-sm font-bold truncate ${
+                      task.completed ? "line-through text-[var(--app-text-muted)]" : "text-[var(--app-text)]"
                     }`}
                   >
-                    {task.priority}
-                  </span>
+                    {task.title}
+                  </p>
+                  <div className="flex items-center gap-2 text-[10px] text-[var(--app-text-muted)] flex-wrap">
+                    <span>{task.category}</span>
+                    <span>•</span>
+                    <span>{t("tarefas.prazo_prefix", "Prazo:")} {task.dueDate}</span>
+                    <span>•</span>
+                    <span
+                      className={`font-bold uppercase ${
+                        task.priority === "alta"
+                          ? "text-red-500"
+                          : task.priority === "média"
+                          ? "text-amber-500"
+                          : "text-blue-500"
+                      }`}
+                    >
+                      {task.priority === "alta" ? t("tarefas.prioridade_alta", "Alta") : task.priority === "baixa" ? t("tarefas.prioridade_baixa", "Baixa") : t("tarefas.prioridade_media", "Média")}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <button
-              onClick={() => handleDeleteTask(task.id)}
-              className="p-1.5 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
-              title="Excluir tarefa"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                onClick={() => handleDeleteTask(task.id)}
+                className="p-1.5 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
+                title={t("tarefas.excluir", "Excluir")}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 };
+
+export default TasksTab;

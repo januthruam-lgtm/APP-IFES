@@ -11,6 +11,9 @@
     "clean": "rm -rf dist server.js",
     "build:native": "npm run clean && vite build && npx cap sync android",
     "android:open": "npx cap open android",
+    "check:i18n": "tsx scripts/check-i18n.ts",
+    "test": "tsx scripts/test-streak.ts && tsx scripts/test-regras.ts",
+    "test:regras": "tsx scripts/test-regras.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -39,6 +42,7 @@
     "jsqr": "^1.4.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "multer": "^2.4.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-i18next": "^17.0.19",
@@ -51,6 +55,7 @@
     "@capacitor/cli": "^8.5.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^4.17.21",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

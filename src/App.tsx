@@ -17,6 +17,7 @@ import { GuildsBattlesTab } from "./components/tabs/GuildsBattlesTab";
 import { IfesAvaTab } from "./components/tabs/IfesAvaTab";
 import { StoreTab } from "./components/tabs/StoreTab";
 import { LibraryTab } from "./components/tabs/LibraryTab";
+import { DictionaryTab } from "./components/tabs/DictionaryTab";
 import { ColorThemeTab } from "./components/tabs/ColorThemeTab";
 import { TasksTab } from "./components/tabs/TasksTab";
 import { AgendaTab } from "./components/tabs/AgendaTab";
@@ -1198,6 +1199,7 @@ export default function App() {
               onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
               onRewardXp={handleRewardXp}
               courses={courses}
+              onNavigateToGames={() => setCurrentTab("games")}
             />
           )}
 
@@ -1290,6 +1292,21 @@ export default function App() {
               onOpenDeckWithDocument={() => {
                 setCurrentTab("games");
               }}
+              onRewardXp={handleRewardXp}
+            />
+          )}
+
+          {currentTab === "dictionary" && (
+            <DictionaryTab
+              user={user}
+              onOpenSocraticWithTerm={(term) => {
+                setCurrentTab("lumina");
+              }}
+              onNavigateToFlashcards={() => {
+                setCurrentTab("flashcards");
+              }}
+              onRewardXp={handleRewardXp}
+              onRewardCoins={handleRewardCoins}
             />
           )}
 
@@ -1355,16 +1372,21 @@ export default function App() {
             />
           )}
 
-          {currentTab === "theme" && (
-            <ColorThemeTab
-              currentTheme={currentTheme}
-              onThemeChange={(newTheme) => {
-                setCurrentTheme(newTheme);
-                saveTheme(newTheme);
-                applyThemeToDOM(newTheme);
-              }}
-              user={user}
-            />
+          {currentTab === "settings" && (
+            <div className="p-6 max-w-4xl mx-auto space-y-6">
+              <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-[var(--app-text)]">Central de Configurações</h2>
+                  <p className="text-sm text-[var(--app-text-muted)]">Gerencie conta, idioma, temas de cores, acessibilidade, AVA IFES e armazenamento.</p>
+                </div>
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="px-5 py-2.5 rounded-2xl bg-[var(--app-primary)] text-white font-bold text-sm shadow hover:opacity-90 transition cursor-pointer"
+                >
+                  Abrir Painel Completo
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </main>

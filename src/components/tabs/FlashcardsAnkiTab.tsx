@@ -1,13 +1,8 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Layers,
-  Sparkles,
   RotateCw,
-  CheckCircle2,
-  AlertTriangle,
-  Brain,
-  ThumbsUp,
-  Plus,
 } from "lucide-react";
 import { UserProfile, FlashcardItem, CourseTrack } from "../../types";
 import { DEFAULT_OFFLINE_DECKS, DEFAULT_OFFLINE_FLASHCARDS, DeckInfo } from "../../data/offlineFlashcards";
@@ -25,15 +20,15 @@ export const FlashcardsAnkiTab: React.FC<FlashcardsAnkiTabProps> = ({
   onRewardXp,
   onRewardCoins,
 }) => {
+  const { t } = useTranslation();
   const [decks] = useState<DeckInfo[]>(DEFAULT_OFFLINE_DECKS);
   const [selectedDeckId, setSelectedDeckId] = useState<string>(decks[0]?.id || "");
-  const [flashcards, setFlashcards] = useState<FlashcardItem[]>(DEFAULT_OFFLINE_FLASHCARDS);
+  const [flashcards] = useState<FlashcardItem[]>(DEFAULT_OFFLINE_FLASHCARDS);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
 
-  const activeDeck = decks.find((d) => d.id === selectedDeckId) || decks[0];
   const deckCards = flashcards.filter((c) => c.deckId === selectedDeckId);
   const currentCard = deckCards[currentIndex] || deckCards[0];
 
@@ -56,23 +51,23 @@ export const FlashcardsAnkiTab: React.FC<FlashcardsAnkiTabProps> = ({
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Top Banner */}
-      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md">
             <Layers className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-lg font-black text-[var(--app-text)]">
-              Flashcards & Repetição Espaçada (SRS Anki)
+              {t("flashcards.titulo", "Flashcards Inteligentes (Anki)")}
             </h2>
             <p className="text-xs text-[var(--app-text-muted)]">
-              Fixe conceitos de longo prazo revisando no momento exato antes da curva do esquecimento.
+              {t("flashcards.subtitulo", "Repetição espaçada com revisão ativa para fixação permanente")}
             </p>
           </div>
         </div>
 
         <span className="text-xs font-bold text-[var(--app-primary)] px-3 py-1.5 rounded-xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20">
-          {reviewedCount} revisões hoje
+          {reviewedCount} {t("flashcards.revisar_baralho", "revisões")}
         </span>
       </div>
 
@@ -81,6 +76,7 @@ export const FlashcardsAnkiTab: React.FC<FlashcardsAnkiTabProps> = ({
         {decks.map((d) => (
           <button
             key={d.id}
+            type="button"
             onClick={() => {
               setSelectedDeckId(d.id);
               setCurrentIndex(0);
@@ -103,14 +99,14 @@ export const FlashcardsAnkiTab: React.FC<FlashcardsAnkiTabProps> = ({
         <div className="space-y-4">
           <div
             onClick={() => setIsFlipped(!isFlipped)}
-            className="min-h-[280px] sm:min-h-[320px] p-8 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-sm flex flex-col justify-between cursor-pointer hover:border-[var(--app-primary)] transition select-none"
+            className="min-h-[280px] sm:min-h-[320px] p-8 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs flex flex-col justify-between cursor-pointer hover:border-[var(--app-primary)] transition select-none"
           >
             <div className="flex items-center justify-between text-xs text-[var(--app-text-muted)]">
               <span className="font-bold uppercase tracking-wider">
-                {isFlipped ? "Verso • Resposta / Conceito" : "Frente • Pergunta"}
+                {isFlipped ? t("flashcards.verso", "Verso da Resposta") : t("flashcards.frente", "Frente da Pergunta")}
               </span>
               <span className="flex items-center gap-1 text-[var(--app-primary)] font-bold">
-                <RotateCw className="w-3.5 h-3.5" /> Clique para virar
+                <RotateCw className="w-3.5 h-3.5" /> {t("flashcards.toque_para_virar", "Toque no cartão para virar")}
               </span>
             </div>
 
@@ -129,46 +125,55 @@ export const FlashcardsAnkiTab: React.FC<FlashcardsAnkiTabProps> = ({
           {isFlipped ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 animate-in fade-in">
               <button
+                type="button"
                 onClick={() => handleRateCard("again")}
                 className="p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 text-xs font-bold transition cursor-pointer"
               >
-                Errei (1d)
+                {t("flashcards.errar", "Errei")} (1d)
               </button>
               <button
+                type="button"
                 onClick={() => handleRateCard("hard")}
                 className="p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-xs font-bold transition cursor-pointer"
               >
-                Difícil (2d)
+                {t("flashcards.dificil", "Difícil")} (2d)
               </button>
               <button
+                type="button"
                 onClick={() => handleRateCard("good")}
                 className="p-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 border border-blue-500/30 text-xs font-bold transition cursor-pointer"
               >
-                Bom (4d)
+                {t("flashcards.bom", "Bom")} (4d)
               </button>
               <button
+                type="button"
                 onClick={() => handleRateCard("easy")}
                 className="p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-xs font-bold transition cursor-pointer"
               >
-                Fácil (7d)
+                {t("flashcards.facil", "Fácil")} (7d)
               </button>
             </div>
           ) : (
             <div className="text-center">
               <button
+                type="button"
                 onClick={() => setIsFlipped(true)}
                 className="px-6 py-2.5 rounded-xl bg-[var(--app-primary)] text-white text-xs font-bold shadow-xs cursor-pointer"
               >
-                Mostrar Resposta
+                {t("flashcards.mostrar_resposta", "Mostrar Resposta")}
               </button>
             </div>
           )}
         </div>
       ) : (
         <div className="p-12 text-center bg-[var(--app-card)] rounded-3xl border border-[var(--app-border)]">
-          <p className="text-xs text-[var(--app-text-muted)]">Nenhum card cadastrado neste baralho ainda.</p>
+          <p className="text-xs text-[var(--app-text-muted)]">
+            {t("flashcards.cards_restantes", { count: 0, defaultValue: "Nenhum cartão cadastrado neste baralho ainda." })}
+          </p>
         </div>
       )}
     </div>
   );
 };
+
+export default FlashcardsAnkiTab;

@@ -1,19 +1,56 @@
+# Dependências
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Saídas de Build e Empacotamento
 dist/
+build/
 coverage/
-.DS_Store
+dist-native/
+server.cjs
+server.cjs.map
+
+# Logs e Arquivos Temporários
 *.log
-.env*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp/
+.temp/
+*.tmp
+
+# Variáveis de Ambiente e Segredos (NUNCA COMMITTAR)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
 !.env.example
 
-# Android / assinatura
+# Chaves de Assinatura, Certificados e Credenciais Android / Capacitor
 *.keystore
 *.jks
 keystore.properties
+google-services.json
+firebase_applet_config.xml
 android/local.properties
 android/.gradle/
 android/build/
 android/app/build/
 *.apk
 *.aab
+
+# Arquivos de IDE e Sistema Operacional
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

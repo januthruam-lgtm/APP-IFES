@@ -1,6 +1,7 @@
 // Camada Unificada de Audiodescrição e Síntese de Voz (TTS)
 // Compatível com Web e WebView Android (Capacitor 8) com tratamento seguro de exceções.
 import i18n from "../i18n";
+import { normalizeSpeechLang } from "../hooks/useSpeechRecognition";
 
 export interface SpeechOptions {
   rate?: number; // 0.5 a 2.0
@@ -13,6 +14,14 @@ export interface SpeechOptions {
 }
 
 let activeUtterance: SpeechSynthesisUtterance | null = null;
+let cachedVoices: SpeechSynthesisVoice[] = [];
+
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  cachedVoices = window.speechSynthesis.getVoices() || [];
+  window.speechSynthesis.onvoiceschanged = () => {
+    cachedVoices = window.speechSynthesis.getVoices() || [];
+  };
+}
 
 export function isSpeechSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
@@ -20,7 +29,10 @@ export function isSpeechSupported(): boolean {
 
 export function getAvailableVoices(): SpeechSynthesisVoice[] {
   if (!isSpeechSupported()) return [];
-  return window.speechSynthesis.getVoices() || [];
+  if (cachedVoices.length === 0) {
+    cachedVoices = window.speechSynthesis.getVoices() || [];
+  }
+  return cachedVoices;
 }
 
 export function stopSpeaking(): void {
@@ -69,14 +81,17 @@ export function speakText(text: string, options: SpeechOptions = {}): void {
     utterance.pitch = options.pitch ?? 1.0;
     utterance.volume = options.volume ?? 1.0;
 
-    const targetLang = options.lang || i18n.language || "pt-BR";
+    const rawLang = options.lang || i18n.language || "pt-BR";
+    const targetLang = normalizeSpeechLang(rawLang);
     utterance.lang = targetLang;
 
     // Tentar selecionar a melhor voz no idioma atual
     const voices = getAvailableVoices();
-    const matchingVoice = voices.find((v) =>
-      v.lang.toLowerCase().startsWith(targetLang.slice(0, 2).toLowerCase())
-    );
+    const prefix = targetLang.slice(0, 2).toLowerCase();
+    const matchingVoice =
+      voices.find((v) => v.lang.toLowerCase() === targetLang.toLowerCase()) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith(prefix));
+
     if (matchingVoice) {
       utterance.voice = matchingVoice;
     }
@@ -107,17 +122,17 @@ export function speakText(text: string, options: SpeechOptions = {}): void {
 }
 
 /**
- * Lê a descrição da tela atual estruturada em ordem lógica:
+ * Lê a descrição da tela atual estruturada em ordem lógica no idioma selecionado:
  * título, elementos principais e ações disponíveis.
  */
 export function readCurrentScreen(screenTitle: string, mainElements: string[], actions: string[]): void {
   const parts: string[] = [];
-  parts.push(`Tela atual: ${screenTitle}.`);
+  parts.push(i18n.t("speech.tela_atual", { screen: screenTitle, defaultValue: `Tela atual: ${screenTitle}.` }));
   if (mainElements.length > 0) {
-    parts.push(`Conteúdo principal: ${mainElements.join(". ")}.`);
+    parts.push(i18n.t("speech.conteudo_principal", { content: mainElements.join(". "), defaultValue: `Conteúdo principal: ${mainElements.join(". ")}.` }));
   }
   if (actions.length > 0) {
-    parts.push(`Ações disponíveis: ${actions.join(". ")}.`);
+    parts.push(i18n.t("speech.acoes_disponiveis", { actions: actions.join(". "), defaultValue: `Ações disponíveis: ${actions.join(". ")}.` }));
   }
   speakText(parts.join(" "));
 }

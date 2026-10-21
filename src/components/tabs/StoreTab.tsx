@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ShoppingBag,
   Zap,
@@ -42,6 +43,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
   onRewardCoins,
   onUpdatePet,
 }) => {
+  const { t } = useTranslation();
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const [isRenamingPet, setIsRenamingPet] = useState(false);
   const [newPetName, setNewPetName] = useState(user.pet?.name || "Mascote");
@@ -214,9 +216,11 @@ export const StoreTab: React.FC<StoreTabProps> = ({
             <ShoppingBag className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-[var(--app-text)]">Loja & Economia Brain Studio</h2>
+            <h2 className="text-lg font-black text-[var(--app-text)]">
+              {t("loja.titulo", "Loja & Economia Brain Studio")}
+            </h2>
             <p className="text-xs text-[var(--app-text-muted)]">
-              Use suas moedas ganhas com esforço acadêmico para recarregar baterias e cuidar do mascote.
+              {t("loja.recursos_gratuitos_aviso", "Use suas moedas ganhas com esforço acadêmico para recarregar baterias e cuidar do mascote.")}
             </p>
           </div>
         </div>
@@ -225,12 +229,12 @@ export const StoreTab: React.FC<StoreTabProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-sm font-black">
             <Coins className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span>{user.coins} Moedas</span>
+            <span>{t("comum.moedas", { count: user.coins, defaultValue: `${user.coins} Moedas` })}</span>
           </div>
 
           <div className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-sm font-black">
             <Zap className="w-4 h-4 fill-emerald-500 text-emerald-500" />
-            <span>{user.energy}/{user.maxEnergy} Energia</span>
+            <span>{user.energy}/{user.maxEnergy} {t("dashboard.energia", "Energia")}</span>
           </div>
         </div>
       </div>

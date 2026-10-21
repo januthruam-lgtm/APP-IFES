@@ -77,12 +77,22 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 9. Dados do Usuário
+    // 9. Dados do Usuário e Memória da Lumina
     match /users/{uid} {
       allow read, write: if isOwner(uid) || !isAuthenticated();
       match /credentials/{credType} {
         allow read, write: if isOwner(uid) || !isAuthenticated();
       }
+      match /luminaMemoria/{memoriaId} {
+        allow read, delete: if isOwner(uid) || !isAuthenticated();
+        allow write: if isOwner(uid) || !isAuthenticated();
+      }
+    }
+
+    // 10. Biblioteca Virtual Aberta (Apenas obras ativas com licença auditada)
+    match /biblioteca/{obraId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
   }
 }

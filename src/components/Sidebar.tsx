@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   LayoutDashboard,
   Brain,
@@ -26,6 +27,7 @@ import {
   GraduationCap,
   Eye,
   Globe,
+  BookOpen,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors } from "../types";
 import { Pet3DView } from "./pet3d/Pet3DView";
@@ -47,7 +49,8 @@ export type TabId =
   | "ifes"
   | "store"
   | "library"
-  | "theme";
+  | "dictionary"
+  | "settings";
 
 interface SidebarProps {
   currentTab: TabId;
@@ -75,48 +78,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAccessibility,
   isOnline = true,
 }) => {
+  const { t } = useTranslation();
+
   const navSections = [
     {
-      title: "Lock-In & Produtividade",
+      title: t("nav.grupo_produtividade", "Lock-In & Produtividade"),
       items: [
         {
           id: "tasks" as TabId,
-          label: "Organizador de Tarefas",
+          label: t("nav.tarefas", "Organizador de Tarefas"),
           icon: ListTodo,
-          badge: "Foco",
+          badge: t("nav.badge_foco", "Foco"),
           badgeColor: "text-[var(--app-accent)] bg-[var(--app-accent)]/10 border-[var(--app-accent)]/20",
         },
         {
           id: "agenda" as TabId,
-          label: "Agenda Compartilhada",
+          label: t("nav.agenda", "Agenda Compartilhada"),
           icon: Calendar,
         },
         {
           id: "study_methods" as TabId,
-          label: "Métodos de Estudo",
+          label: t("nav.metodos_estudo", "Métodos de Estudo"),
           icon: Timer,
         },
         {
           id: "flashcards" as TabId,
-          label: "Flashcards Anki",
+          label: t("nav.flashcards", "Flashcards Anki"),
           icon: Layers,
         },
         {
           id: "study_room" as TabId,
-          label: "Grupo de Estudos Virtual",
+          label: t("nav.sala_estudos", "Grupo de Estudos Virtual"),
           icon: Video,
-          badge: "Ao Vivo",
+          badge: t("nav.badge_aovivo", "Ao Vivo"),
           badgeColor: "text-[var(--app-success)] bg-[var(--app-success)]/10 border-[var(--app-success)]/20",
         },
       ],
     },
     {
-      title: "Acadêmico IFES",
+      title: t("nav.grupo_academico", "Acadêmico IFES"),
       items: [
         {
           id: "ifes" as TabId,
-          label: "AVA Moodle IFES",
-          badge: user.ifesAccount?.connected ? "Sincronizado" : "Conectar",
+          label: t("nav.ava_ifes", "AVA Moodle IFES"),
+          badge: user.ifesAccount?.connected ? t("nav.badge_sincronizado", "Sincronizado") : t("nav.badge_conectar", "Conectar"),
           badgeColor: user.ifesAccount?.connected
             ? "text-[var(--app-success)] bg-[var(--app-success)]/10 border-[var(--app-success)]/30"
             : "text-amber-600 bg-amber-500/10 border-amber-500/30",
@@ -124,58 +129,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: "sequence" as TabId,
-          label: "Minhas Disciplinas",
+          label: t("nav.disciplinas", "Minhas Disciplinas"),
           icon: GitBranch,
         },
         {
           id: "dashboard" as TabId,
-          label: "Dashboard",
+          label: t("nav.dashboard", "Dashboard"),
           icon: LayoutDashboard,
         },
       ],
     },
     {
-      title: "Aprendizado & IA",
+      title: t("nav.grupo_ia", "Aprendizado & IA"),
       items: [
         {
           id: "lumina" as TabId,
-          label: "Lumina IA",
+          label: t("nav.lumina", "Lumina IA"),
           icon: Brain,
           highlight: true,
-          badge: "Tutora IA",
+          badge: t("nav.badge_tutora", "Tutora IA"),
           badgeColor: "text-[var(--app-primary)] bg-[var(--app-primary)]/10 border-[var(--app-primary)]/20",
         },
         {
           id: "games" as TabId,
-          label: "Simulados 10Q",
+          label: t("nav.simulados", "Simulados 10Q"),
           icon: Gamepad2,
         },
         {
           id: "library" as TabId,
-          label: "Biblioteca & Acervo",
+          label: t("nav.biblioteca", "Biblioteca & Acervo"),
           icon: BookMarked,
+        },
+        {
+          id: "dictionary" as TabId,
+          label: t("nav.dicionario", "Dicionário Inteligente"),
+          icon: BookOpen,
         },
       ],
     },
     {
-      title: "Comunidade & Customização",
+      title: t("nav.grupo_comunidade", "Comunidade & Conquistas"),
       items: [
         {
           id: "teams" as TabId,
-          label: "Equipes & Batalhas",
+          label: t("nav.equipes", "Equipes & Batalhas"),
           icon: Users,
         },
         {
           id: "store" as TabId,
-          label: "Loja de Pets",
+          label: t("nav.loja_pets", "Loja de Pets"),
           icon: ShoppingBag,
           badge: `${user.coins ?? 0} 🪙`,
           badgeColor: "text-emerald-700 bg-emerald-100 border-emerald-300",
-        },
-        {
-          id: "theme" as TabId,
-          label: "Menu de Cores",
-          icon: Palette,
         },
       ],
     },
@@ -333,10 +338,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={onOpenAccessibility}
               className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold text-[var(--app-text)] hover:text-[var(--app-primary)] bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] border border-[var(--app-border)] transition cursor-pointer"
-              title="Opções de Acessibilidade e Inclusão"
+              title={t("nav.acessibilidade", "Acessibilidade")}
             >
               <Eye className="w-3.5 h-3.5 text-[var(--app-primary)]" />
-              <span>Acessibilidade</span>
+              <span>{t("nav.acessibilidade", "Acessibilidade")}</span>
             </button>
           )}
 
@@ -344,10 +349,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => onOpenSettings("idioma")}
               className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold text-[var(--app-text)] hover:text-[var(--app-primary)] bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] border border-[var(--app-border)] transition cursor-pointer"
-              title="Configurações do Aplicativo e Idioma"
+              title={t("nav.configuracoes", "Ajustes")}
             >
               <Settings className="w-3.5 h-3.5 text-[var(--app-primary)]" />
-              <span>Ajustes</span>
+              <span>{t("nav.configuracoes", "Ajustes")}</span>
             </button>
           )}
         </div>
@@ -357,7 +362,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between text-[11px] px-2 text-[var(--app-text-muted)]">
           <div className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-[var(--app-success)]" : "bg-amber-500"}`} />
-            <span>{isOnline ? "Conectado IFES" : "Modo Offline"}</span>
+            <span>{isOnline ? t("nav.conectado", "Conectado IFES") : t("nav.modo_offline", "Modo Offline")}</span>
           </div>
           <span className="font-mono text-[10px]">v3.2</span>
         </div>
@@ -367,7 +372,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition border border-transparent hover:border-rose-500/20 cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />
-          <span>Sair da Conta</span>
+          <span>{t("nav.sair", "Sair da Conta")}</span>
         </button>
       </div>
     </aside>

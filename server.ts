@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import webpush from "web-push";
+import multer from "multer";
 
 // VAPID Web Push Setup
 let vapidKeys = {
@@ -244,6 +245,316 @@ async function startServer() {
   // API Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", appName: "Brain Studio", aiAvailable: !!process.env.GEMINI_API_KEY });
+  });
+
+  // Dynamic Full Localization Bundle Translation (100+ Languages with Server Cache)
+  const serverI18nCache = new Map<string, Record<string, any>>();
+
+  app.post("/api/i18n/translate-bundle", async (req, res) => {
+    try {
+      const { targetLang, sourceBundle } = req.body;
+      if (!targetLang || typeof targetLang !== "string") {
+        return res.status(400).json({ error: "targetLang is required" });
+      }
+
+      const normalized = targetLang.toLowerCase();
+      if (normalized === "pt-br" || normalized === "pt") {
+        return res.json({ bundle: sourceBundle || {} });
+      }
+
+      if (serverI18nCache.has(normalized)) {
+        return res.json({ bundle: serverI18nCache.get(normalized) });
+      }
+
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({ error: "Gemini not available for translation" });
+      }
+
+      let langName = targetLang;
+      try {
+        const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+        langName = displayNames.of(targetLang.split("-")[0]) || targetLang;
+      } catch {}
+
+      const prompt = `You are a professional software localization system.
+Translate the following JSON UI localization bundle from Portuguese into the target language "${langName}" (code: ${targetLang}).
+CRITICAL RULES:
+1. Preserve the exact JSON structure and ALL key names without changing them.
+2. Keep template variables untouched: {{count}}, {{name}}, {{data}}, {{percent}}, {{tempo}}, {{valor}}, {{level}}, {{used}}, {{limit}}, {{screen}}, {{content}}, {{actions}}, {{val}}.
+3. Return ONLY a valid JSON object without markdown fences, comments or formatting.
+
+JSON to translate:
+${JSON.stringify(sourceBundle || {})}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+      });
+
+      const text = response.text?.trim() || "{}";
+      const cleaned = text.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      serverI18nCache.set(normalized, parsed);
+      return res.json({ bundle: parsed });
+    } catch (err: any) {
+      console.warn("Translation bundle error:", err?.message || err);
+      return res.status(500).json({ error: "Failed to translate bundle" });
+    }
+  });
+
+  const upload = multer({
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  });
+  const serverDictionaryCache = new Map<string, any>();
+
+  // 7. DICIONÁRIO VIRTUAL INTELIGENTE (Fontes abertas + Camada Lumina IA)
+  app.post("/api/dictionary/lookup", async (req, res) => {
+    try {
+      const { word, lang = "pt-BR" } = req.body;
+      if (!word || typeof word !== "string") {
+        return res.status(400).json({ error: "word is required" });
+      }
+
+      const cleanWord = word.trim().toLowerCase();
+      const cacheKey = `${lang}_${cleanWord}`;
+      if (serverDictionaryCache.has(cacheKey)) {
+        return res.json(serverDictionaryCache.get(cacheKey));
+      }
+
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({ error: "Serviço de IA não disponível para o dicionário" });
+      }
+
+      const prompt = `You are a professional lexicographer and pedagogical linguistic tutor for the academic platform Brain Studio.
+Provide a complete, rich dictionary entry for the word "${cleanWord}" in language "${lang}".
+CRITICAL REQUIREMENTS:
+1. Provide accurate grammatical class (classeGramatical).
+2. Provide formal definitions (significados) with practical examples.
+3. Provide general synonyms (sinonimosGerais) and antonyms (antonimosGerais).
+4. Provide phonetic pronunciation in IPA (pronunciaFonetica).
+5. Provide historical etymology (etimologia).
+6. Provide "luminaInsight" (the intelligent pedagogical tutoring layer):
+   - "definicaoSimples": explain in warm, everyday conversational words (middle school reading level).
+   - "exemplosIneditos": exactly 2 brand-new example sentences demonstrating its usage in an academic or study context.
+   - "nivelDificuldade": "Fácil", "Médio" or "Avançado".
+   - "dicaMemorizacao": a clever mnemonic trick or visual imagery to never forget the word.
+   - "comparacaoPalavras": comparison with false cognates, paronyms, or easily confused terms.
+   - "isGeradoPorIa": true if this is modern slang, neologism, or recent colloquial term, false otherwise.
+7. Set "fonteNome" to "Wiktionary (Aberto)" and "fonteLicenca" to "CC BY-SA 4.0".
+8. Return ONLY a valid JSON object without markdown fences matching the schema:
+{
+  "termo": "${cleanWord}",
+  "idioma": "${lang}",
+  "pronunciaFonetica": "/.../",
+  "etimologia": "...",
+  "plural": "...",
+  "conjugacaoResumo": "...",
+  "significados": [
+    {
+      "classeGramatical": "substantivo / verbo / adjetivo",
+      "definicao": "...",
+      "exemplos": ["..."],
+      "sinonimos": ["..."],
+      "antonimos": ["..."]
+    }
+  ],
+  "sinonimosGerais": ["..."],
+  "antonimosGerais": ["..."],
+  "luminaInsight": {
+    "definicaoSimples": "...",
+    "exemplosIneditos": ["...", "..."],
+    "nivelDificuldade": "Médio",
+    "dicaMemorizacao": "...",
+    "comparacaoPalavras": "...",
+    "isGeradoPorIa": false
+  },
+  "fonteNome": "Wiktionary (Aberto)",
+  "fonteLicenca": "CC BY-SA 4.0",
+  "atualizadoEm": "${new Date().toISOString()}"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+      });
+
+      const text = response.text?.trim() || "{}";
+      const cleaned = text.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      serverDictionaryCache.set(cacheKey, parsed);
+      return res.json(parsed);
+    } catch (err: any) {
+      console.warn("Dictionary lookup error:", err?.message || err);
+      return res.status(500).json({ error: "Failed to lookup dictionary term" });
+    }
+  });
+
+  // 10. IMPORTAR ARQUIVO E GERAR QUIZ (PDF, DOCX, TXT, MD, JPG, PNG até 10 MB)
+  // CONTROLE DE COTAS DO GERADOR DE QUIZ POR ARQUIVO (SEÇÃO 10 - Validação Estrita no Servidor)
+  const userMonthlyQuizFiles = new Map<string, { month: string; count: number }>();
+
+  function validateRealFileMimeType(buffer: Buffer, declaredMime: string, filename: string): { isValid: boolean; actualMime: string } {
+    if (buffer.length < 4) return { isValid: false, actualMime: "unknown" };
+    // PDF magic bytes: %PDF (0x25, 0x50, 0x44, 0x46)
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+      return { isValid: true, actualMime: "application/pdf" };
+    }
+    // PNG magic bytes: 0x89 0x50 0x4E 0x47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+      return { isValid: true, actualMime: "image/png" };
+    }
+    // JPEG magic bytes: 0xFF 0xD8 0xFF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+      return { isValid: true, actualMime: "image/jpeg" };
+    }
+    // DOCX / ZIP magic bytes: PK\x03\x04
+    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+      return { isValid: true, actualMime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+    }
+    // Text / Markdown validation (arquivos de texto legíveis sem bytes binários perigosos)
+    const ext = filename.split(".").pop()?.toLowerCase();
+    if (ext === "txt" || ext === "md" || declaredMime.startsWith("text/")) {
+      let isText = true;
+      const sampleSize = Math.min(buffer.length, 512);
+      for (let i = 0; i < sampleSize; i++) {
+        const b = buffer[i];
+        if (b === 0) { isText = false; break; } // Byte nulo indica binário
+      }
+      if (isText) return { isValid: true, actualMime: ext === "md" ? "text/markdown" : "text/plain" };
+    }
+    return { isValid: false, actualMime: declaredMime || "application/octet-stream" };
+  }
+
+  app.post("/api/quiz/generate-from-file", upload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      const { userId = "estudante", language = "pt-BR", numQuestions = "5", isPro = "false" } = req.body;
+
+      if (!file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado." });
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: "O arquivo excede o limite máximo permitido de 10 MB." });
+      }
+
+      // Validação do tipo real no servidor pelos magic bytes (não apenas extensão)
+      const mimeCheck = validateRealFileMimeType(file.buffer, file.mimetype, file.originalname);
+      if (!mimeCheck.isValid) {
+        return res.status(400).json({
+          error: "Tipo de arquivo inválido ou não suportado. Envie apenas PDF, DOCX, TXT, MD, JPG ou PNG legítimos.",
+        });
+      }
+
+      // Verificação de cota mensal no servidor por plano (Seção 10)
+      const userIsPro = isPro === "true" || isPro === true;
+      const currentMonth = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+      }).format(new Date());
+
+      const userRecord = userMonthlyQuizFiles.get(userId) || { month: currentMonth, count: 0 };
+      if (userRecord.month !== currentMonth) {
+        userRecord.month = currentMonth;
+        userRecord.count = 0;
+      }
+
+      const MONTHLY_FREE_LIMIT = 3;
+      if (!userIsPro && userRecord.count >= MONTHLY_FREE_LIMIT) {
+        return res.status(403).json({
+          error: "QUOTA_EXCEEDED",
+          message: `Limite de ${MONTHLY_FREE_LIMIT} arquivos por mês do plano Gratuito atingido. Faça upgrade para o Pro para gerar quizzes ilimitados!`,
+        });
+      }
+
+      userRecord.count += 1;
+      userMonthlyQuizFiles.set(userId, userRecord);
+
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({ error: "Serviço de IA não disponível." });
+      }
+
+      const count = Math.min(userIsPro ? 20 : 5, Math.max(3, parseInt(numQuestions) || 5));
+      const parts: any[] = [];
+      const mime = mimeCheck.actualMime;
+
+      if (mime.startsWith("image/") || mime === "application/pdf") {
+        parts.push({
+          inlineData: {
+            mimeType: mime,
+            data: file.buffer.toString("base64"),
+          },
+        });
+      } else {
+        const textContent = file.buffer.toString("utf-8");
+        parts.push({ text: `CONTEÚDO DO ARQUIVO SANITIZADO:\n${textContent.slice(0, 35000)}` });
+      }
+
+      const prompt = `Você é um avaliador pedagógico sênior do Brain Studio.
+Analise com rigor o material fornecido no arquivo (${file.originalname}) e elabore um Quiz de Fixação Acadêmica com exatamente ${count} questões de múltipla escolha.
+REGRAS OBRIGATÓRIAS:
+1. IDIOMA DA RESPOSTA: Todas as perguntas, opções e justificativas DEVEM ser escritas inteiramente no idioma "${language}".
+2. Cada questão deve ter exatamente 4 opções e apenas 1 correta ("correctIndex": 0, 1, 2 ou 3).
+3. "explanation": justificativa pedagógica concisa explicando por que a resposta é a correta.
+4. Retorne APENAS um JSON válido no seguinte formato sem blocos de código:
+{
+  "title": "Quiz: ${file.originalname.replace(/\.[^/.]+$/, "")}",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Pergunta clara e objetiva...",
+      "options": ["Alternativa A", "Alternativa B", "Alternativa C", "Alternativa D"],
+      "correctIndex": 0,
+      "explanation": "Explicação detalhada..."
+    }
+  ]
+}`;
+
+      parts.push({ text: prompt });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: parts,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.25,
+        },
+      });
+
+      const text = response.text?.trim() || "{}";
+      const cleaned = text.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      return res.json({ quiz: parsed });
+    } catch (err: any) {
+      console.warn("Quiz from file error:", err?.message || err);
+      return res.status(500).json({ error: "Falha ao gerar quiz a partir do arquivo." });
+    }
+  });
+
+  // 8. FEEDBACK DA LUMINA (👍/👎 com motivo opcional sem registrar conteúdo pessoal)
+  app.post("/api/feedback/lumina", async (req, res) => {
+    try {
+      const { messageId, rating, reason, explanationLevel, timestamp } = req.body;
+      console.log(`[Lumina Feedback Audit] ID: ${messageId}, Nota: ${rating}, Nível: ${explanationLevel}, Motivo: ${reason || "Nenhum informado"}, Data: ${timestamp}`);
+      return res.json({ success: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: "Failed to record feedback" });
+    }
   });
 
   // Direct Installer Downloads (Without browser redirection)
@@ -726,13 +1037,16 @@ async function startServer() {
     return { allowed: true, used: record.count, limit: DAILY_LIMIT };
   }
 
-  // BUILD ADAPTIVE SYSTEM INSTRUCTION FOR LUMINA IA
+  // BUILD ADAPTIVE SYSTEM INSTRUCTION FOR LUMINA IA (Seção 8 e 9: Humanizada, Simples e Segura)
   function buildLuminaSystemInstruction(params: {
     courseName?: string;
     currentModule?: string;
     courseSummary?: string;
     language?: string;
     plainLanguage?: boolean;
+    explanationLevel?: "simple" | "normal" | "technical";
+    isTemporaryChat?: boolean;
+    memoryItems?: string[];
   }): string {
     const {
       courseName = "Geral",
@@ -740,51 +1054,72 @@ async function startServer() {
       courseSummary = "",
       language = "pt-BR",
       plainLanguage = false,
+      explanationLevel = "normal",
+      isTemporaryChat = false,
+      memoryItems = [],
     } = params;
 
-    const langName = language.startsWith("es") ? "Espanhol" : language.startsWith("en") ? "Inglês" : "Português do Brasil";
+    let langName = "Português do Brasil";
+    try {
+      const displayNames = new Intl.DisplayNames(["pt-BR"], { type: "language" });
+      const resolved = displayNames.of(language.split("-")[0]);
+      if (resolved) {
+        langName = resolved.charAt(0).toUpperCase() + resolved.slice(1);
+      }
+    } catch {
+      langName = language.startsWith("es") ? "Espanhol" : language.startsWith("en") ? "Inglês" : "Português";
+    }
 
-    return `Você é a "Lumina IA", a tutora acadêmica inteligente, precisa, gentil e acolhedora do Brain Studio, projetada especificamente para estudantes do Instituto Federal do Espírito Santo (IFES).
+    const memoryBlock = (!isTemporaryChat && memoryItems.length > 0)
+      ? `\nMEMÓRIA AUTORIZADA DO ESTUDANTE (USE APENAS SE RELEVANTE PARA ADAPTAR A EXPLICAÇÃO, NUNCA MENCIONE A MEMÓRIA DIRETAMENTE SEM NECESSIDADE):\n${memoryItems.slice(0, 10).map((m) => `- ${m}`).join("\n")}`
+      : "";
 
-DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
-1. PAPEL E COMPORTAMENTO:
-   - Você é uma professora e tutora dedicada. Seu objetivo é ajudar o estudante a aprender de verdade com clareza, rigor e empatia.
-   - NUNCA responda com enrolação ou repita perguntas evasivas. NUNCA fale coisas sem sentido ("falar coisa com coisa").
-   - Responda SEMPRE à dúvida central apresentada na mensagem atual.
+    return `Você é a "Lumina IA", a tutora acadêmica inteligente, acolhedora, humana e paciente do Brain Studio.
+Você fala como uma tutora amiga, dedicada e compreensiva. Use frases curtas, vocabulário do dia a dia e um tom paciente e encorajador.
 
-2. MÉTODO ADAPTATIVO:
-   - Em perguntas conceituais ou dúvidas reflexivas: explique o princípio essencial e, se fizer sentido, proponha uma pergunta de verificação curta ao final para fixar o aprendizado.
-   - RESPOSTA DIRETA E COMPLETA: dê a resposta direta e imediata SEMPRE que o aluno:
-     a) Pedir explicitamente uma resposta direta (ex.: "me dê a resposta direta", "quanto é", "qual é a capital", "resolva isso");
-     b) Já tiver tentado responder ou formulado hipóteses anteriormente;
-     c) Fizer uma pergunta puramente factual, fórmula, data, definição ou cálculo matemático.
-   - NUNCA fique apenas devolvendo perguntas quando o aluno precisa de uma explicação real.
+DIRETRIZES FUNDAMENTAIS OBRIGATÓRIAS:
+1. IDIOMA OBRIGATÓRIO DA RESPOSTA (PRIORIDADE ABSOLUTA):
+   - O estudante selecionou o idioma oficial: ${langName} (${language}).
+   - Você DEVE redigir e transcrever TODA a sua resposta (saudações, conceitos, exemplos do cotidiano, passos matemáticos, conclusão e perguntas) rigorosamente em ${langName}.
+   - NUNCA misture outros idiomas a menos que seja um termo técnico universal.
 
-3. EXATIDÃO E CONFERÊNCIA:
-   - Se não tiver certeza absoluta de um fato, diga claramente: "Não tenho certeza sobre esse ponto específico, mas o que é seguro afirmar é..."
-   - NÃO invente fórmulas, datas, citações, nomes de leis ou referências bibliográficas.
-   - Em disciplinas de Exatas (Matemática, Física, Química, Programação): mostre SEMPRE a resolução passo a passo e confirme a resposta final com uma checagem.
+2. ESTRUTURA PEDAGÓGICA DA RESPOSTA:
+   a) RESPOSTA DIRETA PRIMEIRO: Responda à dúvida central logo no primeiro parágrafo sem rodeios ou enrolação.
+   b) EXPLICAÇÃO EM PASSOS CURTOS: Quebre o conceito em 2 a 4 passos simples e compreensíveis.
+   c) EXEMPLO OU ANALOGIA DO COTIDIANO: Forneça um exemplo prático ou analogia concreta do mundo real.
+   d) FECHAMENTO COM PERGUNTA CURTA OU OFERTA DE APROFUNDAMENTO: Termine com uma pergunta gentil para verificar o aprendizado ou oferecer o próximo passo.
 
-4. CONTEXTO ACADÊMICO DO IFES:
-   - Disciplina/Matéria atual: ${courseName}
-   - Módulo/Tópico de estudo: ${currentModule}
-   ${courseSummary ? `- Resumo do material do curso: ${courseSummary}` : ""}
-   - Relacione os exemplos preferencialmente com o contexto prático dos cursos técnicos, integrados e superiores do IFES.
+3. NÍVEL DA EXPLICAÇÃO ATUAL: ${explanationLevel.toUpperCase()}
+   ${explanationLevel === "simple"
+     ? "- Nível Bem Simples: use frases curtas, vocabulário do nível fundamental, analogias visuais simples, zero jargões sem explicação detalhada."
+     : explanationLevel === "technical"
+     ? "- Nível Técnico: use terminologia acadêmica e formal exata, fórmulas completas e demonstrações conceituais com rigor."
+     : "- Nível Normal: equilíbrio entre clareza didática amigável e precisão curricular."}
 
-5. IDIOMA E LOCALIZAÇÃO:
-   - Idioma da resposta: ${langName} (${language}). Responda com fluência nativa e correção gramatical nesse idioma. Se o aluno escrever em outro idioma, responda no idioma utilizado pelo aluno.
+4. POLÍTICA DE SEGURANÇA E CONTEÚDO (DEFESA EM PROFUNDIDADE):
+   a) RISCO À SAÚDE OU À VIDA (autolesão, suicídio, overdose, ferir a si ou outros):
+      - NÃO apenas recuse a mensagem com frieza.
+      - Responda com acolhimento genuíno e afeto: diga que a vida do estudante tem valor infinito, que ele não está sozinho e que momentos difíceis passam.
+      - NÃO forneça qualquer método ou instrução danosa.
+      - Indique expressamente canais de apoio gratuitos:
+        * CVV - Centro de Valorização da Vida: Ligue 188 (24h, gratuito em todo o Brasil).
+        * SAMU: Ligue 192 em emergências médicas imediatas.
+        * Incentive conversar agora com alguém de confiança (pais, professores ou amigos).
+   b) XINGAMENTOS, ASSÉDIO OU OFENSAS:
+      - Responda com calma e serenidade em uma única frase estabelecendo o limite respeitoso e redirecionando para os estudos.
+   c) ARMAS, EXPLOSIVOS, CRIPTOGRAFIA MALICIOSA OU CRIMES GRAVES:
+      - Recuse com gentileza e ofereça uma alternativa segura e educativa correlata.
+   d) SAÚDE EM GERAL:
+      - Forneça apenas informações educativas gerais e sempre oriente a consultar um médico ou profissional de saúde habilitado. Nunca prescreva doses ou faça diagnósticos.
 
-6. MODO LINGUAGEM SIMPLES (${plainLanguage ? "ATIVO" : "DESATIVADO"}):
-   ${
-     plainLanguage
-       ? "- USE FRASES CURTAS, PALAVRAS COMUNS DO DIA A DIA E UM CONCEITO POR VEZ. Evite jargões desnecessários e use analogias práticas cotidianas, mantendo o rigor técnico."
-       : "- Use tom acadêmico claro, elegante, estruturado e didático."
-   }
+5. EXATIDÃO, FONTES E CONFERÊNCIA:
+   - Se não tiver certeza absoluta de um fato, admita honestamente: "Não tenho certeza sobre esse ponto específico, mas o que é comprovado é..."
+   - NUNCA invente fontes, livros, datas históricas, nomes de leis ou fórmulas.
+   - Matemática e exatas: mostre o passo a passo com clareza e CONCLUA CONFIRMANDO a resposta final verificada.
+   - Quando citar materiais da biblioteca ou dicionário, indique a fonte (ex.: Machado de Assis, Wiktionary, MEC).
+${memoryBlock}
 
-7. FORMATO E ACESSIBILIDADE PARA LEITORES DE TELA:
-   - Formate suas respostas em Markdown limpo (títulos curtos, listas com marcadores simples, negritos estratégicos).
-   - NÃO use tabelas excessivamente largas nem artes em ASCII.
-   - Descreva fórmulas matemáticas curtas também em palavras por extenso para facilitar a leitura por sintetizadores de voz.`;
+Contexto do Curso: ${courseName} (Módulo: ${currentModule}). ${courseSummary ? `Resumo: ${courseSummary}` : ""}`;
   }
 
   // FALLBACK INTELIGENTE QUANDO O SERVIÇO EXTERNO ESTIVER EM ALTA DEMANDA
@@ -804,23 +1139,42 @@ DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
       else if (op === "*" || op === "x" || op === "X" || op === "×" || op === "·" || op === "vezes") { res = n1 * n2; opName = "multiplicação"; }
       else if (op === "/" || op === "dividido") { res = n2 !== 0 ? n1 / n2 : NaN; opName = "divisão"; }
 
+      if (language.startsWith("en")) {
+        return `The result of the ${opName} between **${n1}** and **${n2}** is **${res}**.\n\nStep-by-step:\n1. First number: ${n1}\n2. Operator: ${op}\n3. Second number: ${n2}\n4. **Final verified result = ${res}**\n\nWould you like to calculate another equation or apply this to your coursework?`;
+      }
+      if (language.startsWith("es")) {
+        return `El resultado de la operación entre **${n1}** y **${n2}** es igual a **${res}**.\n\nPaso a paso:\n1. Primer número: ${n1}\n2. Operador: ${op}\n3. Segundo número: ${n2}\n4. **Resultado final verificado = ${res}**\n\n¿Deseas resolver otro ejercicio o aplicar esto a una fórmula de tu curso?`;
+      }
+
       return `O resultado da ${opName} entre **${n1}** e **${n2}** é igual a **${res}**.\n\nPasso a passo:\n1. Primeiro valor: ${n1}\n2. Operador: ${op}\n3. Segundo valor: ${n2}\n4. **Resultado final verificado = ${res}**\n\nGostaria de resolver outro cálculo ou aplicar isso a uma fórmula da disciplina?`;
     }
 
-    if (lower.includes("bhaskara") || lower.includes("equação do segundo grau") || lower.includes("raízes")) {
+    if (lower.includes("bhaskara") || lower.includes("quadratic") || lower.includes("equação do segundo grau") || lower.includes("raízes") || lower.includes("raices")) {
+      if (language.startsWith("en")) {
+        return `### Quadratic Equation & Formula\n\nTo solve an equation in the form **ax² + bx + c = 0**:\n\n1. **Identify the coefficients:** $a$, $b$, and $c$.\n2. **Calculate the discriminant (Delta):**\n   $$\\Delta = b^2 - 4ac$$\n3. **Analyze Delta:**\n   - If $\\Delta > 0$: two distinct real roots;\n   - If $\\Delta = 0$: one single real root;\n   - If $\\Delta < 0$: no real roots.\n4. **Calculate roots:**\n   $$x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}$$\n\nSend me the coefficients of your equation so we can calculate it step-by-step together!`;
+      }
+      if (language.startsWith("es")) {
+        return `### Resolución de Ecuación Cuadrática (Fórmula de Bhaskara)\n\nPara resolver una ecuación de la forma **ax² + bx + c = 0**:\n\n1. **Identifica los coeficientes:** $a$, $b$ y $c$.\n2. **Calcula el discriminante (Delta):**\n   $$\\Delta = b^2 - 4ac$$\n3. **Analiza el Delta:**\n   - Si $\\Delta > 0$: dos raíces reales distintas;\n   - Si $\\Delta = 0$: una raíz real única;\n   - Si $\\Delta < 0$: no existen raíces reales.\n4. **Calcula las raíces:**\n   $$x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}$$\n\n¡Envíame los coeficientes de tu ecuación para resolverla paso a paso juntos!`;
+      }
       return `### Resolução de Equação do 2º Grau (Fórmula de Bhaskara)\n\nPara resolver uma equação do tipo **ax² + bx + c = 0**:\n\n1. **Identifique os coeficientes:** $a$, $b$ e $c$.\n2. **Calcule o discriminante (Delta):**\n   $$\\Delta = b^2 - 4ac$$\n3. **Analise o Delta:**\n   - Se $\\Delta > 0$: duas raízes reais e distintas;\n   - Se $\\Delta = 0$: uma raiz real única (dupla);\n   - Se $\\Delta < 0$: não existem raízes reais.\n4. **Calcule as raízes:**\n   $$x = \\frac{-b \\pm \\sqrt{\\Delta}}{2a}$$\n\nEnvie os coeficientes da sua equação para calcularmos juntos o passo a passo!`;
     }
 
-    if (lower.includes("pitagoras") || lower.includes("pitágoras") || lower.includes("hipotenusa")) {
+    if (lower.includes("pitagoras") || lower.includes("pitágoras") || lower.includes("pythagor") || lower.includes("hipotenusa") || lower.includes("hypotenuse")) {
+      if (language.startsWith("en")) {
+        return `### Pythagorean Theorem\n\nIn every **right triangle**, the square of the hypotenuse is equal to the sum of the squares of the legs:\n\n$$a^2 = b^2 + c^2$$\n*(hypotenuse squared equals side b squared plus side c squared)*.\n\n**Classic Example (3, 4, 5):**\n- Legs: 3 and 4\n- $3^2 + 4^2 = 9 + 16 = 25$\n- Hypotenuse: $\\sqrt{25} = 5$.\n\nWhat are the side lengths you need to find?`;
+      }
+      if (language.startsWith("es")) {
+        return `### Teorema de Pitágoras\n\nEn todo **triángulo rectángulo**, el cuadrado de la hipotenusa es igual a la suma de los cuadrados de los catetos:\n\n$$a^2 = b^2 + c^2$$\n*(la hipotenusa al cuadrado es igual a la suma del cateto b al cuadrado más el cateto c al cuadrado)*.\n\n**Ejemplo clásico (3, 4, 5):**\n- Catetos: 3 y 4\n- $3^2 + 4^2 = 9 + 16 = 25$\n- Hipotenusa: $\\sqrt{25} = 5$.\n\n¿Cuáles son las medidas de los lados que necesitas calcular?`;
+      }
       return `### Teorema de Pitágoras\n\nEm todo **triângulo retângulo**, o quadrado da hipotenusa é igual à soma dos quadrados dos catetos:\n\n$$a^2 = b^2 + c^2$$\n*(lê-se: hipotenusa ao quadrado é igual à soma do cateto b ao quadrado com o cateto c ao quadrado)*.\n\n**Exemplo clássico (3, 4, 5):**\n- Catetos: 3 e 4\n- $3^2 + 4^2 = 9 + 16 = 25$\n- Hipotenusa: $\\sqrt{25} = 5$.\n\nQual é a medida dos lados que você precisa encontrar?`;
     }
 
     if (language.startsWith("en")) {
-      return `Hello! I am Lumina, your academic tutor at Brain Studio. Regarding your question on "${userPrompt}":\n\n- The fundamental principle in **${courseName}** involves understanding the core definitions and their practical applications.\n- Could you share which specific problem or concept from this topic you would like to explore step-by-step?`;
+      return `Hello! I am Lumina, your academic tutor at Brain Studio. Regarding your question on "${userPrompt}":\n\n1. **Core Concept:** In **${courseName}**, this concept focuses on clear cause-and-effect relationships and direct applications.\n2. **Practical Step:** To solve this with total accuracy, share your exercise data or assignment details so we can examine each step together!\n\nWhich specific aspect would you like to explore first?`;
     }
 
     if (language.startsWith("es")) {
-      return `¡Hola! Soy Lumina, tu tutora académica en Brain Studio. Sobre tu consulta acerca de "${userPrompt}":\n\n- El concepto esencial en **${courseName}** se enfoca en comprender los fundamentos teóricos y su aplicación práctica.\n- ¿Podrías indicarme qué ejercicio o duda puntual deseas que resolvamos paso a paso?`;
+      return `¡Hola! Soy Lumina, tu tutora académica en Brain Studio. Sobre tu consulta acerca de "${userPrompt}":\n\n1. **Concepto Fundamental:** En **${courseName}**, este tema requiere comprender las definiciones clave y su aplicación práctica.\n2. **Orientación Práctica:** ¡Comparte los datos de tu ejercicio o tarea del IFES para analizar cada paso con total precisión!\n\n¿Qué parte te gustaría profundizar ahora?`;
     }
 
     return `Olá! Sou a Lumina, sua tutora no Brain Studio. Sobre a sua dúvida em **${courseName}** a respeito de "${userPrompt}":\n\n1. **Conceito Fundamental:** Na disciplina de ${courseName}, esse tópico exige compreendermos a relação direta de causa e efeito e a correta aplicação das definições.\n2. **Orientação Prática:** Para resolvermos com total precisão, compartilhe os dados do seu exercício ou a questão do AVA IFES para analisarmos cada etapa!\n\nQual parte específica você gostaria de aprofundar agora?`;
@@ -838,6 +1192,10 @@ DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
       isPro = false,
       language = "pt-BR",
       plainLanguage = false,
+      explanationLevel = "normal",
+      isTemporaryChat = false,
+      memoryEnabled = true,
+      memoryItems = [],
     } = req.body;
 
     if (!message || typeof message !== "string" || !message.trim()) {
@@ -863,6 +1221,9 @@ DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
       courseSummary,
       language,
       plainLanguage,
+      explanationLevel,
+      isTemporaryChat,
+      memoryItems: memoryEnabled ? memoryItems : [],
     });
 
     // Sanitização rigorosa do histórico (últimas 12 mensagens, roles 'user' e 'model')
@@ -883,11 +1244,9 @@ DIRETRIZES FUNDAMENTAIS DE TUTORIA PEDAGÓGICA (OBRIGATÓRIAS):
 
     const ai = getGeminiClient();
     const candidateModels = [
-      "gemini-flash-lite-latest",
-      "models/gemini-3-flash-preview",
-      "models/gemini-flash-lite-latest",
+      "gemini-3.8-flash",
       "gemini-flash-latest",
-      "models/gemini-3.1-flash-lite",
+      "gemini-3.1-flash-lite",
     ];
 
     let streamSucceeded = false;

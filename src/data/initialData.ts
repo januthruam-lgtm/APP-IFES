@@ -19,8 +19,8 @@ export const INITIAL_PET: UserPet = {
 };
 
 export const createBlankUser = (name?: string, email?: string): UserProfile => ({
-  email: email?.trim() || "estudante@ifes.edu.br",
-  name: name?.trim() || "Estudante IFES",
+  email: email?.trim() || "",
+  name: name?.trim() || "Estudante",
   xp: 150,
   coins: 75,
   level: 1,

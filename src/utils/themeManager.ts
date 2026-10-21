@@ -1,115 +1,84 @@
 import { CustomThemeColors } from "../types";
+import {
+  FullDerivedTheme,
+  PRESET_PALETTES,
+  deriveFullPalette,
+} from "./paletteDerivation";
+import { StatusBar, Style } from "@capacitor/status-bar";
+import { Capacitor } from "@capacitor/core";
+import { saveUserProfileToFirestore } from "../lib/firebase";
 
-export const DEFAULT_PAPER_THEME: CustomThemeColors = {
-  id: "paper",
-  name: "Papel & Foco (IFES)",
-  bgPrimary: "#f8f9fa",
-  bgCard: "#ffffff",
-  bgCardHover: "#f1f3f5",
-  textPrimary: "#1e293b",
-  textMuted: "#64748b",
-  colorPrimary: "#15803d", // IFES Green
-  colorPrimaryHover: "#166534",
-  colorSuccess: "#10b981",
-  colorAccent: "#dc2626", // IFES Red accent
-  borderColor: "#e2e8f0",
-  isDark: false,
-};
+export const SAVED_PALETTES_STORAGE_KEY = "brain_studio_saved_palettes_v1";
+export const ACTIVE_THEME_STORAGE_KEY = "brain_studio_theme_custom";
 
-export const PRESET_THEMES: CustomThemeColors[] = [
-  DEFAULT_PAPER_THEME,
-  {
-    id: "default",
-    name: "Estúdio Índigo",
-    bgPrimary: "#0f172a",
-    bgCard: "#1e293b",
-    bgCardHover: "#334155",
-    textPrimary: "#f8fafc",
-    textMuted: "#94a3b8",
-    colorPrimary: "#6366f1",
-    colorPrimaryHover: "#4f46e5",
-    colorSuccess: "#10b981",
-    colorAccent: "#ec4899",
-    borderColor: "#334155",
-    isDark: true,
-  },
-  {
-    id: "cyberpunk",
-    name: "Cyber Neon",
-    bgPrimary: "#0d0221",
-    bgCard: "#190033",
-    bgCardHover: "#26004d",
-    textPrimary: "#00f0ff",
-    textMuted: "#a78bfa",
-    colorPrimary: "#00f0ff",
-    colorPrimaryHover: "#00c4d4",
-    colorSuccess: "#00ff66",
-    colorAccent: "#ff007f",
-    borderColor: "#4a0072",
-    isDark: true,
-  },
-  {
-    id: "solar",
-    name: "Solar Dourado",
-    bgPrimary: "#fffbeb",
-    bgCard: "#ffffff",
-    bgCardHover: "#fef3c7",
-    textPrimary: "#78350f",
-    textMuted: "#92400e",
-    colorPrimary: "#d97706",
-    colorPrimaryHover: "#b45309",
-    colorSuccess: "#059669",
-    colorAccent: "#ea580c",
-    borderColor: "#fde68a",
-    isDark: false,
-  },
-  {
-    id: "emerald",
-    name: "Esmeralda Acadêmico",
-    bgPrimary: "#064e3b",
-    bgCard: "#065f46",
-    bgCardHover: "#047857",
-    textPrimary: "#ecfdf5",
-    textMuted: "#a7f3d0",
-    colorPrimary: "#34d399",
-    colorPrimaryHover: "#10b981",
-    colorSuccess: "#6ee7b7",
-    colorAccent: "#fbbf24",
-    borderColor: "#047857",
-    isDark: true,
-  },
-  {
-    id: "dark",
-    name: "Obsidian Puro",
-    bgPrimary: "#09090b",
-    bgCard: "#18181b",
-    bgCardHover: "#27272a",
-    textPrimary: "#fafafa",
-    textMuted: "#a1a1aa",
-    colorPrimary: "#38bdf8",
-    colorPrimaryHover: "#0284c7",
-    colorSuccess: "#22c55e",
-    colorAccent: "#f43f5e",
-    borderColor: "#27272a",
-    isDark: true,
-  },
-];
+export function loadSavedPalettes(): FullDerivedTheme[] {
+  try {
+    const raw = localStorage.getItem(SAVED_PALETTES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn("Erro ao carregar paletas salvas:", e);
+  }
+  return [...PRESET_PALETTES];
+}
+
+export function saveUserPalettes(palettes: FullDerivedTheme[]): void {
+  try {
+    // Limite de 10 paletas personalizadas
+    const limited = palettes.slice(0, 10);
+    localStorage.setItem(SAVED_PALETTES_STORAGE_KEY, JSON.stringify(limited));
+  } catch (e) {
+    console.warn("Erro ao salvar paletas:", e);
+  }
+}
 
 export function loadSavedTheme(): CustomThemeColors {
   try {
-    const saved = localStorage.getItem("brain_studio_theme_custom");
+    const saved = localStorage.getItem(ACTIVE_THEME_STORAGE_KEY);
     if (saved) {
       return JSON.parse(saved);
     }
   } catch (e) {
     console.warn("Error loading saved theme:", e);
   }
-  return DEFAULT_PAPER_THEME;
+  // Padrão Índigo Noturno
+  return fullThemeToCustomTheme(PRESET_PALETTES[0]);
 }
 
-export function saveTheme(theme: CustomThemeColors): void {
+export function fullThemeToCustomTheme(theme: FullDerivedTheme): CustomThemeColors {
+  return {
+    id: theme.id,
+    name: theme.name,
+    bgPrimary: theme.bg,
+    bgCard: theme.surface,
+    bgCardHover: theme.bgCardHover,
+    textPrimary: theme.text,
+    textMuted: theme.textMuted,
+    colorPrimary: theme.primary,
+    colorPrimaryHover: theme.colorPrimaryHover,
+    colorSuccess: theme.colorSuccess,
+    colorAccent: theme.secondary,
+    borderColor: theme.borderColor,
+    isDark: theme.isDark,
+  };
+}
+
+export const PRESET_THEMES: CustomThemeColors[] = PRESET_PALETTES.map(fullThemeToCustomTheme);
+export const DEFAULT_PAPER_THEME: CustomThemeColors = PRESET_THEMES[5] || PRESET_THEMES[0];
+
+
+export function saveTheme(theme: CustomThemeColors, userId?: string): void {
   try {
-    localStorage.setItem("brain_studio_theme_custom", JSON.stringify(theme));
+    localStorage.setItem(ACTIVE_THEME_STORAGE_KEY, JSON.stringify(theme));
+    if (userId) {
+      saveUserProfileToFirestore(userId, {
+        activeTheme: theme.id,
+      }).catch(() => {});
+    }
   } catch (e) {
     console.warn("Error saving theme:", e);
   }
@@ -119,20 +88,48 @@ export function applyThemeToDOM(theme: CustomThemeColors): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
 
+  // Variáveis essenciais de cor
   root.style.setProperty("--app-bg", theme.bgPrimary);
   root.style.setProperty("--app-card", theme.bgCard);
-  root.style.setProperty("--app-card-hover", theme.bgCardHover);
+  root.style.setProperty("--app-card-secondary", theme.bgCardHover || theme.bgCard);
+  root.style.setProperty("--app-card-hover", theme.bgCardHover || theme.bgCard);
   root.style.setProperty("--app-text", theme.textPrimary);
   root.style.setProperty("--app-text-muted", theme.textMuted);
   root.style.setProperty("--app-primary", theme.colorPrimary);
-  root.style.setProperty("--app-primary-hover", theme.colorPrimaryHover);
+  root.style.setProperty("--app-primary-hover", theme.colorPrimaryHover || theme.colorPrimary);
   root.style.setProperty("--app-success", theme.colorSuccess);
   root.style.setProperty("--app-accent", theme.colorAccent);
   root.style.setProperty("--app-border", theme.borderColor);
 
+  // Botão primário texto de contraste
+  root.style.setProperty(
+    "--btn-primary-text",
+    theme.isDark ? "#ffffff" : "#ffffff"
+  );
+
+  // Classe dark para Tailwind
   if (theme.isDark) {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
   }
+
+  // 1. Sincroniza meta theme-color do HTML
+  try {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", theme.bgCard || theme.bgPrimary);
+  } catch {}
+
+  // 2. Sincroniza StatusBar nativa no Android via Capacitor
+  try {
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setBackgroundColor({ color: theme.bgCard || theme.bgPrimary }).catch(() => {});
+      StatusBar.setStyle({ style: theme.isDark ? Style.Dark : Style.Light }).catch(() => {});
+    }
+  } catch {}
 }

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Menu,
   X,
@@ -97,94 +98,101 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, [user.name, user.level, user.email, user.ifesAccount?.matricula, user.ifesAccount?.campusName]);
 
+  const { t } = useTranslation();
+
   const titles: Record<TabId, { title: string; subtitle: string; category: string }> = {
     dashboard: {
-      category: "Visão Geral",
-      title: "Dashboard",
-      subtitle: "Progresso acadêmico, horários e status das tarefas do AVA",
+      category: t("nav.dashboard", "Dashboard"),
+      title: t("nav.dashboard", "Dashboard"),
+      subtitle: t("dashboard.subtitulo_hero", "Progresso acadêmico, horários e status das tarefas do AVA"),
     },
     tasks: {
-      category: "Produtividade & Foco",
-      title: "Organizador de Tarefas",
+      category: t("nav.grupo_produtividade", "Produtividade & Foco"),
+      title: t("nav.tarefas", "Organizador de Tarefas"),
       subtitle: "Estruture metas diárias, prioridades e entregas com lembretes",
     },
     agenda: {
-      category: "Sincronização & Equipe",
-      title: "Agenda Compartilhada",
+      category: t("nav.grupo_produtividade", "Sincronização & Equipe"),
+      title: t("nav.agenda", "Agenda Compartilhada"),
       subtitle: "Provas bimestrais, trabalhos em grupo e sessões de estudo agendadas",
     },
     study_methods: {
-      category: "Metodologias Científicas",
-      title: "Central de Métodos de Estudo",
+      category: t("nav.grupo_produtividade", "Metodologias Científicas"),
+      title: t("nav.metodos_estudo", "Métodos de Estudo"),
       subtitle: "Cronômetro Pomodoro, Técnica Feynman, Active Recall e Repetição Espaçada",
     },
     flashcards: {
-      category: "Spaced Repetition SM-2",
-      title: "Flashcards Estilo Anki",
+      category: t("nav.grupo_produtividade", "Spaced Repetition SM-2"),
+      title: t("nav.flashcards", "Flashcards Estilo Anki"),
       subtitle: "Fixação e revisão de fórmulas e conceitos por repetição espaçada",
     },
     study_room: {
-      category: "Estudo Ao Vivo",
-      title: "Grupo de Estudos Virtual",
+      category: t("nav.grupo_produtividade", "Estudo Ao Vivo"),
+      title: t("nav.sala_estudos", "Grupo de Estudos Virtual"),
       subtitle: "Vídeo, áudio, compartilhamento de tela e chat colaborativo com colegas",
     },
     lumina: {
-      category: "Tutoria Inteligente",
-      title: "Lumina IA",
-      subtitle: "Aprofunde conceitos, tire dúvidas e revise matérias com tutoria personalizada",
+      category: t("nav.grupo_ia", "Tutoria Inteligente"),
+      title: t("nav.lumina", "Lumina IA"),
+      subtitle: t("lumina.descricao", "Tutora inteligente para tirar dúvidas e aprofundar matérias"),
     },
     sequence: {
-      category: "Catálogo Acadêmico IFES",
-      title: "Minhas Disciplinas AVA",
+      category: t("nav.grupo_academico", "Catálogo Acadêmico IFES"),
+      title: t("nav.disciplinas", "Minhas Disciplinas AVA"),
       subtitle: "Trilhas de disciplinas, organização e importação direta do AVA",
     },
     games: {
-      category: "Simulados 10 Questões",
-      title: "Desafios por Documento",
+      category: t("nav.grupo_ia", "Simulados 10 Questões"),
+      title: t("nav.simulados", "Simulados 10Q"),
       subtitle: "Envie PDFs, apostilas ou temas e resolva 10 questões por prompt",
     },
     teams: {
-      category: "Cooperação",
-      title: "Equipes & Batalhas",
+      category: t("nav.grupo_comunidade", "Cooperação"),
+      title: t("nav.equipes", "Equipes & Batalhas"),
       subtitle: "Crie sua equipe, troque energias com companheiros e dispute duelos 1v1",
     },
     ifes: {
-      category: "Ambiente Virtual",
-      title: "AVA Moodle IFES",
+      category: t("nav.grupo_academico", "Ambiente Virtual"),
+      title: t("nav.ava_ifes", "AVA Moodle IFES"),
       subtitle: "Sincronização de disciplinas, prazos e simulados com o Instituto Federal",
     },
     store: {
-      category: "Recompensas & Pets",
-      title: "Loja de Pets & Upgrades",
+      category: t("nav.grupo_comunidade", "Recompensas & Pets"),
+      title: t("nav.loja_pets", "Loja de Pets & Upgrades"),
       subtitle: "Alimente seu pet com XP e expanda permanentemente a energia da conta",
     },
     library: {
-      category: "Acervo Digital",
-      title: "Biblioteca de Estudos",
+      category: t("nav.grupo_ia", "Acervo Digital"),
+      title: t("nav.biblioteca", "Biblioteca de Estudos"),
       subtitle: "Documentos, planos de ensino, ementas e anotações salvas",
     },
-    theme: {
-      category: "Identidade Visual",
-      title: "Menu de Cores & Temas",
-      subtitle: "Alterne paletas prontas ou ajuste os tons da interface instantaneamente",
+    dictionary: {
+      category: t("nav.grupo_ia", "Acervo & Lexicografia"),
+      title: t("nav.dicionario", "Dicionário Inteligente"),
+      subtitle: t("dicionario.subtitulo_pagina", "Fontes abertas, pronúncia fonética e camada didática da Lumina"),
+    },
+    settings: {
+      category: "Sistema",
+      title: t("nav.configuracoes", "Configurações do Brain Studio"),
+      subtitle: "Conta, Aparência, Idioma, Acessibilidade, AVA IFES e Armazenamento",
     },
   };
 
   const navTabs = [
-    { id: "tasks" as TabId, label: "Tarefas", icon: ListTodo },
-    { id: "agenda" as TabId, label: "Agenda", icon: Calendar },
-    { id: "study_methods" as TabId, label: "Métodos", icon: Timer },
-    { id: "flashcards" as TabId, label: "Anki", icon: Layers },
-    { id: "study_room" as TabId, label: "Sala Virtual", icon: Video },
-    { id: "ifes" as TabId, label: "AVA IFES", icon: Building2 },
-    { id: "sequence" as TabId, label: "Disciplinas", icon: GitBranch },
-    { id: "dashboard" as TabId, label: "Dashboard", icon: LayoutDashboard },
-    { id: "lumina" as TabId, label: "Lumina IA", icon: Brain },
-    { id: "games" as TabId, label: "10Q", icon: Gamepad2 },
-    { id: "library" as TabId, label: "Biblioteca", icon: BookMarked },
-    { id: "teams" as TabId, label: "Equipes", icon: Users },
-    { id: "store" as TabId, label: "Loja Pets", icon: ShoppingBag },
-    { id: "theme" as TabId, label: "Menu Cores", icon: Palette },
+    { id: "tasks" as TabId, label: t("nav.tarefas", "Tarefas"), icon: ListTodo },
+    { id: "agenda" as TabId, label: t("nav.agenda", "Agenda"), icon: Calendar },
+    { id: "study_methods" as TabId, label: t("nav.metodos_estudo", "Métodos"), icon: Timer },
+    { id: "flashcards" as TabId, label: t("nav.flashcards", "Anki"), icon: Layers },
+    { id: "study_room" as TabId, label: t("nav.sala_estudos", "Sala Virtual"), icon: Video },
+    { id: "ifes" as TabId, label: t("nav.ava_ifes", "AVA IFES"), icon: Building2 },
+    { id: "sequence" as TabId, label: t("nav.disciplinas", "Disciplinas"), icon: GitBranch },
+    { id: "dashboard" as TabId, label: t("nav.dashboard", "Dashboard"), icon: LayoutDashboard },
+    { id: "lumina" as TabId, label: t("nav.lumina", "Lumina IA"), icon: Brain },
+    { id: "games" as TabId, label: t("nav.simulados", "10Q"), icon: Gamepad2 },
+    { id: "library" as TabId, label: t("nav.biblioteca", "Biblioteca"), icon: BookMarked },
+    { id: "teams" as TabId, label: t("nav.equipes", "Equipes"), icon: Users },
+    { id: "store" as TabId, label: t("nav.loja_pets", "Loja Pets"), icon: ShoppingBag },
+    { id: "settings" as TabId, label: t("nav.configuracoes", "Configurações"), icon: Settings },
   ];
 
   const currentInfo = titles[currentTab] || titles.dashboard;
@@ -232,7 +240,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="header-energy-pill"
             onClick={() => onTabChange("store")}
             className="flex items-center gap-1.5 bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-primary)]/40 hover:border-[var(--app-primary)] px-3 py-1.5 rounded-full text-xs font-bold transition group cursor-pointer"
-            title={`Energia: ${user.energy}/${user.maxEnergy || 50} ⚡. Clique para recarregar.`}
+            title={`${t("header.energia", "Energia")}: ${user.energy}/${user.maxEnergy || 50} ⚡. ${t("header.recarregar", "Recarregar")}`}
           >
             <Zap className="w-3.5 h-3.5 text-[var(--app-primary)] fill-[var(--app-primary)] group-hover:scale-110 transition-transform" />
             <span className="font-mono font-bold text-[var(--app-primary)]">
@@ -252,8 +260,8 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
               title={
                 user.ifesAccount?.connected
-                  ? `AVA IFES Conectado e Estável: ${user.ifesAccount?.campusName || "IFES"}. Clique para gerenciar.`
-                  : "Conectar ao AVA IFES com suas credenciais."
+                  ? `${t("header.conectado", "Conectado IFES")}: ${user.ifesAccount?.campusName || "IFES"}`
+                  : t("nav.badge_conectar", "Conectar AVA")
               }
             >
               <span
@@ -267,7 +275,7 @@ export const Header: React.FC<HeaderProps> = ({
                 } group-hover:scale-110 transition-transform`}
               />
               <span className="hidden sm:inline font-mono">
-                {user.ifesAccount?.connected ? "AVA IFES" : "Conectar AVA"}
+                {user.ifesAccount?.connected ? "AVA IFES" : t("nav.badge_conectar", "Conectar")}
               </span>
             </button>
           )}
@@ -277,12 +285,12 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-online-users-btn"
               onClick={onOpenOnlineUsers}
-              title="Ver colegas conectados"
+              title={t("header.estudantes_online", "Estudantes Online")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-emerald-500 border-[var(--app-border)] hover:border-emerald-500/40 group"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <Users className="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold">{onlineCount} Online</span>
+              <span className="text-xs font-bold">{onlineCount} {t("header.estudantes_online", "Online")}</span>
             </button>
           )}
 
@@ -291,11 +299,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-accessibility-btn"
               onClick={onOpenAccessibility}
-              title="Acessibilidade & Inclusão (WCAG AAA)"
+              title={t("header.acessibilidade", "Acessibilidade & Inclusão (WCAG AAA)")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
             >
               <Eye className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
-              <span className="hidden xl:inline text-xs font-bold">Acessibilidade</span>
+              <span className="hidden xl:inline text-xs font-bold">{t("nav.acessibilidade", "Acessibilidade")}</span>
             </button>
           )}
 
@@ -309,11 +317,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-notifications-btn"
               onClick={onOpenNotificationSettings}
-              title="Notificações & Alertas"
+              title={t("header.notificacoes", "Notificações & Alertas")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
             >
               <Bell className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold">Notificações</span>
+              <span className="hidden sm:inline text-xs font-bold">{t("header.notificacoes", "Notificações")}</span>
             </button>
           )}
 
@@ -322,11 +330,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="header-settings-btn"
               onClick={() => onOpenSettings("idioma")}
-              title="Configurações do App"
+              title={t("header.configuracoes", "Configurações do App")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
             >
               <Settings className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:rotate-45 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold">Configurações</span>
+              <span className="hidden sm:inline text-xs font-bold">{t("nav.configuracoes", "Configurações")}</span>
             </button>
           )}
         </div>
@@ -431,7 +439,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "var(--app-text)" }}>
                 <Globe className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>Idioma do Aplicativo:</span>
+                <span>{t("header.idioma_app", "Idioma do Aplicativo")}:</span>
               </div>
               <LanguageSelector variant="dropdown" className="w-full" />
             </div>
@@ -451,7 +459,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
                 <Settings className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>Menu de Configurações do App</span>
+                <span>{t("header.configuracoes_gerais", "Menu de Configurações do App")}</span>
               </button>
             )}
 
@@ -470,7 +478,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
                 <Eye className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>Inclusão & Acessibilidade (WCAG AAA)</span>
+                <span>{t("header.acessibilidade", "Inclusão & Acessibilidade (WCAG AAA)")}</span>
               </button>
             )}
 
@@ -488,7 +496,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
               >
                 <GraduationCap className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>Editar Matrícula & Perfil IFES</span>
+                <span>{t("header.editar_perfil", "Editar Matrícula & Perfil IFES")}</span>
               </button>
             )}
 
@@ -501,7 +509,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full py-3 bg-red-500/15 hover:bg-red-500/25 text-red-500 dark:text-red-400 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border border-red-500/30 cursor-pointer active:scale-95 shadow-xs"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Fazer Logout (Sair da Conta)</span>
+                <span>{t("header.sair", "Fazer Logout (Sair da Conta)")}</span>
               </button>
             )}
           </div>

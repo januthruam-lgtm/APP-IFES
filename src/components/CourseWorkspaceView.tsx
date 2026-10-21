@@ -38,6 +38,7 @@ import {
 import { getCourseParticipants, CourseMember } from "../utils/courseParticipants";
 import { loadSyncedAssignments } from "../utils/courseSync";
 import { avaApiClient, AvaSection } from "../utils/avaApi";
+import FileQuizGeneratorModal from "./quiz/FileQuizGeneratorModal";
 
 interface CourseWorkspaceViewProps {
   course: CourseTrack | IfesCourse;
@@ -98,6 +99,7 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
   // Quizzes state (Responder questionários do AVA IFES)
   const [courseQuizzes, setCourseQuizzes] = useState<any[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<any | null>(null);
+  const [showFileQuizModal, setShowFileQuizModal] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
   const [quizResult, setQuizResult] = useState<any | null>(null);
   const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
@@ -1180,6 +1182,15 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                 Responda às questões online, envie suas tentativas e receba correção pedagógica automática.
               </p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFileQuizModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer self-start sm:self-center"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Gerar quiz de um arquivo</span>
+            </button>
           </div>
 
           {activeQuiz ? (
@@ -1753,6 +1764,31 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Gerar Quiz a partir de Arquivo (Seção 10) */}
+      <FileQuizGeneratorModal
+        user={user}
+        isOpen={showFileQuizModal}
+        onClose={() => setShowFileQuizModal(false)}
+        onQuizGenerated={(quizData) => {
+          if (quizData.questions && quizData.questions.length > 0) {
+            setActiveQuiz({
+              id: `custom-file-quiz-${Date.now()}`,
+              title: quizData.title,
+              description: "Quiz gerado a partir de arquivo acadêmico.",
+              maxGrade: 10,
+              questions: quizData.questions.map((q, idx) => ({
+                id: q.id || `q-${idx}`,
+                question: q.question,
+                options: q.options,
+                correctIndex: q.correctIndex,
+                explanation: q.explanation,
+              })),
+            });
+            setShowFileQuizModal(false);
+          }
+        }}
+      />
     </div>
   );
 };

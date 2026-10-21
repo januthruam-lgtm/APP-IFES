@@ -59,16 +59,16 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({ isOpen, 
     readCurrentScreen(
       t("acessibilidade.titulo"),
       [
-        "Configurações de Audiodescrição e Síntese de Voz",
-        "Opções Visuais de Tamanho de Texto, Alto Contraste e Daltonismo",
-        "Modo Linguagem Simples e Modo Foco",
-        "Tradução em Libras",
+        t("acessibilidade.audiodescricao_titulo"),
+        t("acessibilidade.visual_titulo"),
+        t("acessibilidade.linguagem_simples"),
+        t("acessibilidade.traducao_libras"),
       ],
       [
-        "Alterar taxa de voz",
-        "Ativar alto contraste",
-        "Alterar tamanho da fonte",
-        "Restaurar configurações padrões",
+        t("acessibilidade.velocidade_voz", { val: settings.speechRate }),
+        t("acessibilidade.alto_contraste"),
+        t("acessibilidade.tamanho_texto"),
+        t("acessibilidade.restaurar_padroes"),
       ]
     );
   };

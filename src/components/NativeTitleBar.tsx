@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layers, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { useNativeApp } from '../hooks/useNativeApp';
+import { Capacitor } from '@capacitor/core';
 
 interface NativeTitleBarProps {
   onOpenNativeModal?: () => void;
@@ -8,6 +9,10 @@ interface NativeTitleBarProps {
 
 export const NativeTitleBar: React.FC<NativeTitleBarProps> = ({ onOpenNativeModal }) => {
   const { isFullscreen, toggleFullscreen } = useNativeApp();
+
+  if (Capacitor.isNativePlatform()) {
+    return null;
+  }
 
   return (
     <div
