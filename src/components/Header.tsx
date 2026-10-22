@@ -25,7 +25,10 @@ import {
   GraduationCap,
   Eye,
   Globe,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { alternarTema, getTemaAtual, TemaTipo } from "../utils/themeManager";
 import { TabId } from "./Sidebar";
 import { UserProfile, CustomThemeColors } from "../types";
 import { NativeAppButton } from "./NativeAppButton";
@@ -74,6 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
   onlineCount = 1,
   isOnline = true,
 }) => {
+  const [temaLocal, setTemaLocal] = React.useState<TemaTipo>(getTemaAtual);
   useEffect(() => {
     const sendHeartbeat = async () => {
       try {
@@ -324,6 +328,28 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline text-xs font-bold">{t("header.notificacoes", "Notificações")}</span>
             </button>
           )}
+
+          {/* 1-CLICK THEME TOGGLE (CLARO / ESCURO) */}
+          <button
+            id="header-theme-toggle-btn"
+            type="button"
+            onClick={() => {
+              const novo = alternarTema();
+              setTemaLocal(novo);
+            }}
+            title={temaLocal === "escuro" ? "Ativar Tema Claro" : "Ativar Tema Escuro"}
+            aria-label="Alternar entre tema claro e tema escuro"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
+          >
+            {temaLocal === "escuro" ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-indigo-500 group-hover:-rotate-12 transition-transform" />
+            )}
+            <span className="hidden xl:inline text-xs font-bold">
+              {temaLocal === "escuro" ? "Claro" : "Escuro"}
+            </span>
+          </button>
 
           {/* SETTINGS MODAL TRIGGER */}
           {onOpenSettings && (

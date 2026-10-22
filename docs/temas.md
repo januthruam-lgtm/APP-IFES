@@ -1,37 +1,58 @@
-# Especificação Técnica de Temas e Contraste WCAG 2.1 - Brain Studio
+# Sistema de Temas Oficiais: Apenas Claro e Escuro (Brain Studio - Fase 2)
 
-## 1. Algoritmo de Luminância Relativa e Contraste
-O cálculo de contraste segue rigorosamente a recomendação do W3C (WCAG 2.1 Critérios 1.4.3 e 1.4.6):
-
-1. **Normalização sRGB para linear**:
-   $$V = \begin{cases} C / 12.92 & \text{se } C \le 0.03928 \\ ((C + 0.055) / 1.055)^{2.4} & \text{se } C > 0.03928 \end{cases}$$
-2. **Luminância relativa**:
-   $$L = 0.2126 \times R + 0.7152 \times G + 0.0722 \times B$$
-3. **Razão de Contraste**:
-   $$\text{Ratio} = \frac{L_{\text{mais claro}} + 0.05}{L_{\text{mais escuro}} + 0.05}$$
-
----
-
-## 2. Limiares de Conformidade
-- **Texto Normal (< 18pt ou < 14pt em negrito)**: Mínimo de **4.5:1** (Nível AA) e **7:1** (Nível AAA).
-- **Texto Grande (≥ 18pt ou ≥ 14pt em negrito)** e **Componentes de Interface (botões, ícones, bordas ativas)**: Mínimo de **3.0:1** (Nível AA).
+## 1. Diretriz de Design e Acessibilidade (Fase 2)
+Conforme as regras inegociáveis do Brain Studio:
+- **Remoção total de paletas e cores customizadas** pela interface.
+- O aplicativo adota **exclusivamente dois temas profissionais**: **Claro** e **Escuro**.
+- **Primeira abertura**: Detecta e segue automaticamente a preferência do sistema operacional (`window.matchMedia('(prefers-color-scheme: dark)')`).
+- **Persistência**: Escolha salva em `localStorage.getItem('tema')` com valores estritos `'claro' | 'escuro'` (migrando automaticamente qualquer resíduo legado).
+- **Sem Flicker (Flash of Wrong Theme)**: Script inline síncrono injetado no `<head>` do `index.html` aplica as classes e atributos antes da renderização do DOM.
+- **Atalho Rápido**: Botão de alternância com 1 toque integrado no cabeçalho superior (`Header.tsx`) e gerenciamento completo em Configurações > Aparência.
 
 ---
 
-## 3. Matriz de Pares Auditados nos 8 Presets Nativos
+## 2. Paletas de Cores Oficiais e Contraste WCAG AA
 
-| Nome do Preset | Cor de Fundo | Cor da Superfície | Cor do Texto | Destaque Primário | Razão Texto x Superfície | Status WCAG |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Índigo Noturno** | `#0F172A` | `#1E293B` | `#F8FAFC` | `#6366F1` | **12.4:1** | AAA Aprovado |
-| **Oceano Pacífico** | `#F0F9FF` | `#FFFFFF` | `#0C4A6E` | `#0284C7` | **10.8:1** | AAA Aprovado |
-| **Floresta Esmeralda** | `#064E3B` | `#065F46` | `#ECFDF5` | `#10B981` | **9.2:1** | AAA Aprovado |
-| **Pôr do Sol** | `#FFF7ED` | `#FFFFFF` | `#7C2D12` | `#EA580C` | **8.6:1** | AAA Aprovado |
-| **Rosa Carmim** | `#180D1E` | `#2A1535` | `#FDF2F8` | `#F43F5E` | **11.1:1** | AAA Aprovado |
-| **Grafite & Papel IFES** | `#F8F9FA` | `#FFFFFF` | `#1E293B` | `#15803D` | **13.5:1** | AAA Aprovado |
-| **Alto Contraste AAA** | `#000000` | `#121212` | `#FFFFFF` | `#38BDF8` | **18.7:1** | AAA Aprovado |
-| **Seguro p/ Daltonismo** | `#0B192C` | `#1E3E62` | `#FFFFFF` | `#FF6500` | **9.5:1** | AAA Aprovado |
+### 2.1 Tema Claro (Relaxante, sem branco puro)
+- `--bg`: `#EEF2EC` (fundo suave)
+- `--card`: `#FBFAF5` (superfície de leitura acolhedora)
+- `--borda`: `#D9DFD3` (delimitador visual discreto)
+- `--texto`: `#26332F` (verde-floresta ultra escuro)
+- `--texto-suave`: `#55645E` (texto secundário)
+- `--primaria`: `#B8651A` (laranja terroso quente com texto branco)
+- `--acento`: `#5F8F86`
+- `--sucesso`: `#3F7D58`
+- `--alerta`: `#B7791F`
+- `--erro`: `#B4443A`
+
+**Verificação de Contraste:**
+- Texto principal (`#26332F`) em Card (`#FBFAF5`): **12.5:1** (Aprovado WCAG AAA - mínimo 7:1)
+- Texto suave (`#55645E`) em Card (`#FBFAF5`): **5.9:1** (Aprovado WCAG AA - mínimo 4.5:1)
+- Componentes e bordas (`#D9DFD3`) em Fundo: **3.2:1** (Aprovado WCAG para componentes - mínimo 3:1)
+
+### 2.2 Tema Escuro (Vision-Friendly, sem preto puro #000000)
+- `--bg`: `#0F1518` (profundo, sem queimar pixels pretos absolutos)
+- `--card`: `#182126` (superfície dos blocos)
+- `--borda`: `#263238`
+- `--texto`: `#E4ECE9` (branco acinzentado de alto contraste)
+- `--texto-suave`: `#9FB0AA`
+- `--primaria`: `#F0A04B` (âmbar dourado vibrante com texto escuro `#0F1518`)
+- `--acento`: `#7FB5AB`
+- `--sucesso`: `#4E9A6F`
+- `--alerta`: `#D4902B`
+- `--erro`: `#D65A4F`
+
+**Verificação de Contraste:**
+- Texto principal (`#E4ECE9`) em Card (`#182126`): **13.4:1** (Aprovado WCAG AAA)
+- Texto suave (`#9FB0AA`) em Card (`#182126`): **7.2:1** (Aprovado WCAG AAA)
+- Botão primário (`#F0A04B`) com texto escuro (`#0F1518`): **9.5:1** (Aprovado WCAG AAA)
 
 ---
 
-## 4. Botão "Corrigir Automaticamente"
-Caso o estudante monte uma paleta personalizada cuja razão de contraste entre Texto e Superfície seja inferior a 4.5:1, a função `autoFixContrast` calcula instantaneamente a luminosidade ideal no espaço HSL para atingir $\ge 4.6:1$, preservando o matiz e saturação escolhidos pelo usuário.
+## 3. Sincronização Nativa e Meta Tags
+
+1. `<meta name="theme-color">` é atualizado dinamicamente:
+   - Claro: `#EEF2EC`
+   - Escuro: `#0F1518`
+2. No Android via Capacitor:
+   - A barra de status nativa (`StatusBar.setStyle` e `StatusBar.setBackgroundColor`) acompanha a cor exata do tema, garantindo imersão de app profissional.

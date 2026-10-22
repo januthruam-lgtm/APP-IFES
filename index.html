@@ -21,7 +21,26 @@
     <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#050512" />
+    <meta name="google" content="notranslate" />
+    <meta name="theme-color" content="#EEF2EC" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('tema');
+          if (t !== 'claro' && t !== 'escuro') {
+            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'escuro' : 'claro';
+            localStorage.setItem('tema', t);
+          }
+          if (t === 'escuro') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'escuro');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'claro');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="application-name" content="Brain Studio" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

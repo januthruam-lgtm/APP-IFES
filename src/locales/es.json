@@ -143,7 +143,21 @@
     "nenhuma_disciplina": "Ninguna asignatura de AVA IFES sincronizada aún.",
     "digitar_credenciais": "Ingresar Credenciales y Sincronizar",
     "concluido": "{{percent}}% completado",
-    "acessar_sala": "Entrar al Curso"
+    "acessar_sala": "Entrar al Curso",
+    "ativas": "Activas ({{count}})",
+    "excluidas": "Excluidas ({{count}})",
+    "materias_excluidas_titulo": "Asignaturas Ocultas y Excluidas",
+    "materias_excluidas_desc": "Las asignaturas excluidas no se volverán a importar durante sincronizaciones automáticas con AVA Moodle.",
+    "nenhuma_excluida": "No hay asignaturas excluidas.",
+    "nenhuma_excluida_desc": "Cuando quitas una asignatura de las activas, pasa a esta lista segura.",
+    "restaurar": "Restaurar",
+    "excluir_definitivamente": "Eliminar Definitivamente",
+    "esvaziar_excluidas": "Vaciar Excluidas",
+    "confirmar_excluir_definitivo": "¿Estás seguro de que deseas eliminar permanentemente este registro de exclusión?",
+    "confirmar_esvaziar": "¿Estás seguro de que deseas vaciar todas las asignaturas excluidas?",
+    "data_exclusao": "Excluida el {{data}}",
+    "cancelar": "Cancelar",
+    "confirmar": "Confirmar"
   },
   "loja": {
     "titulo": "Tienda de Monedas y Planes",

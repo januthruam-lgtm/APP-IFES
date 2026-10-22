@@ -15,15 +15,15 @@ export const ECONOMIA_CONFIG = Object.freeze({
 
     // Tabela de moedas do n-ésimo baú aberto pelo usuário no dia (índices 0 a 14 correspondendo aos baús 1 a 15)
     MOEDAS_POR_ORDEM_DIARIA: Object.freeze([
-      10, 20, 40, 80, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 450,
+      10, 20, 30, 45, 60, 80, 105, 135, 170, 210, 255, 305, 360, 400, 450,
     ]),
 
     // Bônus fixos e garantidos por marco no dia (ECA Digital: sem sorteio aleatório)
     BONUS_FIXOS_MARCOS: Object.freeze({
-      3: { tipo: "comida_pet", quantidade: 1 },
-      6: { tipo: "comida_pet", quantidade: 2 },
-      10: { tipo: "congelar_ofensiva", quantidade: 1 },
-      15: { tipo: "fragmento_cosmetico", quantidade: 1 },
+      3: { moedasBonus: 15, tipo: "comida_pet", quantidade: 1 },
+      6: { moedasBonus: 30, tipo: "comida_pet", quantidade: 2 },
+      10: { moedasBonus: 60, tipo: "congelar_ofensiva", quantidade: 1 },
+      15: { moedasBonus: 120, tipo: "fragmento_cosmetico", quantidade: 1 },
     }),
 
     // Bônus percentual por nível de XP total da equipe
@@ -164,12 +164,13 @@ export function aplicarFreioAntiInflacao(
 export interface RecompensaBauResultado {
   bauNumero: number;
   moedasBase: number;
+  moedasBonusMarco: number;
   bonusPercentualEquipe: number;
   bonusPercentualOfensiva: number;
   bonusTotalPercentual: number;
   moedasCalculadas: number;
   moedasFinaisAposFreio: number;
-  itemFixo?: { tipo: string; quantidade: number };
+  itemFixo?: { tipo: string; quantidade: number; moedasBonus?: number };
   aplicadoFreioAntiInflacao: boolean;
 }
 
@@ -205,25 +206,27 @@ export function calcularRecompensaBau(
     bonusEquipe + bonusOfensiva
   );
 
-  const moedasComBonus = Math.floor(moedasBase * (1 + bonusTotalPercentual));
+  const marcoInfo = (ECONOMIA_CONFIG.BAU.BONUS_FIXOS_MARCOS as any)[clampOrdem];
+  const moedasBonusMarco = marcoInfo?.moedasBonus || 0;
+
+  const moedasComBonus =
+    Math.floor(moedasBase * (1 + bonusTotalPercentual)) + moedasBonusMarco;
 
   const { moedasEfetivas, aplicadoFreio } = aplicarFreioAntiInflacao(
     moedasJaGanhasHoje,
     moedasComBonus
   );
 
-  const itemFixo =
-    (ECONOMIA_CONFIG.BAU.BONUS_FIXOS_MARCOS as any)[clampOrdem] || undefined;
-
   return {
     bauNumero: clampOrdem,
     moedasBase,
+    moedasBonusMarco,
     bonusPercentualEquipe: bonusEquipe,
     bonusPercentualOfensiva: bonusOfensiva,
     bonusTotalPercentual,
     moedasCalculadas: moedasComBonus,
     moedasFinaisAposFreio: moedasEfetivas,
-    itemFixo,
+    itemFixo: marcoInfo,
     aplicadoFreioAntiInflacao: aplicadoFreio,
   };
 }

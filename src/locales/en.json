@@ -143,7 +143,21 @@
     "nenhuma_disciplina": "No AVA IFES courses synchronized yet.",
     "digitar_credenciais": "Enter Credentials and Sync",
     "concluido": "{{percent}}% completed",
-    "acessar_sala": "Enter Course"
+    "acessar_sala": "Enter Course",
+    "ativas": "Active ({{count}})",
+    "excluidas": "Excluded ({{count}})",
+    "materias_excluidas_titulo": "Hidden & Excluded Courses",
+    "materias_excluidas_desc": "Excluded courses are not imported again during automatic syncs with AVA Moodle.",
+    "nenhuma_excluida": "No excluded courses.",
+    "nenhuma_excluida_desc": "When you remove a course from active, it is stored in this safe list.",
+    "restaurar": "Restore",
+    "excluir_definitivamente": "Delete Permanently",
+    "esvaziar_excluidas": "Empty Excluded Courses",
+    "confirmar_excluir_definitivo": "Are you sure you want to permanently remove this exclusion record?",
+    "confirmar_esvaziar": "Are you sure you want to empty all excluded courses?",
+    "data_exclusao": "Excluded on {{data}}",
+    "cancelar": "Cancel",
+    "confirmar": "Confirm"
   },
   "loja": {
     "titulo": "Coins & Plans Store",

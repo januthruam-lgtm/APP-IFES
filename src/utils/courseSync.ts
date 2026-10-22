@@ -6,6 +6,7 @@ import {
   TrackModule,
   LessonStep,
 } from "../types";
+import { filterActiveCourses } from "./courseTombstones";
 
 export const DEFAULT_IFES_COURSES: IfesCourse[] = [
   {
@@ -663,7 +664,7 @@ export function loadSyncedCourses(): IfesCourse[] {
     if (saved) {
       const parsed: IfesCourse[] = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const clean = parsed.filter((c) => !isMockOrPlaceholderCourse(c));
+        const clean = filterActiveCourses(parsed.filter((c) => !isMockOrPlaceholderCourse(c)));
         if (clean.length > 0) {
           return clean;
         }

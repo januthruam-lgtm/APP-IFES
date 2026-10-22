@@ -143,7 +143,21 @@
     "nenhuma_disciplina": "Nenhuma disciplina do AVA IFES sincronizada.",
     "digitar_credenciais": "Digitar Credenciais e Sincronizar",
     "concluido": "{{percent}}% concluído",
-    "acessar_sala": "Acessar Sala"
+    "acessar_sala": "Acessar Sala",
+    "ativas": "Ativas ({{count}})",
+    "excluidas": "Excluídas ({{count}})",
+    "materias_excluidas_titulo": "Disciplinas Ocultadas e Excluídas",
+    "materias_excluidas_desc": "Disciplinas excluídas não voltam a ser importadas durante sincronizações automáticas com o AVA Moodle.",
+    "nenhuma_excluida": "Nenhuma disciplina excluída.",
+    "nenhuma_excluida_desc": "Quando você remove uma matéria das ativas, ela vem para esta lista segura.",
+    "restaurar": "Restaurar",
+    "excluir_definitivamente": "Excluir Definitivamente",
+    "esvaziar_excluidas": "Esvaziar Excluídas",
+    "confirmar_excluir_definitivo": "Tem certeza de que deseja remover permanentemente este registro de exclusão?",
+    "confirmar_esvaziar": "Tem certeza de que deseja esvaziar todas as matérias excluídas?",
+    "data_exclusao": "Excluída em {{data}}",
+    "cancelar": "Cancelar",
+    "confirmar": "Confirmar"
   },
   "loja": {
     "titulo": "Loja de Moedas & Planos",

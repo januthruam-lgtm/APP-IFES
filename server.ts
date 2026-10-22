@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import http from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -247,66 +248,53 @@ async function startServer() {
     res.json({ status: "ok", appName: "Brain Studio", aiAvailable: !!process.env.GEMINI_API_KEY });
   });
 
-  // Dynamic Full Localization Bundle Translation (100+ Languages with Server Cache)
+  // Pre-compiled Localization Bundle Server Handler (Fase 1 - Zero Erro 429)
   const serverI18nCache = new Map<string, Record<string, any>>();
 
   app.post("/api/i18n/translate-bundle", async (req, res) => {
     try {
-      const { targetLang, sourceBundle } = req.body;
+      const { targetLang } = req.body;
       if (!targetLang || typeof targetLang !== "string") {
         return res.status(400).json({ error: "targetLang is required" });
       }
 
-      const normalized = targetLang.toLowerCase();
-      if (normalized === "pt-br" || normalized === "pt") {
-        return res.json({ bundle: sourceBundle || {} });
-      }
-
+      const normalized = targetLang.toLowerCase().trim();
       if (serverI18nCache.has(normalized)) {
         return res.json({ bundle: serverI18nCache.get(normalized) });
       }
 
-      const ai = getGeminiClient();
-      if (!ai) {
-        return res.status(503).json({ error: "Gemini not available for translation" });
+      // 1. Tentar ler arquivo pré-compilado local
+      const possibleFiles = [
+        path.join(__dirname, "src", "locales", `${targetLang}.json`),
+        path.join(__dirname, "src", "locales", `${normalized}.json`),
+        path.join(__dirname, "src", "locales", `${targetLang.split("-")[0]}.json`),
+      ];
+
+      for (const p of possibleFiles) {
+        if (fs.existsSync(p)) {
+          try {
+            const content = JSON.parse(fs.readFileSync(p, "utf-8"));
+            serverI18nCache.set(normalized, content);
+            return res.json({ bundle: content });
+          } catch {}
+        }
       }
 
-      let langName = targetLang;
-      try {
-        const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
-        langName = displayNames.of(targetLang.split("-")[0]) || targetLang;
-      } catch {}
+      // 2. Se não encontrar, cair com segurança no Inglês (en.json) conforme Fase 1
+      const enPath = path.join(__dirname, "src", "locales", "en.json");
+      if (fs.existsSync(enPath)) {
+        const enContent = JSON.parse(fs.readFileSync(enPath, "utf-8"));
+        serverI18nCache.set(normalized, enContent);
+        return res.json({ bundle: enContent, fallback: true });
+      }
 
-      const prompt = `You are a professional software localization system.
-Translate the following JSON UI localization bundle from Portuguese into the target language "${langName}" (code: ${targetLang}).
-CRITICAL RULES:
-1. Preserve the exact JSON structure and ALL key names without changing them.
-2. Keep template variables untouched: {{count}}, {{name}}, {{data}}, {{percent}}, {{tempo}}, {{valor}}, {{level}}, {{used}}, {{limit}}, {{screen}}, {{content}}, {{actions}}, {{val}}.
-3. Return ONLY a valid JSON object without markdown fences, comments or formatting.
-
-JSON to translate:
-${JSON.stringify(sourceBundle || {})}`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      });
-
-      const text = response.text?.trim() || "{}";
-      const cleaned = text.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
-      const parsed = JSON.parse(cleaned);
-
-      serverI18nCache.set(normalized, parsed);
-      return res.json({ bundle: parsed });
+      return res.json({ bundle: {}, fallback: true });
     } catch (err: any) {
-      console.warn("Translation bundle error:", err?.message || err);
-      return res.status(500).json({ error: "Failed to translate bundle" });
+      console.warn("Static translation bundle read error:", err?.message || err);
+      return res.status(500).json({ error: "Failed to read locale bundle" });
     }
   });
+
 
   const upload = multer({
     limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit

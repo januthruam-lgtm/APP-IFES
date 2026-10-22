@@ -142,6 +142,13 @@ export interface UserProfile {
     flashcardsReviewed: number;
     energyDonated?: number;
   };
+  congelamentosOfensiva?: number;
+  marcosOfensivaResgatados?: number[];
+  missoesDiariasResgatadas?: Record<string, string[]>;
+  itensInventario?: Record<string, number>;
+  plano?: "gratuito" | "lite" | "pro";
+  expiraEm?: string | null;
+  xpBoostAte?: number | null;
 }
 
 export interface SocraticMessage {

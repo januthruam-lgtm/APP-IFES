@@ -133,7 +133,18 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-xl shrink-0" aria-hidden="true">{lang.flag}</span>
                   <div className="text-left truncate">
-                    <div className="truncate">{lang.label}</div>
+                    <div className="truncate flex items-center gap-1.5">
+                      <span>{lang.label}</span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                          lang.status === "completo"
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                        }`}
+                      >
+                        {lang.status === "completo" ? "Completo" : "Tradução Automática"}
+                      </span>
+                    </div>
                     {lang.nativeName !== lang.label && (
                       <div className="text-[10px] text-[var(--app-text-muted)] font-normal">{lang.nativeName}</div>
                     )}

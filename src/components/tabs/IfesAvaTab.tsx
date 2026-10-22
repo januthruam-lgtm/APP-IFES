@@ -25,6 +25,8 @@ import {
   Info,
   Globe,
   ExternalLink,
+  Archive,
+  Undo2,
 } from "lucide-react";
 import { useAccessibility } from "../../lib/accessibility";
 import { UserProfile, IfesCourse, IfesAssignment, IfesAccountInfo } from "../../types";
@@ -40,6 +42,15 @@ import {
   exportSyncLogsAsText,
   SyncLogEntry,
 } from "../../utils/courseSync";
+import {
+  excludeCourse,
+  restoreCourse,
+  deleteCoursePermanently,
+  emptyExcludedCourses,
+  getExcludedCoursesList,
+  filterActiveCourses,
+  TombstoneItem,
+} from "../../utils/courseTombstones";
 import { avaApiClient } from "../../utils/avaApi";
 import { avaConnectionManager } from "../../utils/avaConnectionManager";
 import { AvaCalendarView } from "../ava/AvaCalendarView";
@@ -152,11 +163,69 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
 
   const [isSyncingApi, setIsSyncingApi] = useState(false);
 
-  const handleDeleteCourse = (courseId: string, courseName: string) => {
-    const updated = courses.filter((c) => c.id !== courseId);
+  const [courseCategory, setCourseCategory] = useState<"active" | "excluded">("active");
+  const [excludedCourses, setExcludedCourses] = useState<TombstoneItem[]>(() => getExcludedCoursesList());
+  const [confirmDeleteTombstone, setConfirmDeleteTombstone] = useState<TombstoneItem | null>(null);
+  const [showConfirmEmpty, setShowConfirmEmpty] = useState(false);
+
+  const handleSoftDeleteCourse = async (course: IfesCourse) => {
+    const userId = user.id || user.uid || "local-student";
+    await excludeCourse(userId, course);
+    const updated = courses.filter((c) => c.id !== course.id);
     handleUpdateCourseList(updated);
-    setSyncToast(`Disciplina "${courseName}" removida.`);
+    setExcludedCourses(getExcludedCoursesList());
+    setSyncToast(`Disciplina "${course.name}" movida para Excluídas.`);
     setTimeout(() => setSyncToast(null), 3000);
+  };
+
+  const handleRestoreCourse = async (item: TombstoneItem) => {
+    const userId = user.id || user.uid || "local-student";
+    await restoreCourse(userId, item.key);
+    const restoredCourse: IfesCourse = {
+      id: item.id || `restored-${item.key}`,
+      name: item.name,
+      code: item.code || "IFES",
+      professor: "Corpo Docente IFES",
+      campus: campusName,
+      status: "ativo",
+      progressPercent: 0,
+      updatedAt: Date.now(),
+    };
+    const nextCourses = [...courses.filter((c) => c.id !== item.id && c.name !== item.name), restoredCourse];
+    handleUpdateCourseList(nextCourses);
+    setExcludedCourses(getExcludedCoursesList());
+    setSyncToast(`Disciplina "${item.name}" restaurada.`);
+    setTimeout(() => setSyncToast(null), 3000);
+  };
+
+  const handlePermanentDelete = async (item: TombstoneItem) => {
+    const userId = user.id || user.uid || "local-student";
+    await deleteCoursePermanently(userId, item.key);
+    setExcludedCourses(getExcludedCoursesList());
+    setConfirmDeleteTombstone(null);
+    setSyncToast(`Registro da disciplina "${item.name}" removido definitivamente.`);
+    setTimeout(() => setSyncToast(null), 3000);
+  };
+
+  const handleEmptyAllExcluded = async () => {
+    const userId = user.id || user.uid || "local-student";
+    await emptyExcludedCourses(userId);
+    setExcludedCourses([]);
+    setShowConfirmEmpty(false);
+    setSyncToast("Todas as disciplinas excluídas foram limpas.");
+    setTimeout(() => setSyncToast(null), 3000);
+  };
+
+  const handleDeleteCourse = (courseId: string, courseName: string) => {
+    const target = courses.find((c) => c.id === courseId);
+    if (target) {
+      handleSoftDeleteCourse(target);
+    } else {
+      const updated = courses.filter((c) => c.id !== courseId);
+      handleUpdateCourseList(updated);
+      setSyncToast(`Disciplina "${courseName}" removida.`);
+      setTimeout(() => setSyncToast(null), 3000);
+    }
   };
 
   const handleSyncFromApi = async () => {
@@ -210,11 +279,17 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
     }
   };
 
-  const filteredCourses = courses.filter(
+  const activeCourses = filterActiveCourses(courses);
+  const filteredCourses = activeCourses.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.code && c.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (c.professor && c.professor.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+  const filteredExcluded = excludedCourses.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Se uma matéria for selecionada, abre a Sala Virtual Completa com Envio de Atividades, Fóruns e Questionários
@@ -410,203 +485,320 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
       {/* Sub-tab views */}
       {activeSubTab === "courses" && (
         <div className="space-y-4">
-          {/* Search, Accordion Controls & Toolbar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" aria-hidden="true" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t("ava.buscar_materia")}
-                aria-label={t("ava.buscar_materia")}
-                className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition min-h-[44px]"
-              />
-            </div>
+          {/* Sub-toggle: Ativas vs Excluídas */}
+          <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2">
+            <button
+              type="button"
+              onClick={() => setCourseCategory("active")}
+              className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+                courseCategory === "active"
+                  ? "bg-[var(--app-primary)] text-white shadow-xs"
+                  : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>{t("ava.ativas", { count: activeCourses.length })}</span>
+            </button>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Botões Expandir Tudo e Recolher Tudo */}
-              <div className="flex items-center gap-1.5 bg-[var(--app-card)] p-1 rounded-2xl border border-[var(--app-border)]">
-                <button
-                  type="button"
-                  onClick={handleExpandAllCourses}
-                  aria-label={t("ava.expandir_tudo")}
-                  className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
-                >
-                  {t("ava.expandir_tudo")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCollapseAllCourses}
-                  aria-label={t("ava.recolher_tudo")}
-                  className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
-                >
-                  {t("ava.recolher_tudo")}
-                </button>
-              </div>
-
-              <button
-                onClick={() => setShowProfileManager(true)}
-                className="px-3.5 py-2 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer min-h-[44px]"
-              >
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>{t("ava.adicionar_manual")}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setCourseCategory("excluded")}
+              className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition cursor-pointer ${
+                courseCategory === "excluded"
+                  ? "bg-[var(--app-primary)] text-white shadow-xs"
+                  : "bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              }`}
+            >
+              <Archive className="w-4 h-4" />
+              <span>{t("ava.excluidas", { count: excludedCourses.length })}</span>
+            </button>
           </div>
 
-          {filteredCourses.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <BookOpen className="w-7 h-7" aria-hidden="true" />
-              </div>
-              <div className="max-w-md mx-auto space-y-1">
-                <h3 className="text-base font-black text-[var(--app-text)]">
-                  {t("ava.nenhuma_disciplina")}
-                </h3>
-                <p className="text-xs text-[var(--app-text-muted)]">
-                  Insira suas credenciais institucionais do IFES (matrícula e senha) para autenticar no seu perfil e baixar suas matérias e conteúdos reais do AVA Moodle.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-                <button
-                  onClick={() => {
-                    if (onOpenAvaConnect) {
-                      onOpenAvaConnect();
-                    } else {
-                      setShowProfileManager(true);
-                    }
-                  }}
-                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95 min-h-[48px]"
-                >
-                  <Building2 className="w-4 h-4" aria-hidden="true" />
-                  <span>{t("ava.digitar_credenciais")}</span>
-                </button>
-                <button
-                  onClick={() => setShowProfileManager(true)}
-                  className="px-4 py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 min-h-[48px]"
-                >
-                  <Clipboard className="w-3.5 h-3.5" aria-hidden="true" />
-                  <span>Colar Texto ou Grade Manual</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3" role="region" aria-label={t("ava.materias")}>
-              {filteredCourses.map((course) => {
-                const isExpanded = Boolean(expandedCourseIds[course.id]);
+          {courseCategory === "active" ? (
+            <>
+              {/* Search, Accordion Controls & Toolbar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" aria-hidden="true" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("ava.buscar_materia")}
+                    aria-label={t("ava.buscar_materia")}
+                    className="w-full pl-10 pr-4 py-2 bg-[var(--app-card)] border border-[var(--app-border)] rounded-2xl text-xs text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none focus:border-[var(--app-primary)] transition min-h-[44px]"
+                  />
+                </div>
 
-                return (
-                  <div
-                    key={course.id}
-                    className="rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden transition shadow-xs"
-                  >
-                    {/* Botão Acordeão Principal acessível via teclado */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Botões Expandir Tudo e Recolher Tudo */}
+                  <div className="flex items-center gap-1.5 bg-[var(--app-card)] p-1 rounded-2xl border border-[var(--app-border)]">
                     <button
                       type="button"
-                      onClick={() => handleToggleCourse(course.id)}
-                      aria-expanded={isExpanded}
-                      aria-controls={`course-details-${course.id}`}
-                      className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-[var(--app-card-secondary)]/50 transition cursor-pointer min-h-[56px] focus-visible:ring-2 focus-visible:ring-[var(--app-primary)]"
+                      onClick={handleExpandAllCourses}
+                      aria-label={t("ava.expandir_tudo")}
+                      className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-2xl bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 flex items-center justify-center font-bold text-base shrink-0">
-                          {(course as any).icon || "📚"}
-                        </div>
-                        <div className="min-w-0 space-y-0.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono font-bold text-[var(--app-text-muted)] bg-[var(--app-bg)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
-                              {course.code || "IFES"}
-                            </span>
-                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                              {t("ava.concluido", { percent: course.progressPercent || 45 })}
-                            </span>
-                          </div>
-                          <h3 className="text-sm sm:text-base font-bold text-[var(--app-text)] truncate">
-                            {course.name}
-                          </h3>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-[var(--app-text-muted)] hidden sm:inline">
-                          {isExpanded ? "Contrair" : "Expandir"}
-                        </span>
-                        <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--app-bg)] text-[var(--app-text-muted)] border border-[var(--app-border)] transition-transform duration-200 ${
-                            isExpanded ? "rotate-180" : ""
-                          }`}
-                        >
-                          <ChevronDown className="w-4 h-4" aria-hidden="true" />
-                        </div>
-                      </div>
+                      {t("ava.expandir_tudo")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={handleCollapseAllCourses}
+                      aria-label={t("ava.recolher_tudo")}
+                      className="px-3 py-1.5 rounded-xl hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[36px]"
+                    >
+                      {t("ava.recolher_tudo")}
+                    </button>
+                  </div>
 
-                    {/* Conteúdo Expansível com Motion */}
-                    <AnimatePresence initial={false}>
-                      {isExpanded && (
-                        <motion.div
-                          id={`course-details-${course.id}`}
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={isReducedMotion ? { duration: 0 } : { duration: 0.25, ease: "easeInOut" }}
-                          className="overflow-hidden border-t border-[var(--app-border)] bg-[var(--app-bg)]/40"
+                  <button
+                    onClick={() => setShowProfileManager(true)}
+                    className="px-3.5 py-2 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer min-h-[44px]"
+                  >
+                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{t("ava.adicionar_manual")}</span>
+                  </button>
+                </div>
+              </div>
+
+              {filteredCourses.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-4">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <BookOpen className="w-7 h-7" aria-hidden="true" />
+                  </div>
+                  <div className="max-w-md mx-auto space-y-1">
+                    <h3 className="text-base font-black text-[var(--app-text)]">
+                      {t("ava.nenhuma_disciplina")}
+                    </h3>
+                    <p className="text-xs text-[var(--app-text-muted)]">
+                      Insira suas credenciais institucionais do IFES (matrícula e senha) para autenticar no seu perfil e baixar suas matérias e conteúdos reais do AVA Moodle.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                    <button
+                      onClick={() => {
+                        if (onOpenAvaConnect) {
+                          onOpenAvaConnect();
+                        } else {
+                          setShowProfileManager(true);
+                        }
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95 min-h-[48px]"
+                    >
+                      <Building2 className="w-4 h-4" aria-hidden="true" />
+                      <span>{t("ava.digitar_credenciais")}</span>
+                    </button>
+                    <button
+                      onClick={() => setShowProfileManager(true)}
+                      className="px-4 py-2.5 bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5 min-h-[48px]"
+                    >
+                      <Clipboard className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Colar Texto ou Grade Manual</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3" role="region" aria-label={t("ava.materias")}>
+                  {filteredCourses.map((course) => {
+                    const isExpanded = Boolean(expandedCourseIds[course.id]);
+
+                    return (
+                      <div
+                        key={course.id}
+                        className="rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] overflow-hidden transition shadow-xs"
+                      >
+                        {/* Botão Acordeão Principal acessível via teclado */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCourse(course.id)}
+                          aria-expanded={isExpanded}
+                          aria-controls={`course-details-${course.id}`}
+                          className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 text-left hover:bg-[var(--app-card-secondary)]/50 transition cursor-pointer min-h-[56px] focus-visible:ring-2 focus-visible:ring-[var(--app-primary)]"
                         >
-                          <div className="p-5 space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--app-text-muted)]">
-                              <div>
-                                <span className="font-bold text-[var(--app-text)] block">Docente:</span>
-                                <span>{course.professor || "Corpo Docente IFES"}</span>
-                              </div>
-                              <div>
-                                <span className="font-bold text-[var(--app-text)] block">Campus:</span>
-                                <span>{course.campus || campusName}</span>
-                              </div>
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-2xl bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 flex items-center justify-center font-bold text-base shrink-0">
+                              {(course as any).icon || "📚"}
                             </div>
-
-                            {/* Barra de Progresso */}
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between text-[11px] font-mono">
-                                <span className="text-[var(--app-text-muted)]">Andamento da Disciplina</span>
-                                <span className="font-bold text-[var(--app-primary)]">{course.progressPercent || 45}%</span>
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold text-[var(--app-text-muted)] bg-[var(--app-bg)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
+                                  {course.code || "IFES"}
+                                </span>
+                                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                  {t("ava.concluido", { percent: course.progressPercent || 45 })}
+                                </span>
                               </div>
-                              <div className="w-full bg-[var(--app-card)] h-2 rounded-full overflow-hidden border border-[var(--app-border)]">
-                                <div
-                                  className="bg-[var(--app-primary)] h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${course.progressPercent || 45}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Ações da Disciplina */}
-                            <div className="pt-2 flex items-center justify-between gap-3 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteCourse(course.id, course.name)}
-                                className="p-2.5 text-[var(--app-text-muted)] hover:text-red-500 rounded-xl hover:bg-red-500/10 transition cursor-pointer min-h-[44px] flex items-center gap-1.5 text-xs font-bold"
-                                title={`Remover ${course.name}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                <span>Remover</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCourse(course)}
-                                className="px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:opacity-90 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer min-h-[48px]"
-                              >
-                                <span>{t("ava.acessar_sala")}</span>
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
+                              <h3 className="text-sm sm:text-base font-bold text-[var(--app-text)] truncate">
+                                {course.name}
+                              </h3>
                             </div>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-[var(--app-text-muted)] hidden sm:inline">
+                              {isExpanded ? "Contrair" : "Expandir"}
+                            </span>
+                            <div
+                              className={`w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--app-bg)] text-[var(--app-text-muted)] border border-[var(--app-border)] transition-transform duration-200 ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            >
+                              <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Conteúdo Expansível com Motion */}
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div
+                              id={`course-details-${course.id}`}
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={isReducedMotion ? { duration: 0 } : { duration: 0.25, ease: "easeInOut" }}
+                              className="overflow-hidden border-t border-[var(--app-border)] bg-[var(--app-bg)]/40"
+                            >
+                              <div className="p-5 space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--app-text-muted)]">
+                                  <div>
+                                    <span className="font-bold text-[var(--app-text)] block">Docente:</span>
+                                    <span>{course.professor || "Corpo Docente IFES"}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-[var(--app-text)] block">Campus:</span>
+                                    <span>{course.campus || campusName}</span>
+                                  </div>
+                                </div>
+
+                                {/* Barra de Progresso */}
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between text-[11px] font-mono">
+                                    <span className="text-[var(--app-text-muted)]">Andamento da Disciplina</span>
+                                    <span className="font-bold text-[var(--app-primary)]">{course.progressPercent || 45}%</span>
+                                  </div>
+                                  <div className="w-full bg-[var(--app-card)] h-2 rounded-full overflow-hidden border border-[var(--app-border)]">
+                                    <div
+                                      className="bg-[var(--app-primary)] h-full rounded-full transition-all duration-300"
+                                      style={{ width: `${course.progressPercent || 45}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Ações da Disciplina */}
+                                <div className="pt-2 flex items-center justify-between gap-3 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSoftDeleteCourse(course)}
+                                    className="p-2.5 text-[var(--app-text-muted)] hover:text-red-500 rounded-xl hover:bg-red-500/10 transition cursor-pointer min-h-[44px] flex items-center gap-1.5 text-xs font-bold"
+                                    title={`Ocultar e excluir ${course.name}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    <span>Excluir</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedCourse(course)}
+                                    className="px-5 py-2.5 rounded-xl bg-[var(--app-primary)] hover:opacity-90 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition cursor-pointer min-h-[48px]"
+                                  >
+                                    <span>{t("ava.acessar_sala")}</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            /* Excluded Courses View */
+            <div className="space-y-4">
+              <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-[var(--app-text)] flex items-center gap-2">
+                    <Archive className="w-5 h-5 text-amber-500" />
+                    <span>{t("ava.materias_excluidas_titulo")}</span>
+                  </h3>
+                  <p className="text-xs text-[var(--app-text-muted)] max-w-xl">
+                    {t("ava.materias_excluidas_desc")}
+                  </p>
+                </div>
+
+                {excludedCourses.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmEmpty(true)}
+                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[40px]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{t("ava.esvaziar_excluidas")}</span>
+                  </button>
+                )}
+              </div>
+
+              {filteredExcluded.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl space-y-3">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                    <Archive className="w-6 h-6" />
                   </div>
-                );
-              })}
+                  <h4 className="text-sm font-bold text-[var(--app-text)]">
+                    {t("ava.nenhuma_excluida")}
+                  </h4>
+                  <p className="text-xs text-[var(--app-text-muted)] max-w-md mx-auto">
+                    {t("ava.nenhuma_excluida_desc")}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {filteredExcluded.map((item) => (
+                    <div
+                      key={item.key}
+                      className="p-4 rounded-2xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs flex flex-col justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono font-bold text-[var(--app-text-muted)] bg-[var(--app-bg)] px-2 py-0.5 rounded-md border border-[var(--app-border)]">
+                            {item.code || "IFES"}
+                          </span>
+                          <span className="text-[11px] text-[var(--app-text-muted)]">
+                            {t("ava.data_exclusao", { data: new Date(item.excluidaEm).toLocaleDateString() })}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-[var(--app-text)] line-clamp-2">
+                          {item.name}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--app-border)]">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteTombstone(item)}
+                          className="px-3 py-1.5 rounded-xl text-red-500 hover:bg-red-500/10 text-xs font-bold transition flex items-center gap-1 cursor-pointer min-h-[36px]"
+                          title={t("ava.excluir_definitivamente")}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>{t("ava.excluir_definitivamente")}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreCourse(item)}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs min-h-[36px]"
+                        >
+                          <Undo2 className="w-3.5 h-3.5" />
+                          <span>{t("ava.restaurar")}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -812,6 +1004,79 @@ export const IfesAvaTab: React.FC<IfesAvaTabProps> = ({
                 className="px-4 py-2 rounded-xl bg-[var(--app-bg)] hover:bg-gray-500/20 text-[var(--app-text)] font-bold transition cursor-pointer border border-[var(--app-border)]"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação: Excluir Definitivamente */}
+      {confirmDeleteTombstone && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-black text-[var(--app-text)]">
+                {t("ava.excluir_definitivamente")}
+              </h3>
+            </div>
+            <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
+              {t("ava.confirmar_excluir_definitivo")}
+            </p>
+            <div className="p-3 bg-[var(--app-bg)] rounded-xl border border-[var(--app-border)] text-xs font-bold text-[var(--app-text)]">
+              {confirmDeleteTombstone.name}
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteTombstone(null)}
+                className="px-4 py-2 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[40px]"
+              >
+                {t("ava.cancelar")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePermanentDelete(confirmDeleteTombstone)}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition cursor-pointer min-h-[40px] shadow-xs"
+              >
+                {t("ava.confirmar")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação: Esvaziar Excluídas */}
+      {showConfirmEmpty && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500">
+              <div className="w-10 h-10 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-black text-[var(--app-text)]">
+                {t("ava.esvaziar_excluidas")}
+              </h3>
+            </div>
+            <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
+              {t("ava.confirmar_esvaziar")}
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmEmpty(false)}
+                className="px-4 py-2 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] text-xs font-bold transition cursor-pointer min-h-[40px]"
+              >
+                {t("ava.cancelar")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleEmptyAllExcluded()}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition cursor-pointer min-h-[40px] shadow-xs"
+              >
+                {t("ava.confirmar")}
               </button>
             </div>
           </div>

@@ -12,8 +12,10 @@
     "build:native": "npm run clean && vite build && npx cap sync android",
     "android:open": "npx cap open android",
     "check:i18n": "tsx scripts/check-i18n.ts",
-    "test": "tsx scripts/test-streak.ts && tsx scripts/test-regras.ts",
+    "test": "tsx scripts/test-streak.ts && tsx scripts/test-regras.ts && tsx scripts/test-tombstones.ts && tsx scripts/test-economia-fluxo.ts",
     "test:regras": "tsx scripts/test-regras.ts",
+    "test:tombstones": "tsx scripts/test-tombstones.ts",
+    "test:economia": "tsx scripts/test-economia-fluxo.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
