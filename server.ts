@@ -248,6 +248,105 @@ async function startServer() {
     res.json({ status: "ok", appName: "Brain Studio", aiAvailable: !!process.env.GEMINI_API_KEY });
   });
 
+  // ==========================================
+  // Global Institutions API Endpoint (Fase 7)
+  // Queries local cache or ROR API with 24h caching & rate limiting
+  // ==========================================
+  const rorInstituicoesCache = new Map<string, { timestamp: number; data: any[] }>();
+  const ipRateLimitInstituicoes = new Map<string, number[]>();
+
+  app.get("/api/instituicoes", async (req, res) => {
+    try {
+      const clientIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "anonymous";
+      const now = Date.now();
+      const userRequests = ipRateLimitInstituicoes.get(clientIp) || [];
+      const recentRequests = userRequests.filter((t) => now - t < 60000);
+      if (recentRequests.length >= 30) {
+        return res.status(429).json({ error: "Limite de requisições excedido. Tente novamente em 1 minuto." });
+      }
+      recentRequests.push(now);
+      ipRateLimitInstituicoes.set(clientIp, recentRequests);
+
+      const pais = typeof req.query.pais === "string" ? req.query.pais.trim().toUpperCase() : "";
+      const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+      const regiao = typeof req.query.regiao === "string" ? req.query.regiao.trim().slice(0, 50) : "";
+      const cidade = typeof req.query.cidade === "string" ? req.query.cidade.trim().slice(0, 50) : "";
+
+      if (!pais || !/^[A-Z]{2}$/.test(pais)) {
+        return res.status(400).json({ error: "Parâmetro 'pais' inválido (deve ser ISO 3166-1 alfa-2 com 2 letras)." });
+      }
+
+      const cacheKey = `${pais}:${q.toLowerCase()}:${regiao.toLowerCase()}:${cidade.toLowerCase()}`;
+      const cached = rorInstituicoesCache.get(cacheKey);
+      if (cached && now - cached.timestamp < 24 * 60 * 60 * 1000) {
+        return res.json(cached.data);
+      }
+
+      const localFilePath = path.join(__dirname, "public", "instituicoes", `${pais}.json`);
+      if (fs.existsSync(localFilePath)) {
+        try {
+          const raw = JSON.parse(fs.readFileSync(localFilePath, "utf-8"));
+          if (Array.isArray(raw)) {
+            rorInstituicoesCache.set(cacheKey, { timestamp: now, data: raw });
+            return res.json(raw);
+          }
+        } catch {}
+      }
+
+      const rorUrl = new URL("https://api.ror.org/organizations");
+      const filterParts = ["types:Education", `country.country_code:${pais}`];
+      rorUrl.searchParams.set("filter", filterParts.join(","));
+      if (q) {
+        rorUrl.searchParams.set("query", q);
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const rorRes = await fetch(rorUrl.toString(), {
+        signal: controller.signal,
+        headers: { Accept: "application/json", "User-Agent": "BrainStudio/2.0 (student app)" },
+      });
+      clearTimeout(timeoutId);
+
+      if (!rorRes.ok) {
+        return res.json([]);
+      }
+
+      const rorJson: any = await rorRes.json();
+      const items = Array.isArray(rorJson.items) ? rorJson.items : [];
+
+      const mapped = items.map((org: any) => {
+        const idClean = (org.id || "").replace("https://ror.org/", "").trim();
+        const primaryAddress = org.addresses?.[0];
+        const site = Array.isArray(org.links) && org.links.length > 0 ? org.links[0] : undefined;
+
+        return {
+          id: `ror-${idClean}`,
+          nome: org.name,
+          nomesAlternativos: Array.isArray(org.aliases) ? org.aliases : [],
+          sigla: Array.isArray(org.acronyms) && org.acronyms.length > 0 ? org.acronyms[0] : undefined,
+          tipo: "superior",
+          rede: "publica",
+          pais: pais,
+          regiao: primaryAddress?.state || regiao || undefined,
+          cidade: primaryAddress?.city || cidade || undefined,
+          site: site && site.startsWith("https://") ? site : undefined,
+          codigos: { ror: org.id },
+          fonte: "ROR",
+          importadoEm: new Date().toISOString(),
+        };
+      });
+
+      rorInstituicoesCache.set(cacheKey, { timestamp: now, data: mapped });
+      return res.json(mapped);
+    } catch (err) {
+      console.warn("[API /instituicoes] Falha ao consultar ROR:", err);
+      return res.json([]);
+    }
+  });
+
+
   // Pre-compiled Localization Bundle Server Handler (Fase 1 - Zero Erro 429)
   const serverI18nCache = new Map<string, Record<string, any>>();
 

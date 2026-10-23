@@ -68,8 +68,11 @@ import {
 } from "./utils/indexedDB";
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
 import { saveUserProfileToFirestore, getUserProfileFromFirestore } from "./lib/firebase";
-import confetti from "canvas-confetti";
 import { sanitizeUserStreak, getSaoPauloDateString } from "./utils/streakCalculator";
+import { CardConfirmacaoIfes } from "./features/instituicao/components/CardConfirmacaoIfes";
+import { precisaConfirmarInstituicao } from "./features/instituicao/services/migracaoIfes";
+import { OnboardingInstituicaoFlow } from "./features/instituicao/components/OnboardingInstituicaoFlow";
+import { FEATURES } from "./config/features";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -1104,7 +1107,7 @@ export default function App() {
         }}
       />
 
-      {/* Main Sidebar */}
+      {/* Main Sidebar (Desktop e Drawer Mobile) */}
       <Sidebar
         currentTab={currentTab}
         onTabChange={(tab) => {
@@ -1113,18 +1116,25 @@ export default function App() {
         }}
         user={user}
         onLogout={handleLogout}
+        onRechargeEnergy={() => setCurrentTab("store")}
         onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
         onOpenProfileSettings={() => {
           setSettingsInitialTab("perfil");
           setIsSettingsOpen(true);
         }}
+        onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
+        onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+        onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
         onOpenSettings={(tab) => {
           setSettingsInitialTab(tab || "idioma");
           setIsSettingsOpen(true);
         }}
         onOpenAccessibility={() => setIsAccessibilityOpen(true)}
+        onlineCount={onlineCount}
         isOnline={isOnline}
         currentTheme={currentTheme}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
       {/* Main App Container */}
@@ -1132,7 +1142,7 @@ export default function App() {
         {/* Native Standalone Window TitleBar */}
         <NativeTitleBar onOpenNativeModal={() => setIsNativeAppModalOpen(true)} />
 
-        {/* App Header */}
+        {/* App Header (Limpo e minimalista - Apenas Título e Toggle Mobile) */}
         <Header
           currentTab={currentTab}
           onTabChange={(tab) => {
@@ -1144,28 +1154,28 @@ export default function App() {
           onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={setMobileMenuOpen}
-          onLogout={handleLogout}
-          onRechargeEnergy={() => setCurrentTab("store")}
-          onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-          onOpenProfileSettings={() => {
-            setSettingsInitialTab("perfil");
-            setIsSettingsOpen(true);
-          }}
-          onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
-          onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
-          onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
-          onOpenSettings={(tab) => {
-            setSettingsInitialTab(tab || "idioma");
-            setIsSettingsOpen(true);
-          }}
-          onOpenAccessibility={() => setIsAccessibilityOpen(true)}
-          onlineCount={onlineCount}
-          isOnline={isOnline}
-          currentTheme={currentTheme}
         />
 
         {/* Tab Views */}
         <div className="flex-1 overflow-y-auto">
+          {/* Card de Confirmação Rápida de Instituição para Alunos do IFES (Fase 7) */}
+          {FEATURES.multiInstituicao && precisaConfirmarInstituicao(user) && (
+            <div className="px-4 pt-3 sm:px-6">
+              <CardConfirmacaoIfes
+                onConfirmado={(perfil) => {
+                  setUser((prev) => ({
+                    ...prev,
+                    perfilInstituicao: perfil,
+                  }));
+                }}
+                onTrocarInstituicao={() => {
+                  setSettingsInitialTab("instituicao");
+                  setIsSettingsOpen(true);
+                }}
+              />
+            </div>
+          )}
+
           {currentTab === "dashboard" && (
             <DashboardTab
               user={user}

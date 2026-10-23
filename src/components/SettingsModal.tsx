@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Settings,
@@ -25,6 +25,12 @@ import {
   Brain,
   Hand,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
+  Sun,
+  Moon,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { UserProfile, IfesAccountInfo } from "../types";
@@ -34,11 +40,18 @@ import { speakText, readCurrentScreen } from "../lib/speech";
 import { NativeAppButton } from "./NativeAppButton";
 import { saveUserMoodleCreds } from "../lib/firebase";
 import { IFES_CAMPUSES_LIST } from "../data/ifesCampuses";
+import { MeusSistemasView } from "../features/instituicao/components/MeusSistemasView";
+import { carregarPerfilInstituicaoLocal, salvarPerfilInstituicaoLocal } from "../features/instituicao/services/migracaoIfes";
+import { PerfilInstituicaoUsuario } from "../features/instituicao/types";
+import { getTemaAtual, aplicarTema, TemaTipo } from "../utils/themeManager";
 
 export type SettingsTabId =
   | "idioma"
   | "acessibilidade"
+  | "tema"
   | "perfil"
+  | "instituicao"
+  | "fontes_dados"
   | "notificacoes"
   | "offline"
   | "planos";
@@ -94,6 +107,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
   const [savedToast, setSavedToast] = useState(false);
   const [inviteCopiedToast, setInviteCopiedToast] = useState(false);
+
+  // Tab Bar Optimization State (Fase 7 / Desktop & Mobile)
+  const [currentThemeState, setCurrentThemeState] = useState<TemaTipo>("claro");
+  const [isTabsWrapped, setIsTabsWrapped] = useState<boolean>(true);
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(false);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  const checkScroll = useCallback(() => {
+    const el = tabsContainerRef.current;
+    if (el) {
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = tabsContainerRef.current;
+    if (!el || !isOpen) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [checkScroll, isTabsWrapped, isOpen]);
+
+  const handleTabsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!isTabsWrapped && tabsContainerRef.current && e.deltaY !== 0) {
+      tabsContainerRef.current.scrollLeft += e.deltaY;
+      checkScroll();
+    }
+  };
+
+  const scrollTabs = (delta: number) => {
+    if (tabsContainerRef.current) {
+      tabsContainerRef.current.scrollBy({ left: delta, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentThemeState(getTemaAtual());
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isTabsWrapped && tabsContainerRef.current && isOpen) {
+      const activeBtn = tabsContainerRef.current.querySelector<HTMLButtonElement>(`[data-tab-id="${activeTab}"]`);
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [activeTab, isTabsWrapped, isOpen]);
 
   // Esc key and initial tab sync
   useEffect(() => {
@@ -213,9 +281,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       icon: Eye,
     },
     {
+      id: "tema" as SettingsTabId,
+      label: "Aparência & Tema",
+      icon: SunMoon,
+    },
+    {
       id: "perfil" as SettingsTabId,
       label: t("configuracoes.perfil"),
       icon: User,
+    },
+    {
+      id: "instituicao" as SettingsTabId,
+      label: "Instituição & Conexões",
+      icon: GraduationCap,
+    },
+    {
+      id: "fontes_dados" as SettingsTabId,
+      label: "Fontes de Dados",
+      icon: Building2,
     },
     {
       id: "notificacoes" as SettingsTabId,
@@ -254,7 +337,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {t("configuracoes.titulo")}
               </h2>
               <p className="text-[11px] text-[var(--app-text-muted)] line-clamp-1">
-                Idioma, Inclusão, Perfil Institucional IFES, Notificações e Armazenamento
+                Idioma, Inclusão, Temas, Perfil, Conexões Institucionais e Armazenamento
               </p>
             </div>
           </div>
@@ -268,27 +351,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Barra de Navegação entre Abas (Horizontal com rolagem suave) */}
-        <div className="px-4 sm:px-6 pt-3 pb-2 border-b border-[var(--app-border)] bg-[var(--app-bg)]/60 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        {/* Barra de Navegação Otimizada entre Abas (Desktop & Mobile) */}
+        <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)]/80 shrink-0 px-3 sm:px-5 py-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Botão de Rolar para a Esquerda (visível no modo linha rolável) */}
+            {!isTabsWrapped && (
               <button
-                key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer select-none border ${
-                  isActive
-                    ? "bg-[var(--app-primary)] text-white border-[var(--app-primary)] shadow-sm"
-                    : "bg-[var(--app-card)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-card-secondary)]"
-                }`}
+                onClick={() => scrollTabs(-200)}
+                disabled={!canScrollLeft}
+                aria-label="Rolar abas para a esquerda"
+                title="Rolar para a esquerda"
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)] disabled:opacity-20 disabled:pointer-events-none transition border border-[var(--app-border)] cursor-pointer"
               >
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : "text-[var(--app-primary)]"}`} />
-                <span>{tab.label}</span>
+                <ChevronLeft className="w-4 h-4" />
               </button>
-            );
-          })}
+            )}
+
+            {/* Container das Abas (Suporta mouse wheel, arraste e modo grade) */}
+            <div
+              ref={tabsContainerRef}
+              onWheel={handleTabsWheel}
+              className={`flex-1 transition-all ${
+                isTabsWrapped
+                  ? "flex flex-wrap gap-1.5 sm:gap-2 py-0.5 max-h-48 overflow-y-auto"
+                  : "flex flex-nowrap overflow-x-auto gap-1.5 sm:gap-2 py-0.5 scroll-smooth"
+              }`}
+              style={{
+                scrollbarWidth: "thin",
+              }}
+            >
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    data-tab-id={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer select-none border shrink-0 ${
+                      isActive
+                        ? "bg-[var(--app-primary)] text-white border-[var(--app-primary)] shadow-sm scale-[1.02]"
+                        : "bg-[var(--app-card)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-card-secondary)]"
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : "text-[var(--app-primary)]"}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Botão de Rolar para a Direita (visível no modo linha rolável) */}
+            {!isTabsWrapped && (
+              <button
+                type="button"
+                onClick={() => scrollTabs(200)}
+                disabled={!canScrollRight}
+                aria-label="Rolar abas para a direita"
+                title="Rolar para a direita"
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card)] disabled:opacity-20 disabled:pointer-events-none transition border border-[var(--app-border)] cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Alternador de Modo de Visualização: Ver Todas as Abas (Grade) vs Linha Rolável */}
+            <button
+              type="button"
+              onClick={() => setIsTabsWrapped(!isTabsWrapped)}
+              aria-label={isTabsWrapped ? "Recolher abas em linha única rolável" : "Mostrar todas as abas de uma vez"}
+              title={isTabsWrapped ? "Recolher em Linha Rolável" : "Ver Todas as Abas (Grade Completa)"}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition border cursor-pointer ${
+                isTabsWrapped
+                  ? "bg-[var(--app-primary)]/15 border-[var(--app-primary)]/40 text-[var(--app-primary)] hover:bg-[var(--app-primary)]/25"
+                  : "bg-[var(--app-card)] border-[var(--app-border)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
+              }`}
+            >
+              {isTabsWrapped ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         {/* Miolo com Rolagem (flex-1 min-h-0 overflow-y-auto) */}
@@ -556,6 +699,97 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {/* ======================================================== */}
+          {/* ABA: APARÊNCIA & TEMA (CLARO / ESCURO) */}
+          {/* ======================================================== */}
+          {activeTab === "tema" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20 space-y-1">
+                <h3 className="text-xs sm:text-sm font-bold text-[var(--app-text)] flex items-center gap-2">
+                  <SunMoon className="w-4 h-4 text-[var(--app-primary)]" />
+                  <span>Aparência & Conforto Visual</span>
+                </h3>
+                <p className="text-[11px] text-[var(--app-text-muted)]">
+                  Alterne entre os temas oficiais Claro e Escuro. O Brain Studio aplica contraste rigoroso WCAG AA para proteger sua visão e garantir ergonomia durante longas sessões de estudo.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Tema Claro */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    aplicarTema("claro");
+                    setCurrentThemeState("claro");
+                  }}
+                  className={`p-5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between gap-4 ${
+                    currentThemeState === "claro"
+                      ? "bg-[#FBFAF5] text-[#26332F] border-[#B8651A] ring-2 ring-[#B8651A]/30 shadow-md"
+                      : "bg-[var(--app-card)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-card-secondary)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600">
+                        <Sun className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-extrabold">Tema Claro</h4>
+                        <p className="text-[11px] text-[#55645E]">Ideal para leitura e ambientes iluminados</p>
+                      </div>
+                    </div>
+                    {currentThemeState === "claro" && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#B8651A] text-white">
+                        Ativo
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#EEF2EC] border border-[#D9DFD3] flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-[#26332F]">Fundo Suave • Papel & Foco</span>
+                    <span className="w-4 h-4 rounded-full bg-[#B8651A]"></span>
+                  </div>
+                </button>
+
+                {/* Tema Escuro */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    aplicarTema("escuro");
+                    setCurrentThemeState("escuro");
+                  }}
+                  className={`p-5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between gap-4 ${
+                    currentThemeState === "escuro"
+                      ? "bg-[#182126] text-[#E4ECE9] border-[#F0A04B] ring-2 ring-[#F0A04B]/30 shadow-md"
+                      : "bg-[var(--app-card)] text-[var(--app-text)] border-[var(--app-border)] hover:bg-[var(--app-card-secondary)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                        <Moon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-extrabold text-[#E4ECE9]">Tema Escuro</h4>
+                        <p className="text-[11px] text-[#9FB0AA]">Conforto visual noturno sem luz azul</p>
+                      </div>
+                    </div>
+                    {currentThemeState === "escuro" && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F0A04B] text-[#0F1518]">
+                        Ativo
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#0F1518] border border-[#263238] flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-[#E4ECE9]">Modo Noturno • Sem Preto Puro</span>
+                    <span className="w-4 h-4 rounded-full bg-[#F0A04B]"></span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
           {/* ABA 3: PERFIL DO ESTUDANTE & MATRÍCULA IFES */}
           {/* ======================================================== */}
           {activeTab === "perfil" && (
@@ -727,6 +961,191 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* ======================================================== */}
+          {/* ABA: INSTITUIÇÃO & CONEXÕES (FASE 7) */}
+          {/* ======================================================== */}
+          {activeTab === "instituicao" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-[var(--app-primary)]" />
+                    <h3 className="text-sm font-bold text-[var(--app-text)]">
+                      Instituição de Ensino Atual
+                    </h3>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    Ativa
+                  </span>
+                </div>
+
+                {(() => {
+                  const perfilAtual = carregarPerfilInstituicaoLocal();
+                  if (!perfilAtual) {
+                    return (
+                      <div className="p-4 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text-muted)] text-center">
+                        <p>Nenhuma instituição vinculada no momento.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const perfilPadrao: PerfilInstituicaoUsuario = {
+                              instituicaoId: "br-ifes-cefor",
+                              nome: "Instituto Federal do Espírito Santo - Campus Cefor",
+                              sigla: "IFES",
+                              tipo: "superior",
+                              pais: "BR",
+                              regiao: "ES",
+                              cidade: "Vitória",
+                              nivelId: "br_tecnico_integrado",
+                              cursoOuSerie: "Informática",
+                              sistemaNotaId: "0_a_100",
+                              periodoId: "semestre",
+                              confirmada: true,
+                              atualizadoEm: Date.now(),
+                            };
+                            salvarPerfilInstituicaoLocal(perfilPadrao);
+                            alert("Instituição configurada com sucesso!");
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-[var(--app-primary)] text-white text-xs font-semibold rounded-lg"
+                        >
+                          Definir Instituição
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="p-3.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+                        <h4 className="text-xs sm:text-sm font-extrabold text-[var(--app-text)]">
+                          {perfilAtual.nome}
+                        </h4>
+                        <p className="text-[11px] text-[var(--app-text-muted)] mt-0.5">
+                          {perfilAtual.sigla ? `${perfilAtual.sigla} • ` : ""}
+                          {perfilAtual.cidade ? `${perfilAtual.cidade} - ` : ""}
+                          {perfilAtual.regiao || perfilAtual.pais} • Curso: {perfilAtual.cursoOuSerie}
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const novoNome = window.prompt("Digite o novo curso ou série:", perfilAtual.cursoOuSerie);
+                            if (novoNome && novoNome.trim()) {
+                              salvarPerfilInstituicaoLocal({ ...perfilAtual, cursoOuSerie: novoNome.trim() });
+                              alert("Curso atualizado com sucesso!");
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-[var(--app-bg)] hover:bg-[var(--app-card)] border border-[var(--app-border)] text-xs font-semibold rounded-xl text-[var(--app-text)] transition"
+                        >
+                          Editar Curso / Série
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Deseja desvincular sua instituição? Suas notas, moedas, XP e matérias NÃO serão perdidas.")) {
+                              salvarPerfilInstituicaoLocal(null);
+                              alert("Instituição desvinculada.");
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-semibold rounded-xl transition"
+                        >
+                          Remover Instituição
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Gerenciador Unificado de Conexões e Atalhos */}
+              <div className="pt-2 border-t border-[var(--app-border)]">
+                <MeusSistemasView />
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* ABA: FONTES DE DADOS E CRÉDITOS (FASE 7) */}
+          {/* ======================================================== */}
+          {activeTab === "fontes_dados" && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)]">
+                <h3 className="text-sm font-bold text-[var(--app-text)] flex items-center gap-2 mb-1">
+                  <Building2 className="w-4 h-4 text-[var(--app-primary)]" />
+                  Fontes Oficiais de Dados e Licenças
+                </h3>
+                <p className="text-[11px] text-[var(--app-text-muted)]">
+                  O Brain Studio utiliza exclusivamente dados públicos abertos e repositórios oficiais para listar instituições de ensino de forma fidedigna.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[var(--app-text)]">
+                      Inep / MEC - Catálogo de Escolas
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10">
+                      Dados Abertos
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--app-text-muted)]">
+                    Escolas de educação básica cadastradas em atividade pelo Instituto Nacional de Estudos e Pesquisas Educacionais Anísio Teixeira.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[var(--app-text)]">
+                      e-MEC - Cadastro Nacional da Educação Superior
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10">
+                      Dados Abertos
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--app-text-muted)]">
+                    Instituições credenciadas, faculdades, centros universitários e institutos federais do Ministério da Educação.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[var(--app-text)]">
+                      ROR - Research Organization Registry
+                    </span>
+                    <span className="text-[10px] text-indigo-400 font-semibold px-2 py-0.5 rounded bg-indigo-500/10">
+                      Licença CC0 1.0 (Domínio Público)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--app-text-muted)]">
+                    Registro global aberto de universidades e instituições de ensino e pesquisa de todos os continentes.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-[var(--app-text)]">
+                      IBGE - Malha de Localidades
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10">
+                      Dados Abertos
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--app-text-muted)]">
+                    Nomes oficiais de Unidades da Federação e municípios do território brasileiro.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/50 border border-slate-800 text-[10px] text-slate-400 leading-relaxed text-center">
+                Aviso: O Brain Studio é um aplicativo independente e não possui vínculo formal, parceria, patrocínio ou representação das instituições e entidades listadas.
+              </div>
+            </div>
           )}
 
           {/* ======================================================== */}

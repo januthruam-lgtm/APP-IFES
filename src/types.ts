@@ -1,4 +1,4 @@
-export type ThemeId = "default" | "cyberpunk" | "solar" | "emerald" | "sunset" | "custom" | "paper" | "dark" | "nordic";
+export type ThemeId = "default" | "cyberpunk" | "solar" | "emerald" | "sunset" | "custom" | "paper" | "dark" | "nordic" | "claro" | "escuro";
 
 export type PetType =
   | "bunny"
@@ -362,6 +362,8 @@ export interface IfesCourse {
   moodleId?: number | string;
   modules?: TrackModule[];
   room?: string;
+  status?: string;
+  updatedAt?: number;
 }
 
 export interface IfesAssignment {

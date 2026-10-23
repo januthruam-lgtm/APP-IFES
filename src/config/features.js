@@ -31,7 +31,8 @@ export const FEATURES = Object.freeze({
   fase6_cidade: false,
 
   // Fase 7: Suporte Multi-Instituição (Inep, e-MEC, ROR e conexão agnóstica de AVA)
-  fase7_multi_instituicao: false,
+  fase7_multi_instituicao: true,
+  multiInstituicao: true,
 
   // Fase 8: Lumina IA (tutora acolhedora, memória consentida e segurança em profundidade)
   fase8_lumina: true,

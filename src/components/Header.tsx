@@ -1,47 +1,16 @@
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Menu,
-  X,
-  Zap,
-  Sparkles,
-  Users,
-  Building2,
-  GitBranch,
-  LayoutDashboard,
-  Brain,
-  Gamepad2,
-  ShoppingBag,
-  LogOut,
-  Settings,
-  BookMarked,
-  Palette,
-  ListTodo,
-  Calendar,
-  Layers,
-  Timer,
-  Video,
-  Bell,
-  GraduationCap,
-  Eye,
-  Globe,
-  Sun,
-  Moon,
-} from "lucide-react";
-import { alternarTema, getTemaAtual, TemaTipo } from "../utils/themeManager";
+import { Menu, Sparkles } from "lucide-react";
 import { TabId } from "./Sidebar";
 import { UserProfile, CustomThemeColors } from "../types";
-import { NativeAppButton } from "./NativeAppButton";
-import { BrandLogoBanner } from "./BrandLogoBanner";
-import { LanguageSelector } from "./LanguageSelector";
 import { SettingsTabId } from "./SettingsModal";
 
 interface HeaderProps {
   currentTab: TabId;
   onTabChange: (tab: TabId) => void;
   user: UserProfile;
-  voiceEnabled: boolean;
-  onToggleVoice: () => void;
+  voiceEnabled?: boolean;
+  onToggleVoice?: () => void;
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
   onLogout?: () => void;
@@ -60,24 +29,10 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
-  onTabChange,
   user,
-  voiceEnabled,
-  onToggleVoice,
   mobileMenuOpen,
   setMobileMenuOpen,
-  onLogout,
-  onOpenOfflineModal,
-  onOpenProfileSettings,
-  onOpenNotificationSettings,
-  onOpenOnlineUsers,
-  onOpenAvaConnect,
-  onOpenSettings,
-  onOpenAccessibility,
-  onlineCount = 1,
-  isOnline = true,
 }) => {
-  const [temaLocal, setTemaLocal] = React.useState<TemaTipo>(getTemaAtual);
   useEffect(() => {
     const sendHeartbeat = async () => {
       try {
@@ -158,389 +113,66 @@ export const Header: React.FC<HeaderProps> = ({
     ifes: {
       category: t("nav.grupo_academico", "Ambiente Virtual"),
       title: t("nav.ava_ifes", "AVA Moodle IFES"),
-      subtitle: "Sincronização de disciplinas, prazos e simulados com o Instituto Federal",
+      subtitle: "Sincronização automática, notas, fóruns e questionários oficiais",
     },
     store: {
-      category: t("nav.grupo_comunidade", "Recompensas & Pets"),
-      title: t("nav.loja_pets", "Loja de Pets & Upgrades"),
-      subtitle: "Alimente seu pet com XP e expanda permanentemente a energia da conta",
+      category: t("nav.grupo_comunidade", "Economia & Mascotes"),
+      title: t("nav.loja_pets", "Loja de Mascotes 3D"),
+      subtitle: "Adote pets 3D, ganhe bônus de foco e personalize acessórios",
     },
     library: {
-      category: t("nav.grupo_ia", "Acervo Digital"),
-      title: t("nav.biblioteca", "Biblioteca de Estudos"),
-      subtitle: "Documentos, planos de ensino, ementas e anotações salvas",
+      category: t("nav.grupo_academico", "Acervo & Domínio Público"),
+      title: t("nav.biblioteca", "Biblioteca Digital"),
+      subtitle: "Obras completas em domínio público para leitura acadêmica e vestibular",
     },
     dictionary: {
-      category: t("nav.grupo_ia", "Acervo & Lexicografia"),
-      title: t("nav.dicionario", "Dicionário Inteligente"),
-      subtitle: t("dicionario.subtitulo_pagina", "Fontes abertas, pronúncia fonética e camada didática da Lumina"),
+      category: t("nav.grupo_academico", "Léxico & Dicionário"),
+      title: t("nav.dicionario", "Dicionário Escolar"),
+      subtitle: "Busca offline, definições com exemplos e sinônimos gramaticais",
     },
     settings: {
-      category: "Sistema",
-      title: t("nav.configuracoes", "Configurações do Brain Studio"),
-      subtitle: "Conta, Aparência, Idioma, Acessibilidade, AVA IFES e Armazenamento",
+      category: t("nav.grupo_produtividade", "Preferências"),
+      title: t("nav.configuracoes", "Configurações"),
+      subtitle: "Idioma, tema, acessibilidade e opções do aplicativo",
     },
   };
-
-  const navTabs = [
-    { id: "tasks" as TabId, label: t("nav.tarefas", "Tarefas"), icon: ListTodo },
-    { id: "agenda" as TabId, label: t("nav.agenda", "Agenda"), icon: Calendar },
-    { id: "study_methods" as TabId, label: t("nav.metodos_estudo", "Métodos"), icon: Timer },
-    { id: "flashcards" as TabId, label: t("nav.flashcards", "Anki"), icon: Layers },
-    { id: "study_room" as TabId, label: t("nav.sala_estudos", "Sala Virtual"), icon: Video },
-    { id: "ifes" as TabId, label: t("nav.ava_ifes", "AVA IFES"), icon: Building2 },
-    { id: "sequence" as TabId, label: t("nav.disciplinas", "Disciplinas"), icon: GitBranch },
-    { id: "dashboard" as TabId, label: t("nav.dashboard", "Dashboard"), icon: LayoutDashboard },
-    { id: "lumina" as TabId, label: t("nav.lumina", "Lumina IA"), icon: Brain },
-    { id: "games" as TabId, label: t("nav.simulados", "10Q"), icon: Gamepad2 },
-    { id: "library" as TabId, label: t("nav.biblioteca", "Biblioteca"), icon: BookMarked },
-    { id: "teams" as TabId, label: t("nav.equipes", "Equipes"), icon: Users },
-    { id: "store" as TabId, label: t("nav.loja_pets", "Loja Pets"), icon: ShoppingBag },
-    { id: "settings" as TabId, label: t("nav.configuracoes", "Configurações"), icon: Settings },
-  ];
 
   const currentInfo = titles[currentTab] || titles.dashboard;
 
   return (
-    <>
-      <header
-        id="app-header"
-        className="bg-[var(--app-card)] border-b border-[var(--app-border)] px-3 sm:px-8 py-2.5 sm:py-3.5 flex justify-between items-center sticky top-0 z-40 text-[var(--app-text)] transition-colors shadow-xs"
-      >
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            id="mobile-menu-toggle"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 md:hidden text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] cursor-pointer"
-            aria-label="Abrir Menu Lateral"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="uppercase text-[10px] tracking-widest text-[var(--app-primary)] font-extrabold">
-                {currentInfo.category}
-              </span>
-              {currentTab === "lumina" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
-                  <Sparkles className="w-3 h-3" /> Tutoria Ativa
-                </span>
-              )}
-            </div>
-            <h3
-              id="current-title"
-              className="font-extrabold text-[var(--app-text)] text-base sm:text-lg tracking-tight leading-tight flex items-center gap-2 mt-0.5"
-            >
-              {currentInfo.title}
-            </h3>
-          </div>
-        </div>
-
-        {/* Top Status Pills - Apenas Energias e Notificação */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* ENERGY METER */}
-          <button
-            id="header-energy-pill"
-            onClick={() => onTabChange("store")}
-            className="flex items-center gap-1.5 bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-primary)]/40 hover:border-[var(--app-primary)] px-3 py-1.5 rounded-full text-xs font-bold transition group cursor-pointer"
-            title={`${t("header.energia", "Energia")}: ${user.energy}/${user.maxEnergy || 50} ⚡. ${t("header.recarregar", "Recarregar")}`}
-          >
-            <Zap className="w-3.5 h-3.5 text-[var(--app-primary)] fill-[var(--app-primary)] group-hover:scale-110 transition-transform" />
-            <span className="font-mono font-bold text-[var(--app-primary)]">
-              {user.energy}/{user.maxEnergy || 50}
-            </span>
-          </button>
-
-          {/* AVA IFES CONNECTION STATUS PILL */}
-          {onOpenAvaConnect && (
-            <button
-              id="header-ava-status-pill"
-              onClick={onOpenAvaConnect}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition group cursor-pointer border ${
-                user.ifesAccount?.connected
-                  ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                  : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 animate-pulse"
-              }`}
-              title={
-                user.ifesAccount?.connected
-                  ? `${t("header.conectado", "Conectado IFES")}: ${user.ifesAccount?.campusName || "IFES"}`
-                  : t("nav.badge_conectar", "Conectar AVA")
-              }
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  user.ifesAccount?.connected ? "bg-emerald-500" : "bg-amber-500"
-                }`}
-              />
-              <Building2
-                className={`w-3.5 h-3.5 ${
-                  user.ifesAccount?.connected ? "text-emerald-500" : "text-amber-500"
-                } group-hover:scale-110 transition-transform`}
-              />
-              <span className="hidden sm:inline font-mono">
-                {user.ifesAccount?.connected ? "AVA IFES" : t("nav.badge_conectar", "Conectar")}
-              </span>
-            </button>
-          )}
-
-          {/* REAL ONLINE USERS DRAWER TRIGGER */}
-          {onOpenOnlineUsers && (
-            <button
-              id="header-online-users-btn"
-              onClick={onOpenOnlineUsers}
-              title={t("header.estudantes_online", "Estudantes Online")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-emerald-500 border-[var(--app-border)] hover:border-emerald-500/40 group"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <Users className="w-3.5 h-3.5 text-emerald-500 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold">{onlineCount} {t("header.estudantes_online", "Online")}</span>
-            </button>
-          )}
-
-          {/* ACCESSIBILITY TRIGGER */}
-          {onOpenAccessibility && (
-            <button
-              id="header-accessibility-btn"
-              onClick={onOpenAccessibility}
-              title={t("header.acessibilidade", "Acessibilidade & Inclusão (WCAG AAA)")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
-            >
-              <Eye className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
-              <span className="hidden xl:inline text-xs font-bold">{t("nav.acessibilidade", "Acessibilidade")}</span>
-            </button>
-          )}
-
-          {/* LANGUAGE SELECTOR */}
-          <div className="hidden md:flex items-center">
-            <LanguageSelector variant="dropdown" />
-          </div>
-
-          {/* NOTIFICATION SETTINGS TRIGGER */}
-          {onOpenNotificationSettings && (
-            <button
-              id="header-notifications-btn"
-              onClick={onOpenNotificationSettings}
-              title={t("header.notificacoes", "Notificações & Alertas")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
-            >
-              <Bell className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold">{t("header.notificacoes", "Notificações")}</span>
-            </button>
-          )}
-
-          {/* 1-CLICK THEME TOGGLE (CLARO / ESCURO) */}
-          <button
-            id="header-theme-toggle-btn"
-            type="button"
-            onClick={() => {
-              const novo = alternarTema();
-              setTemaLocal(novo);
-            }}
-            title={temaLocal === "escuro" ? "Ativar Tema Claro" : "Ativar Tema Escuro"}
-            aria-label="Alternar entre tema claro e tema escuro"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
-          >
-            {temaLocal === "escuro" ? (
-              <Sun className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition-transform" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-indigo-500 group-hover:-rotate-12 transition-transform" />
-            )}
-            <span className="hidden xl:inline text-xs font-bold">
-              {temaLocal === "escuro" ? "Claro" : "Escuro"}
-            </span>
-          </button>
-
-          {/* SETTINGS MODAL TRIGGER */}
-          {onOpenSettings && (
-            <button
-              id="header-settings-btn"
-              onClick={() => onOpenSettings("idioma")}
-              title={t("header.configuracoes", "Configurações do App")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition border cursor-pointer bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] hover:text-[var(--app-primary)] border-[var(--app-border)] hover:border-[var(--app-primary)]/40 group"
-            >
-              <Settings className="w-3.5 h-3.5 text-[var(--app-primary)] group-hover:rotate-45 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold">{t("nav.configuracoes", "Configurações")}</span>
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/75 z-50 md:hidden backdrop-blur-md flex flex-col justify-end sm:justify-start transition-opacity"
-          onClick={() => setMobileMenuOpen(false)}
+    <header
+      id="app-header"
+      className="bg-[var(--app-card)] border-b border-[var(--app-border)] px-4 sm:px-8 py-3 flex justify-between items-center sticky top-0 z-40 text-[var(--app-text)] transition-colors shadow-xs"
+    >
+      <div className="flex items-center gap-3">
+        <button
+          id="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2 md:hidden text-[var(--app-text-muted)] hover:text-[var(--app-text)] rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] cursor-pointer"
+          aria-label="Abrir Menu Lateral"
         >
-          <div
-            className="w-full rounded-t-3xl sm:rounded-b-3xl border-t sm:border shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-            style={{
-              backgroundColor: "var(--app-card)",
-              color: "var(--app-text)",
-              borderColor: "var(--app-border)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header: Apenas a Logo do app e o botão fechar X */}
-            <div
-              className="flex justify-between items-center pb-3 border-b"
-              style={{ borderColor: "var(--app-border)" }}
-            >
-              <div className="flex items-center gap-2.5">
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="h-9 w-auto object-contain rounded-lg shadow-sm"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
-                  }}
-                />
-                <span
-                  className="text-xs font-black tracking-wider uppercase font-mono"
-                  style={{ color: "var(--app-primary)" }}
-                >
-                  Navegação
-                </span>
-              </div>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded-xl cursor-pointer border active:scale-95 transition"
-                style={{
-                  backgroundColor: "var(--app-bg)",
-                  color: "var(--app-text)",
-                  borderColor: "var(--app-border)",
-                }}
-                aria-label="Fechar menu"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <Menu className="w-5 h-5" />
+        </button>
 
-            <div className="w-full">
-              <NativeAppButton variant="sidebar" />
-            </div>
-
-            {/* Grid dos botões: todos visíveis com excelente contraste e cores do tema */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {navTabs.map((t) => {
-                const Icon = t.icon;
-                const active = currentTab === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      onTabChange(t.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    style={{
-                      backgroundColor: active
-                        ? "var(--app-primary)"
-                        : "var(--app-bg)",
-                      color: active ? "var(--btn-primary-text)" : "var(--app-text)",
-                      borderColor: active
-                        ? "var(--app-primary)"
-                        : "var(--app-border)",
-                    }}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl text-xs font-extrabold transition-all select-none cursor-pointer border shadow-sm active:scale-95 ${
-                      active ? "shadow-md ring-2 ring-[var(--app-primary)]/40" : "hover:brightness-110"
-                    }`}
-                  >
-                    <Icon
-                      className="w-4 h-4 shrink-0"
-                      style={{ color: active ? "var(--btn-primary-text)" : "var(--app-primary)" }}
-                    />
-                    <span className="truncate">{t.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Idioma no Mobile */}
-            <div
-              className="p-3 rounded-2xl border space-y-2"
-              style={{
-                backgroundColor: "var(--app-bg)",
-                borderColor: "var(--app-border)",
-              }}
-            >
-              <div className="flex items-center gap-2 text-xs font-bold" style={{ color: "var(--app-text)" }}>
-                <Globe className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>{t("header.idioma_app", "Idioma do Aplicativo")}:</span>
-              </div>
-              <LanguageSelector variant="dropdown" className="w-full" />
-            </div>
-
-            {/* Configurações Gerais */}
-            {onOpenSettings && (
-              <button
-                onClick={() => {
-                  onOpenSettings("idioma");
-                  setMobileMenuOpen(false);
-                }}
-                style={{
-                  backgroundColor: "var(--app-bg)",
-                  color: "var(--app-text)",
-                  borderColor: "var(--app-border)",
-                }}
-                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
-              >
-                <Settings className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>{t("header.configuracoes_gerais", "Menu de Configurações do App")}</span>
-              </button>
-            )}
-
-            {/* Inclusão & Acessibilidade */}
-            {onOpenAccessibility && (
-              <button
-                onClick={() => {
-                  onOpenAccessibility();
-                  setMobileMenuOpen(false);
-                }}
-                style={{
-                  backgroundColor: "var(--app-bg)",
-                  color: "var(--app-text)",
-                  borderColor: "var(--app-border)",
-                }}
-                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
-              >
-                <Eye className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>{t("header.acessibilidade", "Inclusão & Acessibilidade (WCAG AAA)")}</span>
-              </button>
-            )}
-
-            {onOpenProfileSettings && (
-              <button
-                onClick={() => {
-                  onOpenProfileSettings();
-                  setMobileMenuOpen(false);
-                }}
-                style={{
-                  backgroundColor: "var(--app-bg)",
-                  color: "var(--app-text)",
-                  borderColor: "var(--app-border)",
-                }}
-                className="w-full py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border cursor-pointer active:scale-95 hover:brightness-110 shadow-xs"
-              >
-                <GraduationCap className="w-4 h-4" style={{ color: "var(--app-primary)" }} />
-                <span>{t("header.editar_perfil", "Editar Matrícula & Perfil IFES")}</span>
-              </button>
-            )}
-
-            {onLogout && (
-              <button
-                onClick={() => {
-                  onLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full py-3 bg-red-500/15 hover:bg-red-500/25 text-red-500 dark:text-red-400 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 border border-red-500/30 cursor-pointer active:scale-95 shadow-xs"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>{t("header.sair", "Fazer Logout (Sair da Conta)")}</span>
-              </button>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="uppercase text-[10px] tracking-widest text-[var(--app-primary)] font-extrabold font-mono">
+              {currentInfo.category}
+            </span>
+            {currentTab === "lumina" && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20">
+                <Sparkles className="w-3 h-3" /> Tutoria Ativa
+              </span>
             )}
           </div>
+          <h3
+            id="current-title"
+            className="font-extrabold text-[var(--app-text)] text-base sm:text-lg tracking-tight leading-tight flex items-center gap-2 mt-0.5"
+          >
+            {currentInfo.title}
+          </h3>
         </div>
-      )}
-    </>
+      </div>
+    </header>
   );
 };

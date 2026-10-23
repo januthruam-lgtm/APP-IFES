@@ -87,12 +87,37 @@ service cloud.firestore {
         allow read, delete: if isOwner(uid) || !isAuthenticated();
         allow write: if isOwner(uid) || !isAuthenticated();
       }
+      // Sistemas Institucionais Conectados: Proibição estrita de tokens e senhas no Firestore
+      match /sistemas/{sistemaId} {
+        allow read: if isOwner(uid) || !isAuthenticated();
+        allow write: if (isOwner(uid) || !isAuthenticated())
+          && !('token' in request.resource.data)
+          && !('password' in request.resource.data)
+          && !('senha' in request.resource.data)
+          && !('secret' in request.resource.data)
+          && !('credential' in request.resource.data);
+      }
     }
 
     // 10. Biblioteca Virtual Aberta (Apenas obras ativas com licença auditada)
     match /biblioteca/{obraId} {
       allow read: if true;
       allow write: if isAuthenticated();
+    }
+
+    // 11. Instituições Pendentes (Moderação de novos cadastros manuais)
+    match /instituicoesPendentes/{instId} {
+      allow read: if !isAuthenticated() || (resource != null && resource.data.criadoPorUid == request.auth.uid);
+      allow create: if request.resource.data.nome is string
+        && !('token' in request.resource.data)
+        && !('senha' in request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // 12. Instituições Aprovadas (Alimenta busca pública sem recriar arquivos)
+    match /instituicoesAprovadas/{instId} {
+      allow read: if true;
+      allow write: if false; // Somente via scripts administrativos autorizados
     }
   }
 }

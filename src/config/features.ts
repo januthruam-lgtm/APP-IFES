@@ -17,6 +17,7 @@ export type FeatureKey =
   | "fase5_planos"
   | "fase6_cidade"
   | "fase7_multi_instituicao"
+  | "multiInstituicao"
   | "fase8_lumina"
   | "fase9_quiz_arquivo"
   | "fase10_cursos"
@@ -35,14 +36,14 @@ export const FEATURES: Readonly<Record<FeatureKey, boolean>> = Object.freeze({
   fase2_temas: true,
 
   // Fase 3: Exclusão persistente de matérias com soft-delete e tombstones
-  fase3_materias_excluidas: false,
+  fase3_materias_excluidas: true,
 
   // Fase 4: Economia acadêmica (Baú da equipe, missões, ofensiva, ligas e loja)
-  fase4_economia: false,
-  fase4a_bau_equipe: false,
-  fase4b_missoes_ofensiva: false,
-  fase4c_ligas_semanais: false,
-  fase4d_loja_sumidouros: false,
+  fase4_economia: true,
+  fase4a_bau_equipe: true,
+  fase4b_missoes_ofensiva: true,
+  fase4c_ligas_semanais: true,
+  fase4d_loja_sumidouros: true,
 
   // Fase 5: Estrutura comercial de Planos (Gratuito, Lite, Pro)
   fase5_planos: false,
@@ -51,7 +52,8 @@ export const FEATURES: Readonly<Record<FeatureKey, boolean>> = Object.freeze({
   fase6_cidade: false,
 
   // Fase 7: Suporte Multi-Instituição (Inep, e-MEC, ROR e conexão agnóstica de AVA)
-  fase7_multi_instituicao: false,
+  fase7_multi_instituicao: true,
+  multiInstituicao: true,
 
   // Fase 8: Lumina IA (tutora acolhedora, memória consentida e segurança em profundidade)
   fase8_lumina: true,
