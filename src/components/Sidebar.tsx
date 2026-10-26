@@ -25,6 +25,8 @@ import {
   BookOpen,
   BookMarked,
   Plus,
+  Castle,
+  Hammer,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors } from "../types";
 import { Pet3DView } from "./pet3d/Pet3DView";
@@ -49,6 +51,8 @@ export type TabId =
   | "store"
   | "library"
   | "dictionary"
+  | "cidade"
+  | "construcoes"
   | "settings";
 
 export interface SidebarProps {
@@ -200,6 +204,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badge: `${user.coins ?? 0} 🪙`,
           badgeColor: "text-emerald-700 bg-emerald-100 border-emerald-300",
         },
+        {
+          id: "cidade" as TabId,
+          label: t("nav.construcoes", "Construções da Vila"),
+          icon: Hammer,
+          badge: "Obras",
+          badgeColor: "text-amber-500 bg-amber-500/10 border-amber-500/30",
+        },
       ],
     },
   ];
@@ -259,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     if (isMobileView && onCloseMobile) onCloseMobile();
                   }}
                   className="w-7 h-7 rounded-lg bg-[var(--app-bg)] hover:bg-[var(--app-primary)]/10 text-[var(--app-text-muted)] hover:text-[var(--app-primary)] transition flex items-center justify-center border border-[var(--app-border)] cursor-pointer"
-                  title={t("nav.acessibilidade", "Acessibilidade & Inclusão (WCAG AAA)")}
+                  title={t("nav.acessibilidade", "Acessibilidade e Inclusão")}
                   aria-label="Abrir acessibilidade"
                 >
                   <Eye className="w-3.5 h-3.5" />

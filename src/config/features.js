@@ -28,7 +28,7 @@ export const FEATURES = Object.freeze({
   fase5_planos: false,
 
   // Fase 6: Cidade do Conhecimento (progressão acadêmica sem sorteio e sem ataque)
-  fase6_cidade: false,
+  fase6_cidade: true,
 
   // Fase 7: Suporte Multi-Instituição (Inep, e-MEC, ROR e conexão agnóstica de AVA)
   fase7_multi_instituicao: true,

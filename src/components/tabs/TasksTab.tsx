@@ -89,11 +89,6 @@ export const TasksTab: React.FC<TasksTabProps> = ({
       prev.map((tItem) => {
         if (tItem.id === id) {
           const nextCompleted = !tItem.completed;
-          if (nextCompleted) {
-            confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
-            if (onRewardXp) onRewardXp(20);
-            if (onRewardCoins) onRewardCoins(5);
-          }
           return { ...tItem, completed: nextCompleted };
         }
         return tItem;
@@ -138,7 +133,7 @@ export const TasksTab: React.FC<TasksTabProps> = ({
               {t("tarefas.gerenciador", "Gerenciador de Tarefas de Estudo")}
             </h2>
             <p className="text-xs text-[var(--app-text-muted)]">
-              {t("tarefas.gerenciador_desc", "Organize seus deveres, leituras e entregas por disciplina com recompensas em moedas e XP.")}
+              {t("tarefas.gerenciador_desc", "Organize seus deveres, leituras e entregas por disciplina com clareza e foco.")}
             </p>
           </div>
         </div>

@@ -294,7 +294,7 @@
     "equipes": "Teams & Battles",
     "loja_pets": "Pet Shop",
     "acessibilidade": "Accessibility",
-    "configuracoes": "Settings",
+    "configuracoes": "Paramètres",
     "conectado": "Connected IFES",
     "modo_offline": "Offline Mode",
     "sair": "Sign Out",
@@ -303,7 +303,8 @@
     "badge_sincronizado": "Synced",
     "badge_conectar": "Connect",
     "badge_tutora": "AI Tutor",
-    "dicionario": "Smart Dictionary"
+    "dicionario": "Smart Dictionary",
+    "cidade": "Cité du Savoir"
   },
   "header": {
     "notificacoes": "Notifications & Alerts",
@@ -588,21 +589,24 @@
     "enviado": "Sent"
   },
   "ajustes": {
-    "titulo": "Paramètres",
-    "subtitulo": "Personnalisez votre expérience, langue, apparence et compte",
-    "idioma": "Langue",
-    "aparencia": "Apparence",
+    "aparencia": "Apparence de l'application",
+    "aparencia_desc": "Basculez entre les thèmes Clair et Sombre",
     "tema_claro": "Thème Clair",
     "tema_escuro": "Thème Sombre",
-    "acessibilidade": "Accessibilité",
-    "fonte_dislexia": "Police OpenDyslexic",
-    "alto_contraste": "Contraste Élevé",
-    "leitura_voz": "Synthèse Vocale (TTS)",
-    "reduzir_animacoes": "Réduire les Animations",
-    "privacidade": "Confidentialité et Données",
-    "exportar_dados": "Exporter mes données",
-    "apagar_dados": "Supprimer mes données",
-    "sobre": "À Propos du Brain Studio",
-    "versao": "Version 1.0.0 Commerciale"
+    "seguir_sistema": "Suivre automatiquement le thème du système"
+  },
+  "auth": {
+    "titulo": "Brain Studio • Accès Institutionnel",
+    "subtitulo": "Identification institutionnelle et environnement d'études",
+    "sucesso_login": "Connecté avec succès !",
+    "erro_preenchimento": "Veuillez renseigner votre nom et votre adresse e-mail.",
+    "placeholder_nome": "Votre nom complet",
+    "placeholder_matricula": "Votre identifiant ou matricule",
+    "placeholder_email": "Votre adresse e-mail",
+    "placeholder_senha": "Votre mot de passe",
+    "erro_matricula": "Veuillez indiquer votre matricule ou identifiant.",
+    "erro_senha": "Veuillez indiquer votre mot de passe.",
+    "erro_credenciais": "Identifiant ou mot de passe incorrect.",
+    "erro_conexao": "Erreur de connexion institutionnelle."
   }
 }

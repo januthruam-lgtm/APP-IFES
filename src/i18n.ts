@@ -79,27 +79,57 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
     status: "completo",
   },
 
-  // 2. Idiomas com Tradução Automática Pré-Compilada (RTL e CJK)
-  { code: "ar", label: "العربية (Árabe)", nativeName: "العربية", flag: "🇸🇦", dir: "rtl", popular: true, status: "automatica" },
-  { code: "he", label: "עברית (Hebraico)", nativeName: "עברית", flag: "🇮🇱", dir: "rtl", popular: true, status: "automatica" },
-  { code: "fa", label: "فارسی (Persa)", nativeName: "فارسی", flag: "🇮🇷", dir: "rtl", status: "automatica" },
-  { code: "ur", label: "اردو (Urdu)", nativeName: "اردو", flag: "🇵🇰", dir: "rtl", status: "automatica" },
-  { code: "de", label: "Deutsch (Alemão)", nativeName: "Deutsch", flag: "🇩🇪", dir: "ltr", popular: true, status: "automatica" },
-  { code: "it", label: "Italiano", nativeName: "Italiano", flag: "🇮🇹", dir: "ltr", popular: true, status: "automatica" },
-  { code: "ja", label: "日本語 (Japonês)", nativeName: "日本語", flag: "🇯🇵", dir: "ltr", popular: true, status: "automatica" },
-  { code: "zh", label: "简体中文 (Chinês)", nativeName: "简体中文", flag: "🇨🇳", dir: "ltr", popular: true, status: "automatica" },
-  { code: "ko", label: "한국어 (Coreano)", nativeName: "한국어", flag: "🇰🇷", dir: "ltr", popular: true, status: "automatica" },
-  { code: "ru", label: "Русский (Russo)", nativeName: "Русский", flag: "🇷🇺", dir: "ltr", popular: true, status: "automatica" },
-  { code: "hi", label: "हिन्दी (Hindi)", nativeName: "हिन्दी", flag: "🇮🇳", dir: "ltr", popular: true, status: "automatica" },
-  { code: "nl", label: "Nederlands (Holandês)", nativeName: "Nederlands", flag: "🇳🇱", dir: "ltr", popular: true, status: "automatica" },
-  { code: "tr", label: "Türkçe (Turco)", nativeName: "Türkçe", flag: "🇹🇷", dir: "ltr", popular: true, status: "automatica" },
-  { code: "pl", label: "Polski (Polonês)", nativeName: "Polski", flag: "🇵🇱", dir: "ltr", popular: true, status: "automatica" },
-  { code: "sv", label: "Svenska (Sueco)", nativeName: "Svenska", flag: "🇸🇪", dir: "ltr", popular: true, status: "automatica" },
-  { code: "id", label: "Bahasa Indonesia", nativeName: "Bahasa Indonesia", flag: "🇮🇩", dir: "ltr", popular: true, status: "automatica" },
-  { code: "th", label: "ไทย (Tailandês)", nativeName: "ไทย", flag: "🇹🇭", dir: "ltr", popular: true, status: "automatica" },
-  { code: "vi", label: "Tiếng Việt (Vietnamita)", nativeName: "Tiếng Việt", flag: "🇻🇳", dir: "ltr", popular: true, status: "automatica" },
-  { code: "uk", label: "Українська (Ucraniano)", nativeName: "Українська", flag: "🇺🇦", dir: "ltr", popular: true, status: "automatica" },
+  // 2. Idiomas com Tradução Pré-Compilada Completa (RTL, CJK e Globais)
+  { code: "ar", label: "العربية (Árabe)", nativeName: "العربية", flag: "🇸🇦", dir: "rtl", popular: true, status: "completo" },
+  { code: "he", label: "עברית (Hebraico)", nativeName: "עברית", flag: "🇮🇱", dir: "rtl", popular: true, status: "completo" },
+  { code: "fa", label: "فارسی (Persa)", nativeName: "فارسی", flag: "🇮🇷", dir: "rtl", status: "completo" },
+  { code: "ur", label: "اردو (Urdu)", nativeName: "اردو", flag: "🇵🇰", dir: "rtl", status: "completo" },
+  { code: "de", label: "Deutsch (Alemão)", nativeName: "Deutsch", flag: "🇩🇪", dir: "ltr", popular: true, status: "completo" },
+  { code: "it", label: "Italiano", nativeName: "Italiano", flag: "🇮🇹", dir: "ltr", popular: true, status: "completo" },
+  { code: "ja", label: "日本語 (Japonês)", nativeName: "日本語", flag: "🇯🇵", dir: "ltr", popular: true, status: "completo" },
+  { code: "zh", label: "简体中文 (Chinês)", nativeName: "简体中文", flag: "🇨🇳", dir: "ltr", popular: true, status: "completo" },
+  { code: "ko", label: "한국어 (Coreano)", nativeName: "한국어", flag: "🇰🇷", dir: "ltr", popular: true, status: "completo" },
+  { code: "ru", label: "Русский (Russo)", nativeName: "Русский", flag: "🇷🇺", dir: "ltr", popular: true, status: "completo" },
+  { code: "hi", label: "हिन्दी (Hindi)", nativeName: "हिन्दी", flag: "🇮🇳", dir: "ltr", popular: true, status: "completo" },
+  { code: "nl", label: "Nederlands (Holandês)", nativeName: "Nederlands", flag: "🇳🇱", dir: "ltr", popular: true, status: "completo" },
+  { code: "tr", label: "Türkçe (Turco)", nativeName: "Türkçe", flag: "🇹🇷", dir: "ltr", popular: true, status: "completo" },
+  { code: "pl", label: "Polski (Polonês)", nativeName: "Polski", flag: "🇵🇱", dir: "ltr", popular: true, status: "completo" },
+  { code: "sv", label: "Svenska (Sueco)", nativeName: "Svenska", flag: "🇸🇪", dir: "ltr", popular: true, status: "completo" },
+  { code: "id", label: "Bahasa Indonesia", nativeName: "Bahasa Indonesia", flag: "🇮🇩", dir: "ltr", popular: true, status: "completo" },
+  { code: "th", label: "ไทย (Tailandês)", nativeName: "ไทย", flag: "🇹🇭", dir: "ltr", popular: true, status: "completo" },
+  { code: "vi", label: "Tiếng Việt (Vietnamita)", nativeName: "Tiếng Việt", flag: "🇻🇳", dir: "ltr", popular: true, status: "completo" },
+  { code: "uk", label: "Українська (Ucraniano)", nativeName: "Українська", flag: "🇺🇦", dir: "ltr", popular: true, status: "completo" },
 ];
+
+export const localeModules: Record<string, () => Promise<{ default: Record<string, any> }>> = {
+  "pt-BR": () => import("./locales/pt-BR.json"),
+  pt: () => import("./locales/pt-BR.json"),
+  "pt-PT": () => import("./locales/pt-PT.json"),
+  en: () => import("./locales/en.json"),
+  "en-US": () => import("./locales/en.json"),
+  "en-GB": () => import("./locales/en-GB.json"),
+  es: () => import("./locales/es.json"),
+  fr: () => import("./locales/fr.json"),
+  de: () => import("./locales/de.json"),
+  it: () => import("./locales/it.json"),
+  ja: () => import("./locales/ja.json"),
+  zh: () => import("./locales/zh.json"),
+  ko: () => import("./locales/ko.json"),
+  ru: () => import("./locales/ru.json"),
+  hi: () => import("./locales/hi.json"),
+  ar: () => import("./locales/ar.json"),
+  he: () => import("./locales/he.json"),
+  fa: () => import("./locales/fa.json"),
+  ur: () => import("./locales/ur.json"),
+  nl: () => import("./locales/nl.json"),
+  tr: () => import("./locales/tr.json"),
+  pl: () => import("./locales/pl.json"),
+  sv: () => import("./locales/sv.json"),
+  id: () => import("./locales/id.json"),
+  th: () => import("./locales/th.json"),
+  vi: () => import("./locales/vi.json"),
+  uk: () => import("./locales/uk.json"),
+};
 
 export const resources = {
   "pt-BR": { translation: ptBR },
@@ -114,7 +144,7 @@ export const resources = {
 
 // Obter idioma inicial salvo com validação
 const savedLang = typeof window !== "undefined" ? localStorage.getItem("brain_studio_lang") : null;
-const initialLanguage = savedLang && resources[savedLang as keyof typeof resources] ? savedLang : "pt-BR";
+const initialLanguage = savedLang && (resources[savedLang as keyof typeof resources] || localeModules[savedLang]) ? savedLang : "pt-BR";
 
 i18n
   .use(LanguageDetector)
@@ -159,6 +189,21 @@ export async function loadLanguageBundle(langCode: string): Promise<void> {
     return;
   }
 
+  // Carregamento dinâmico pré-compilado em chunks Vite
+  const loader = localeModules[normalized];
+  if (loader) {
+    try {
+      const module = await loader();
+      if (module && module.default) {
+        i18n.addResourceBundle(normalized, "translation", module.default, true, true);
+        i18n.emit("loaded");
+        return;
+      }
+    } catch (err) {
+      console.warn(`[i18n] Carregamento dinâmico de ${normalized} falhou:`, err);
+    }
+  }
+
   // Verificar cache local (localStorage)
   const cacheKey = `brain_studio_bundle_${normalized}`;
   try {
@@ -172,7 +217,6 @@ export async function loadLanguageBundle(langCode: string): Promise<void> {
   } catch {}
 
   // Fallback seguro: se não estiver compilado localmente, herda de Inglês (en.json)
-  // garantindo ausência total de tela travada ou erro 429.
   i18n.addResourceBundle(normalized, "translation", en, true, false);
 }
 

@@ -265,7 +265,7 @@
     "equipes": "Equipes & Batalhas",
     "loja_pets": "Loja de Pets",
     "acessibilidade": "Acessibilidade",
-    "configuracoes": "Ajustes",
+    "configuracoes": "Definições",
     "conectado": "Conectado IFES",
     "modo_offline": "Modo Offline",
     "sair": "Sair da Conta",
@@ -274,7 +274,8 @@
     "badge_sincronizado": "Sincronizado",
     "badge_conectar": "Conectar",
     "badge_tutora": "Tutora IA",
-    "dicionario": "Dicionário Inteligente"
+    "dicionario": "Dicionário Inteligente",
+    "cidade": "Cidade do Saber"
   },
   "header": {
     "notificacoes": "Notificações & Alertas",
@@ -539,5 +540,26 @@
     "confirmacao_rapida": "Enviar confirmação rápida",
     "visto": "Visualizado",
     "enviado": "Enviado"
+  },
+  "auth": {
+    "titulo": "Brain Studio • Acesso Institucional",
+    "subtitulo": "Identificação institucional e ambiente de estudos",
+    "sucesso_login": "Ligado com sucesso!",
+    "erro_preenchimento": "Preencha o seu nome e endereço de correio eletrónico.",
+    "placeholder_nome": "O seu nome completo",
+    "placeholder_matricula": "O seu número de estudante",
+    "placeholder_email": "O seu correio eletrónico",
+    "placeholder_senha": "A sua palavra-passe",
+    "erro_matricula": "Introduza o seu número de estudante ou utilizador.",
+    "erro_senha": "Introduza a sua palavra-passe.",
+    "erro_credenciais": "Utilizador ou palavra-passe incorretos.",
+    "erro_conexao": "Erro na ligação institucional."
+  },
+  "ajustes": {
+    "aparencia": "Aspeto da Aplicação",
+    "aparencia_desc": "Alterne entre os temas Claro e Escuro",
+    "tema_claro": "Tema Claro",
+    "tema_escuro": "Tema Escuro",
+    "seguir_sistema": "Seguir automaticamente o tema do sistema operativo"
   }
 }

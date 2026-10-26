@@ -130,6 +130,16 @@ export const Header: React.FC<HeaderProps> = ({
       title: t("nav.dicionario", "Dicionário Escolar"),
       subtitle: "Busca offline, definições com exemplos e sinônimos gramaticais",
     },
+    cidade: {
+      category: t("nav.grupo_comunidade", "Comunidade & Mascotes"),
+      title: t("nav.construcoes", "Construções da Vila"),
+      subtitle: "Progressão de obras acadêmicas: evolua monumentos e colabore com sua turma",
+    },
+    construcoes: {
+      category: t("nav.grupo_comunidade", "Comunidade & Mascotes"),
+      title: t("nav.construcoes", "Construções da Vila"),
+      subtitle: "Progressão de obras acadêmicas: evolua monumentos e colabore com sua turma",
+    },
     settings: {
       category: t("nav.grupo_produtividade", "Preferências"),
       title: t("nav.configuracoes", "Configurações"),

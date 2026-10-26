@@ -1,26 +1,59 @@
-# Brain Studio - Registro de Decisões de Arquitetura e Engenharia (docs/DECISOES.md)
+# Registro de Decisões de Arquitetura e Engenharia (docs/DECISOES.md)
 
-Este documento registra todas as decisões técnicas tomadas durante a execução autônoma, fundamentadas em simplicidade, estabilidade, ausência de custos inesperados de servidor e conformidade com o ECA Digital e LGPD.
+Este documento registra todas as decisões tomadas durante a reorganização do Brain Studio e a implementação da economia segura e programa de fidelidade.
 
 ---
 
-## 1. Decisões da Fase 0 (Fundação)
-- **Centralização de Parâmetros**: Todos os parâmetros e tabelas de jogo foram isolados em `src/config/` (`features.ts`, `economia.config.ts`, `planos.config.ts`, `cidade.config.ts`, `cosmeticos.config.ts`), garantindo zero números mágicos no código.
-- **Tipagem Estrita sem Importação Circular**: Definidas as tipagens de Feature Flags em `features.ts` diretamente com TypeScript `Record<FeatureKey, boolean>`, eliminando qualquer dependência circular no empacotador Vite.
+## 1. Decisão: Arquitetura Canônica de 5 Abas
+- **Problema**: O aplicativo possuía um menu com mais de 14 itens no mesmo nível e múltiplos pontos de entrada conflitantes.
+- **Opções Analisadas**:
+  1. Manter a barra lateral longa com agrupamentos retráteis no desktop e gaveta no mobile.
+  2. Adotar a arquitetura canônica de 5 abas (Início, Estudar, Lumina, Jogo, Perfil) com componentes responsivos adaptativos (`TabBar` em <768px, `NavigationRail` entre 768px e 1024px, `Sidebar` em ≥1024px).
+- **Decisão Escolhida**: Opção 2.
+- **Justificativa**: Permite uso com uma única mão no mobile (polegar), elimina navegações concorrentes, preserva o estado de cada módulo e garante que qualquer funcionalidade seja alcançada em até 3 toques.
 
-## 2. Decisões da Fase 1 (Idiomas)
-- **Eliminação de Dependência de Tradução em Tempo Real no Servidor**: O erro 429 de quota do Gemini no bundle de tradução ocorria porque requisições de tradução dinâmica eram feitas ao servidor em tempo de execução. A arquitetura foi convertida para **100% estática e offline-first**: os arquivos de tradução ficam no cliente (`src/locales/`), com fallback garantido para Inglês (`en.json`) sem nunca exibir código ou lançar erro 429.
-- **Script Node para Tradução Pré-compilada**: Script `scripts/gerar-traducoes.mjs` preparado para execução local via CLI com proteção de marcadores e marcas protegidas.
+---
 
-## 3. Decisões da Fase 2 e 3 (Temas, Matérias Excluídas e Menu Lateral)
-- **Centralização de Controles no Sidebar**: Em conformidade com a solicitação direta do usuário, os componentes de medição e recarga de energia (`Zap`), alternador de tema claro/escuro (`Sun`/`Moon`), atalho de ajustes/configurações (`Settings`), seletor de idioma, notificações, acessibilidade, status de conexão AVA e contagem de usuários online foram todos transferidos do cabeçalho principal (`Header.tsx`) exclusivamente para a barra lateral (`Sidebar.tsx`).
-- **Cabeçalho Principal Limpo & Focado**: O cabeçalho foi simplificado para exibir apenas o título da aba ativa, sua categoria acadêmica e o acionador do menu lateral em telas móveis, proporcionando uma experiência de leitura e foco limpa e sem distrações.
-- **Drawer Unificado no Mobile**: A visualização em dispositivos móveis abre a barra lateral completa como gaveta lateral sobreposta, mantendo total paridade funcional entre desktop e celular.
+## 2. Decisão: Remoção das Moedas e XP por Tarefas e Análise de Causa Raiz
+- **Problema**: O Organizador de Tarefas apresentava comportamento instável, com créditos repetidos e inflação artificial de saldo.
+- **Causa Raiz Identificada**:
+  1. **Ausência de idempotência e ausência de verificação de transição de estado única**: No componente `TasksTab.tsx` (linhas 90-97), a função `handleToggleTask` chamava `onRewardXp(20)` e `onRewardCoins(5)` sempre que `nextCompleted` se tornava verdadeiro.
+  2. O usuário podia marcar a tarefa como concluída, desmarcá-la e marcá-la novamente infinitamente, ganhando 5 moedas e 20 XP a cada clique ("farming" de tarefas).
+  3. A sincronização local/offline via `localStorage` não mantinha um carimbo transacional imutável no Firestore, permitindo repetição descontrolada de recompensas.
+- **Decisão Escolhida**:
+  - Remoção imediata do ganho de moedas e XP ao concluir tarefas (`tarefas.recompensa = false` e remoção de `tarefas` de `XP_MAXIMO_DIARIO_POR_ATIVIDADE`).
+  - O Organizador de Tarefas continua 100% funcional como ferramenta de produtividade e foco pessoal, livre de incentivos artificiais de farming.
+  - Missões e conquistas foram redirecionadas para atividades reais de estudo verificáveis (revisão de flashcards, simulados 10Q, leitura acadêmica e métodos de estudo).
+  - Regras de segurança no Firestore bloqueiam categoricamente qualquer tentativa de creditar moedas ou XP com origem "tarefa".
 
-## 4. Decisões da Fase 7 (Multi-Instituição e Conexões Globais)
-- **Zero Gravação da Base Global no Firestore**: Para manter custos de nuvem estritamente zero para o usuário e permitir funcionamento offline, a base de instituições é distribuída em arquivos estáticos compactos em `public/instituicoes/{PAIS}.json`, indexados pelo Service Worker e pesquisáveis via fuzzy search local em menos de 20 ms.
-- **Tokens Estritamente no Dispositivo**: Senhas de portais nunca são coletadas. Tokens de Moodle e Canvas são criptografados com AES-GCM-256 no IndexedDB do dispositivo do usuário através da WebCrypto API. O método `validarSegurancaPayloadFirestore` e regras no `firestore.rules` rejeitam formalmente qualquer documento contendo `token` ou `senha`.
-- **Prevenção de SSRF**: O validador `validarUrlSegura` restringe URLs institucionais estritamente ao protocolo HTTPS, bloqueando esquemas maliciosos (`javascript:`, `data:`), endereços de loopback (`localhost`, `127.0.0.1`), instâncias de metadados de nuvem (`169.254.169.254`) e blocos de rede privada RFC1918.
-- **Intl.DisplayNames Dinâmico**: Países são exibidos dinamicamente de acordo com o idioma corrente do aplicativo, evitando listas manuais estáticas.
-- **Migração Não Destrutiva do IFES**: Usuários com histórico no IFES recebem um cartão no topo do Dashboard com opção de confirmação em 1 toque, garantindo que matérias, notas, XP, mascote e moedas continuem 100% preservados.
+---
 
+## 3. Decisão: Extrato de Moedas como Livro-Razão Imutável
+- **Problema**: Saldos de moedas eram alterados em múltiplos pontos do código sem rastreabilidade nem histórico auditável.
+- **Decisão Escolhida**:
+  - Criação da subcoleção `users/{uid}/extrato/{id}` estritamente de **apenas inserção** (append-only, sem permissão de alteração ou exclusão pelo cliente).
+  - Toda e qualquer movimentação de moedas deve passar pela função unificada e transacional `movimentarMoedas(uid, delta, origem, refId, idempotencyKey)`.
+  - Migração de saldo legado executada de forma idempotente: um lançamento inicial com `origem: "historico"` registra o saldo pré-existente do estudante para conferência contábil exata.
+
+---
+
+## 4. Decisão: Programa de Fidelidade sem Especulação ou Pressão
+- **Problema**: Recompensar os estudantes por seus estudos e investimentos na plataforma sem criar vícios de urgência, sorteios ou mecânicas predatórias (respeitando o ECA Digital e a proteção a menores).
+- **Decisão Escolhida**:
+  - Gasto elegível limitado a itens permanentes (obras da vila, cosméticos duráveis, títulos e evolução do pet); consumíveis (comida, brinquedo) NÃO geram cashback.
+  - Níveis de cliente calculados em janela móvel de 30 dias a partir do extrato contábil.
+  - Cofre de Retorno com teto máximo de 500 moedas e resgate semanal máximo de 250 moedas, condicionado à conclusão de pelo menos 1 missão de estudo no dia do resgate.
+  - Vales-desconto semanais fixos para níveis Prata+, com teto acumulado de desconto (cidade + vale) de 20%.
+  - Selos de fidelidade (1 a cada 100 moedas gastas) para desbloqueio exclusivo de itens cosméticos artísticos originais, sem vantagens competitivas mecânicas.
+
+---
+
+## 5. Decisão: Configurações como Página com Busca Interna
+- **Problema**: O modal de configurações anterior empilhava abas e abria sobre outras telas interativas, gerando modais sobrepostos.
+- **Decisão Escolhida**: Configurações passa a ser uma subpágina canônica dentro da aba Perfil (`/perfil/configuracoes`), com busca em tempo real, agrupamento claro e suporte nativo ao botão voltar do sistema.
+
+---
+
+## 6. Decisão: Preservação de Rótulos de Acessibilidade
+- **Problema**: O app afirmava "WCAG AAA" sem auditoria formal externa.
+- **Decisão Escolhida**: Substituído por "Acessibilidade e Inclusão", mantendo todos os recursos pré-existentes (alto contraste, dislexia, redução de movimento, temas) com alvos de toque aumentados para ≥ 44x44px.

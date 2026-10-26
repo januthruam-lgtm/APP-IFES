@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Sidebar, TabId } from "./components/Sidebar";
+import { AppShell } from "./components/ui/AppShell";
+import { CanonicalTabId } from "./components/ui/TabBar";
+import { InicioTab } from "./components/tabs/canonical/InicioTab";
+import { EstudarTab } from "./components/tabs/canonical/EstudarTab";
+import { LuminaCanonicalTab } from "./components/tabs/canonical/LuminaCanonicalTab";
+import { JogoTab } from "./components/tabs/canonical/JogoTab";
+import { PerfilTab } from "./components/tabs/canonical/PerfilTab";
 import { Header } from "./components/Header";
 import { AuthModal } from "./components/AuthModal";
 import { LessonModal } from "./components/LessonModal";
@@ -18,6 +25,7 @@ import { IfesAvaTab } from "./components/tabs/IfesAvaTab";
 import { StoreTab } from "./components/tabs/StoreTab";
 import { LibraryTab } from "./components/tabs/LibraryTab";
 import { DictionaryTab } from "./components/tabs/DictionaryTab";
+import { CidadeDoConhecimentoTab } from "./components/tabs/CidadeDoConhecimentoTab";
 import { ColorThemeTab } from "./components/tabs/ColorThemeTab";
 import { TasksTab } from "./components/tabs/TasksTab";
 import { AgendaTab } from "./components/tabs/AgendaTab";
@@ -203,6 +211,77 @@ export default function App() {
   });
 
   const [currentTab, setCurrentTab] = useState<TabId>("dashboard");
+  const [canonicalTab, setCanonicalTab] = useState<CanonicalTabId>("inicio");
+  const [canonicalSubView, setCanonicalSubView] = useState<string | undefined>(undefined);
+  const [modoFoco, setModoFoco] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("brain_studio_modo_foco") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleModoFoco = (ativo: boolean) => {
+    setModoFoco(ativo);
+    try {
+      localStorage.setItem("brain_studio_modo_foco", String(ativo));
+    } catch {}
+  };
+
+  const handleNavigate = useCallback((target: string, subView?: string) => {
+    if (target === "inicio" || target === "dashboard") {
+      setCanonicalTab("inicio");
+      setCanonicalSubView(undefined);
+      setCurrentTab("dashboard");
+    } else if (
+      [
+        "estudar",
+        "sequence",
+        "tasks",
+        "agenda",
+        "flashcards",
+        "games",
+        "study_methods",
+        "library",
+        "dictionary",
+        "study_room",
+        "ifes",
+      ].includes(target)
+    ) {
+      setCanonicalTab("estudar");
+      setCanonicalSubView(target === "estudar" ? subView : target);
+      setCurrentTab(target as TabId);
+    } else if (target === "lumina") {
+      setCanonicalTab("lumina");
+      setCanonicalSubView(undefined);
+      setCurrentTab("lumina");
+    } else if (
+      [
+        "jogo",
+        "cidade",
+        "construcoes",
+        "teams",
+        "store",
+        "carteira",
+        "extrato",
+        "fidelidade",
+        "pet",
+      ].includes(target)
+    ) {
+      setCanonicalTab("jogo");
+      setCanonicalSubView(target === "jogo" ? subView : target);
+      setCurrentTab(target === "jogo" ? "cidade" : (target as TabId));
+    } else if (target === "perfil" || target === "settings") {
+      setCanonicalTab("perfil");
+      setCanonicalSubView(subView);
+      setCurrentTab("settings");
+    } else {
+      setCanonicalTab("inicio");
+      setCanonicalSubView(undefined);
+      setCurrentTab("dashboard");
+    }
+    stopSpeaking();
+  }, []);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(() => {
     try {
       const isLoggedIn = localStorage.getItem("brain_studio_is_logged_in") === "true";
@@ -292,7 +371,12 @@ export default function App() {
           setActiveLessonModule(null);
           return true;
         }
-        if (currentTab !== "dashboard") {
+        if (canonicalSubView) {
+          setCanonicalSubView(undefined);
+          return true;
+        }
+        if (canonicalTab !== "inicio") {
+          setCanonicalTab("inicio");
           setCurrentTab("dashboard");
           return true;
         }
@@ -1064,7 +1148,7 @@ export default function App() {
         initialTab={settingsInitialTab}
       />
 
-      {/* Painel Especializado de Inclusão e Acessibilidade (WCAG AAA) */}
+      {/* Painel Especializado de Inclusão e Acessibilidade */}
       <AccessibilityModal
         isOpen={isAccessibilityOpen}
         onClose={() => setIsAccessibilityOpen(false)}
@@ -1107,299 +1191,149 @@ export default function App() {
         }}
       />
 
-      {/* Main Sidebar (Desktop e Drawer Mobile) */}
-      <Sidebar
-        currentTab={currentTab}
+      {/* 5-Tab Canonical Responsive AppShell */}
+      <AppShell
+        currentTab={canonicalTab}
         onTabChange={(tab) => {
-          setCurrentTab(tab);
+          setCanonicalTab(tab);
+          setCanonicalSubView(undefined);
           stopSpeaking();
         }}
+        subTitle={canonicalSubView ? `Sub-área: ${canonicalSubView}` : undefined}
+        canGoBack={Boolean(canonicalSubView)}
+        onBack={() => setCanonicalSubView(undefined)}
         user={user}
+        currentTheme={currentTheme}
+        modoFoco={modoFoco}
+        onToggleModoFoco={handleToggleModoFoco}
         onLogout={handleLogout}
-        onRechargeEnergy={() => setCurrentTab("store")}
-        onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-        onOpenProfileSettings={() => {
-          setSettingsInitialTab("perfil");
-          setIsSettingsOpen(true);
+        onOpenNotifications={() => setIsNotificationModalOpen(true)}
+        onOpenWallet={() => {
+          setCanonicalTab("jogo");
+          setCanonicalSubView("carteira");
         }}
-        onOpenNotificationSettings={() => setIsNotificationModalOpen(true)}
-        onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
-        onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
-        onOpenSettings={(tab) => {
-          setSettingsInitialTab(tab || "idioma");
-          setIsSettingsOpen(true);
+        onOpenSettings={() => {
+          setCanonicalTab("perfil");
         }}
         onOpenAccessibility={() => setIsAccessibilityOpen(true)}
-        onlineCount={onlineCount}
-        isOnline={isOnline}
-        currentTheme={currentTheme}
-        mobileOpen={mobileMenuOpen}
-        onCloseMobile={() => setMobileMenuOpen(false)}
-      />
-
-      {/* Main App Container */}
-      <main className="flex-1 flex flex-col h-full overflow-y-auto relative bg-[var(--app-bg)] text-[var(--app-text)]">
-        {/* Native Standalone Window TitleBar */}
-        <NativeTitleBar onOpenNativeModal={() => setIsNativeAppModalOpen(true)} />
-
-        {/* App Header (Limpo e minimalista - Apenas Título e Toggle Mobile) */}
-        <Header
-          currentTab={currentTab}
-          onTabChange={(tab) => {
-            setCurrentTab(tab);
-            stopSpeaking();
-          }}
-          user={user}
-          voiceEnabled={voiceEnabled}
-          onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
-          mobileMenuOpen={mobileMenuOpen}
-          setMobileMenuOpen={setMobileMenuOpen}
-        />
-
-        {/* Tab Views */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Card de Confirmação Rápida de Instituição para Alunos do IFES (Fase 7) */}
-          {FEATURES.multiInstituicao && precisaConfirmarInstituicao(user) && (
-            <div className="px-4 pt-3 sm:px-6">
-              <CardConfirmacaoIfes
-                onConfirmado={(perfil) => {
-                  setUser((prev) => ({
-                    ...prev,
-                    perfilInstituicao: perfil,
-                  }));
-                }}
-                onTrocarInstituicao={() => {
-                  setSettingsInitialTab("instituicao");
-                  setIsSettingsOpen(true);
-                }}
-              />
-            </div>
-          )}
-
-          {currentTab === "dashboard" && (
-            <DashboardTab
-              user={user}
-              modules={modules}
-              courses={courses}
-              currentCourse={currentCourse}
-              onSelectCourse={handleSelectCourse}
-              onNavigate={(tab) => {
-                setCurrentTab(tab);
-                stopSpeaking();
+        onNavigateToItem={(item) => {
+          setCanonicalTab(item.tab);
+          setCanonicalSubView(item.subView);
+        }}
+      >
+        {/* Card de Confirmação Rápida de Instituição para Alunos do IFES (Fase 7) */}
+        {FEATURES.multiInstituicao && precisaConfirmarInstituicao(user) && (
+          <div className="px-4 pt-3 sm:px-6">
+            <CardConfirmacaoIfes
+              onConfirmado={(perfil) => {
+                setUser((prev) => ({
+                  ...prev,
+                  perfilInstituicao: perfil,
+                }));
               }}
-              onOpenActiveLesson={() => {
-                const active = modules.find((m) => m.status === "active") || modules[0];
-                if (active) {
-                  setActiveLessonModule(active);
-                }
-              }}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-              onStudyOnAva={handleStudyOnAva}
-              onDeleteCourse={handleDeleteSingleCourse}
-              onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
-              onUpdatePet={handleUpdatePet}
-            />
-          )}
-
-          {currentTab === "lumina" && (
-            <SocraticTutorTab
-              user={user}
-              voiceEnabled={voiceEnabled}
-              onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
-              onRewardXp={handleRewardXp}
-              courses={courses}
-              onNavigateToGames={() => setCurrentTab("games")}
-            />
-          )}
-
-          {currentTab === "sequence" && (
-            <SequenceTrackTab
-              modules={modules}
-              user={user}
-              courses={courses}
-              currentCourse={currentCourse}
-              onSelectCourse={handleSelectCourse}
-              onOpenLesson={(mod) => setActiveLessonModule(mod)}
-              onOpenDeck={handleOpenDeckInGames}
-              onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-              onResetCourses={handleResetCourses}
-              onDeleteCourse={handleDeleteSingleCourse}
-              onStartCallWithMember={(member, isVideo) => {
-                handleStartCallWithMember(member, isVideo);
-              }}
-              onStartGroupCallWithCourse={() => {
-                setCurrentTab("study_room");
-                stopSpeaking();
-              }}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
-            />
-          )}
-
-          {currentTab === "games" && (
-            <PdfGameGeneratorTab
-              user={user}
-              initialDeckId={selectedDeckForGames}
-              onRewardXp={handleRewardXp}
-              onConsumeEnergy={handleConsumeEnergy}
-              onNavigateToStore={() => setCurrentTab("store")}
-            />
-          )}
-
-          {currentTab === "teams" && (
-            <GuildsBattlesTab
-              user={user}
-              onRewardXp={handleRewardXp}
-              onConsumeEnergy={handleConsumeEnergy}
-              onAddEnergy={handleAddEnergy}
-              onUpdateUserTeam={handleUpdateUserTeam}
-              onStartCallWithMember={handleStartCallWithMember}
-              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
-            />
-          )}
-
-          {currentTab === "ifes" && (
-            <IfesAvaTab
-              user={user}
-              courses={ifesCourses}
-              onUpdateCourses={handleUpdateCourses}
-              onGenerateQuizFromTopic={(topic) => {
-                setCurrentTab("games");
-              }}
-              onOpenSocraticWithTopic={(topic) => {
-                setCurrentTab("lumina");
-              }}
-              onUpdateIfesAccount={handleUpdateIfesAccount}
-              onRewardXp={handleRewardXp}
-              onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
-            />
-          )}
-
-          {currentTab === "store" && (
-            <StoreTab
-              user={user}
-              onBuyBadge={handleBuyBadge}
-              onEquipBadge={handleEquipBadge}
-              onAddEnergy={handleAddEnergy}
-              onPermanentEnergyUpgrade={handlePermanentEnergyUpgrade}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-              onStudyOnAva={handleStudyOnAva}
-              onUnlockCard={handleUnlockCard}
-              onUpdatePet={handleUpdatePet}
-              currentTheme={currentTheme}
-            />
-          )}
-
-          {currentTab === "library" && (
-            <LibraryTab
-              user={user}
-              onOpenSocraticWithContext={(topic) => {
-                setCurrentTab("lumina");
-              }}
-              onOpenDeckWithDocument={() => {
-                setCurrentTab("games");
-              }}
-              onRewardXp={handleRewardXp}
-            />
-          )}
-
-          {currentTab === "dictionary" && (
-            <DictionaryTab
-              user={user}
-              onOpenSocraticWithTerm={(term) => {
-                setCurrentTab("lumina");
-              }}
-              onNavigateToFlashcards={() => {
-                setCurrentTab("flashcards");
-              }}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-            />
-          )}
-
-          {currentTab === "tasks" && (
-            <TasksTab
-              user={user}
-              courses={courses}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-            />
-          )}
-
-          {currentTab === "agenda" && (
-            <AgendaTab
-              user={user}
-              courses={courses}
-              onNavigateToStudyRoom={() => {
-                setCurrentTab("study_room");
-                stopSpeaking();
+              onTrocarInstituicao={() => {
+                setCanonicalTab("perfil");
               }}
             />
-          )}
+          </div>
+        )}
 
-          {currentTab === "study_methods" && (
-            <StudyMethodsCentralTab
-              user={user}
-              courses={courses}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-              onNavigateToFlashcards={() => {
-                setCurrentTab("flashcards");
-                stopSpeaking();
-              }}
-              onOpenSocraticWithTopic={(topic: string) => {
-                setCurrentTab("lumina");
-                stopSpeaking();
-              }}
-            />
-          )}
+        {canonicalTab === "inicio" && (
+          <InicioTab
+            user={user}
+            courses={courses}
+            currentCourse={currentCourse}
+            modules={modules}
+            onNavigate={handleNavigate}
+            onOpenActiveLesson={() => {
+              const active = modules.find((m) => m.status === "active") || modules[0];
+              if (active) {
+                setActiveLessonModule(active);
+              }
+            }}
+            onUpdatePet={handleUpdatePet}
+            onRewardXp={handleRewardXp}
+          />
+        )}
 
-          {currentTab === "flashcards" && (
-            <FlashcardsAnkiTab
-              user={user}
-              courses={courses}
-              onRewardXp={handleRewardXp}
-              onRewardCoins={handleRewardCoins}
-            />
-          )}
+        {canonicalTab === "estudar" && (
+          <EstudarTab
+            user={user}
+            courses={courses}
+            modules={modules}
+            currentCourse={currentCourse}
+            ifesCourses={ifesCourses}
+            initialSubView={canonicalSubView}
+            onSelectCourse={handleSelectCourse}
+            onOpenLesson={(mod) => setActiveLessonModule(mod)}
+            onOpenDeck={handleOpenDeckInGames}
+            onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
+            onResetCourses={handleResetCourses}
+            onDeleteCourse={handleDeleteSingleCourse}
+            onStartCallWithMember={handleStartCallWithMember}
+            onRewardXp={handleRewardXp}
+            onRewardCoins={handleRewardCoins}
+            onConsumeEnergy={handleConsumeEnergy}
+            onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
+            onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
+            onNavigateToTab={handleNavigate}
+            onUpdateIfesAccount={handleUpdateIfesAccount}
+            onUpdateCourses={handleUpdateCourses}
+          />
+        )}
 
-          {currentTab === "study_room" && (
-            <StudyRoomVirtualTab
-              user={user}
-              courses={courses}
-              onRewardXp={handleRewardXp}
-              targetCallPeer={targetCallPeer}
-              onClearTargetCallPeer={() => setTargetCallPeer(null)}
-              onNavigate={(tab) => {
-                setCurrentTab(tab as TabId);
-                stopSpeaking();
-              }}
-              onStartCallWithMember={handleStartCallWithMember}
-              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
-            />
-          )}
+        {canonicalTab === "lumina" && (
+          <LuminaCanonicalTab
+            user={user}
+            voiceEnabled={voiceEnabled}
+            onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+            onRewardXp={handleRewardXp}
+            courses={courses}
+            onNavigateToGames={() => handleNavigate("estudar", "simulados")}
+          />
+        )}
 
-          {currentTab === "settings" && (
-            <div className="p-6 max-w-4xl mx-auto space-y-6">
-              <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black text-[var(--app-text)]">Central de Configurações</h2>
-                  <p className="text-sm text-[var(--app-text-muted)]">Gerencie conta, idioma, temas de cores, acessibilidade, AVA IFES e armazenamento.</p>
-                </div>
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="px-5 py-2.5 rounded-2xl bg-[var(--app-primary)] text-white font-bold text-sm shadow hover:opacity-90 transition cursor-pointer"
-                >
-                  Abrir Painel Completo
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
+        {canonicalTab === "jogo" && (
+          <JogoTab
+            user={user}
+            initialSubView={canonicalSubView}
+            onlineCount={onlineCount}
+            currentTheme={currentTheme}
+            onRewardCoins={handleRewardCoins}
+            onRewardXp={handleRewardXp}
+            onConsumeCoins={(amount) => {
+              setUser((prev) => ({
+                ...prev,
+                coins: Math.max(0, (prev.coins ?? 250) - amount),
+              }));
+            }}
+            onConsumeEnergy={handleConsumeEnergy}
+            onAddEnergy={handleAddEnergy}
+            onUpdateUserTeam={handleUpdateUserTeam}
+            onStartCallWithMember={handleStartCallWithMember}
+            onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
+            onBuyBadge={handleBuyBadge}
+            onEquipBadge={handleEquipBadge}
+            onPermanentEnergyUpgrade={handlePermanentEnergyUpgrade}
+            onUpdatePet={handleUpdatePet}
+            onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+          />
+        )}
+
+        {canonicalTab === "perfil" && (
+          <PerfilTab
+            user={user}
+            modoFoco={modoFoco}
+            onToggleModoFoco={handleToggleModoFoco}
+            onSaveUser={handleUpdateProfile}
+            onLogout={handleLogout}
+            onResetCourses={handleResetCourses}
+            onReopenTutorial={() => setShowTutorial(true)}
+            onOpenPaywall={() => setIsPaywallOpen(true)}
+            onOpenOfflineDetail={() => setIsOfflineModalOpen(true)}
+          />
+        )}
+      </AppShell>
 
       {/* Interactive Lesson Modal */}
       {activeLessonModule && (

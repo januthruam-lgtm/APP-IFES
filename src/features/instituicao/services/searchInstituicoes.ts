@@ -5,6 +5,7 @@
  */
 
 import { Instituicao } from "../types";
+import { buscarMunicipiosIbge } from "./ibgeService";
 
 export interface FiltrosBuscaInstituicao {
   pais: string; // ISO 3166-1 alfa-2 (ex: "BR")
@@ -211,11 +212,20 @@ export async function buscarInstituicoes(filtros: FiltrosBuscaInstituicao): Prom
 
 /**
  * Obtém lista única de cidades disponíveis na base carregada para autocompletar.
+ * Para o Brasil, consulta a API oficial de municípios do IBGE com cache e fallback offline.
  */
 export async function obterCidadesDisponiveis(paisIso: string, regiao?: string): Promise<string[]> {
-  const lista = await carregarBasePais(paisIso);
   const cidades = new Set<string>();
+  const isBrasil = paisIso.trim().toUpperCase() === "BR";
 
+  if (isBrasil && regiao) {
+    const municipiosIbge = await buscarMunicipiosIbge(regiao);
+    for (const m of municipiosIbge) {
+      cidades.add(m);
+    }
+  }
+
+  const lista = await carregarBasePais(paisIso);
   for (const inst of lista) {
     if (!inst.cidade) continue;
     if (regiao && normalizarTexto(inst.regiao) !== normalizarTexto(regiao)) {

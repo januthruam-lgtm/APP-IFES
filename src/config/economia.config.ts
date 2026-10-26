@@ -53,14 +53,20 @@ export const ECONOMIA_CONFIG = Object.freeze({
     MULTIPLICADOR_APOS_LIMITE: 0.5, // 50%
   },
 
-  // 3. Tetos Diários de XP Contabilizado por Atividade de Estudo
+  // 3. Tetos Diários de XP Contabilizado por Atividade de Estudo (Tarefas desativadas)
   XP_MAXIMO_DIARIO_POR_ATIVIDADE: Object.freeze({
     flashcards: 150,
     quiz: 300,
     aula: 300,
     leitura: 100,
-    tarefas: 100,
     sala_estudo: 150,
+  }),
+
+  // 3b. Desativação Estrita de Recompensas por Tarefas (Prevenção de Farm e Loop)
+  TAREFAS: Object.freeze({
+    recompensa: false,
+    moedas: 0,
+    xp: 0,
   }),
 
   // 4. Missões Diárias (Fase 4B)

@@ -368,10 +368,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             )}
 
-            {/* Container das Abas (Suporta mouse wheel, arraste e modo grade) */}
+            {/* Container das Abas (Suporta mouse wheel, teclado, setas e modo grade) */}
             <div
               ref={tabsContainerRef}
               onWheel={handleTabsWheel}
+              role="tablist"
+              aria-label="Categorias de configurações"
               className={`flex-1 transition-all ${
                 isTabsWrapped
                   ? "flex flex-wrap gap-1.5 sm:gap-2 py-0.5 max-h-48 overflow-y-auto"
@@ -381,15 +383,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 scrollbarWidth: "thin",
               }}
             >
-              {tabs.map((tab) => {
+              {tabs.map((tab, idx) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
+                    id={`settings-tab-${tab.id}`}
                     data-tab-id={tab.id}
                     type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={`settings-tabpanel-${tab.id}`}
+                    tabIndex={isActive ? 0 : -1}
                     onClick={() => setActiveTab(tab.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowRight") {
+                        e.preventDefault();
+                        const next = tabs[(idx + 1) % tabs.length];
+                        setActiveTab(next.id);
+                      } else if (e.key === "ArrowLeft") {
+                        e.preventDefault();
+                        const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+                        setActiveTab(prev.id);
+                      } else if (e.key === "Home") {
+                        e.preventDefault();
+                        setActiveTab(tabs[0].id);
+                      } else if (e.key === "End") {
+                        e.preventDefault();
+                        setActiveTab(tabs[tabs.length - 1].id);
+                      }
+                    }}
                     className={`flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer select-none border shrink-0 ${
                       isActive
                         ? "bg-[var(--app-primary)] text-white border-[var(--app-primary)] shadow-sm scale-[1.02]"
@@ -435,7 +459,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Miolo com Rolagem (flex-1 min-h-0 overflow-y-auto) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div
+          role="tabpanel"
+          id={`settings-tabpanel-${activeTab}`}
+          aria-labelledby={`settings-tab-${activeTab}`}
+          className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6"
+        >
           {/* ======================================================== */}
           {/* ABA 1: IDIOMA & REGIÃO */}
           {/* ======================================================== */}

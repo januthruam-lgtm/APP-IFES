@@ -124,19 +124,80 @@ export function arredondarMultiplo5(valor: number): number {
 }
 
 /**
+ * Retorna a definição da cidade para QUALQUER nível/ID (1 a infinito).
+ * - Cidades 1 a 10: configurações pré-definidas curadas.
+ * - Cidades > 10: geradas proceduralmente com balanceamento matemático contínuo.
+ */
+export function obterCidadeDefinicao(cidadeId: number): CidadeDefinicao {
+  const idValido = Math.max(1, Math.floor(cidadeId || 1));
+  const predefinida = CIDADES.find((c) => c.id === idValido);
+  if (predefinida) return predefinida;
+
+  const temasInfinitos = [
+    "Reino Quântico",
+    "Aurora dos Polímatas",
+    "Cidadela das Estrelas",
+    "Vale dos Filósofos Cósmicos",
+    "Santuário das Galáxias",
+    "Fortaleza do Infinito",
+    "Metrópole Solar",
+    "Baluarte dos Mestres",
+    "Império do Conhecimento",
+    "Horizonte da Sabedoria",
+    "Ágora dos Pensadores Universais",
+    "Cúpula das Dimensões",
+    "Panteão dos Estudiosos",
+    "Colosso da Investigação",
+    "Jardins do Infinito",
+  ];
+
+  const indice = (idValido - 11) % temasInfinitos.length;
+  const ciclo = Math.floor((idValido - 11) / temasInfinitos.length) + 1;
+  const sufixo = ciclo > 1 ? ` • Ciclo ${ciclo}` : "";
+  const nome = `${temasInfinitos[indice]}${sufixo}`;
+
+  // Custo base escalável continuamente com amortecimento suave
+  const fatorNivel = Math.pow(1.12, idValido - 10);
+  const baseCusto = arredondarMultiplo5(Math.round(800 * fatorNivel));
+
+  return {
+    id: idValido,
+    nome,
+    baseCusto,
+    totalConstrucoes: 6,
+    chavesConstrucoes: Object.freeze(["biblioteca", "laboratorio", "observatorio", "dormitorio", "auditorio", "praca"]),
+    desbloqueioDescricao: `Vila Lendária Nível ${idValido} • Bônus contínuo de XP e medalha de mestre`,
+  };
+}
+
+/**
+ * Retorna a definição do estágio para qualquer nível (1 a infinito).
+ */
+export function obterEstagio(nivel: number): EstagioConstrucao {
+  const niv = Math.max(1, Math.floor(nivel || 1));
+  const base = ESTAGIOS_CIDADE.find((e) => e.nivel === niv);
+  if (base) return base;
+
+  // Níveis > 5 são Estágios de Mestria / Prestígio Lendário
+  const grauMestria = niv - 5;
+  const algarismoRomano = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"][Math.min(9, grauMestria - 1)] || `${grauMestria}`;
+  return {
+    nivel: niv,
+    nome: `Monumento Celestial • Mestria ${algarismoRomano}`,
+    peso: 6 + (grauMestria * 2.5),
+  };
+}
+
+/**
  * Calcula o custo em moedas para construir determinado estágio em uma cidade.
  * Fórmula: baseCusto da cidade × peso do estágio, arredondado a múltiplos de 5.
  *
- * @param cidadeId ID da cidade (1 a 10)
- * @param estagioNivel Nível do estágio (1 a 5)
+ * @param cidadeId ID da cidade (1 a infinito)
+ * @param estagioNivel Nível do estágio (1 a infinito)
  */
 export function calcularCustoEstagio(cidadeId: number, estagioNivel: number): number {
-  const cidade = CIDADES.find((c) => c.id === cidadeId);
-  const estagio = ESTAGIOS_CIDADE.find((e) => e.nivel === estagioNivel);
-
-  if (!cidade || !estagio) {
-    throw new Error(`Cidade (${cidadeId}) ou Estágio (${estagioNivel}) inválido.`);
-  }
+  const cidade = obterCidadeDefinicao(cidadeId);
+  const estagio = obterEstagio(estagioNivel);
 
   const bruto = cidade.baseCusto * estagio.peso;
   return arredondarMultiplo5(bruto);
@@ -146,12 +207,11 @@ export function calcularCustoEstagio(cidadeId: number, estagioNivel: number): nu
  * Calcula o custo total para completar todas as construções nos 5 estágios de uma cidade.
  */
 export function calcularCustoTotalCidade(cidadeId: number): number {
-  const cidade = CIDADES.find((c) => c.id === cidadeId);
-  if (!cidade) throw new Error(`Cidade ${cidadeId} não encontrada.`);
+  const cidade = obterCidadeDefinicao(cidadeId);
 
   let somaEstagios = 0;
   for (const est of ESTAGIOS_CIDADE) {
-    somaEstagios += calcularCustoEstagio(cidadeId, est.nivel);
+    somaEstagios += calcularCustoEstagio(cidade.id, est.nivel);
   }
 
   return somaEstagios * cidade.totalConstrucoes;

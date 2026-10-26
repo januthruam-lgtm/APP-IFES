@@ -274,11 +274,12 @@
     "badge_sincronizado": "Synced",
     "badge_conectar": "Connect",
     "badge_tutora": "AI Tutor",
-    "dicionario": "Smart Dictionary"
+    "dicionario": "Smart Dictionary",
+    "cidade": "Knowledge City"
   },
   "header": {
     "notificacoes": "Notifications & Alerts",
-    "acessibilidade": "Accessibility & Inclusion (WCAG AAA)",
+    "acessibilidade": "Accessibility and Inclusion",
     "configuracoes": "Application Settings and Language",
     "estudantes_online": "Online Students",
     "energia": "Energy",
@@ -436,9 +437,9 @@
   },
   "tarefas": {
     "titulo": "My Academic Tasks",
-    "subtitulo": "Organize your assignments, readings, and deliverables by subject with rewards in coins and XP.",
+    "subtitulo": "Organize your assignments, readings, and deliverables by subject with clarity and focus.",
     "gerenciador": "Study Task Manager",
-    "gerenciador_desc": "Organize your assignments, readings, and deliverables by subject with rewards in coins and XP.",
+    "gerenciador_desc": "Organize your assignments, readings, and deliverables by subject with clarity and focus.",
     "todas": "All",
     "pendentes": "Pending",
     "concluidas": "Completed",
@@ -539,5 +540,26 @@
     "confirmacao_rapida": "Send quick confirmation",
     "visto": "Seen",
     "enviado": "Sent"
+  },
+  "auth": {
+    "titulo": "Brain Studio • Academic Access",
+    "subtitulo": "Institutional identification and learning environment",
+    "sucesso_login": "Successfully connected!",
+    "erro_preenchimento": "Please fill in your name and email.",
+    "placeholder_nome": "Your full name",
+    "placeholder_matricula": "Your student ID or username",
+    "placeholder_email": "Your email address",
+    "placeholder_senha": "Your password",
+    "erro_matricula": "Please enter your student ID or username.",
+    "erro_senha": "Please enter your password.",
+    "erro_credenciais": "Incorrect username or password. Please verify your credentials.",
+    "erro_conexao": "Connection error with institution. Please try again."
+  },
+  "ajustes": {
+    "aparencia": "App Appearance",
+    "aparencia_desc": "Switch between official Light and Dark themes",
+    "tema_claro": "Light Theme",
+    "tema_escuro": "Dark Theme",
+    "seguir_sistema": "Automatically match operating system theme"
   }
 }

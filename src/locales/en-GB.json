@@ -274,7 +274,8 @@
     "badge_sincronizado": "Synced",
     "badge_conectar": "Connect",
     "badge_tutora": "AI Tutor",
-    "dicionario": "Smart Dictionary"
+    "dicionario": "Smart Dictionary",
+    "cidade": "Knowledge City"
   },
   "header": {
     "notificacoes": "Notifications & Alerts",
@@ -539,5 +540,26 @@
     "confirmacao_rapida": "Send quick confirmation",
     "visto": "Seen",
     "enviado": "Sent"
+  },
+  "auth": {
+    "titulo": "Brain Studio • Academic Access",
+    "subtitulo": "Institutional identification and learning environment",
+    "sucesso_login": "Successfully connected!",
+    "erro_preenchimento": "Please enter your name and email.",
+    "placeholder_nome": "Your full name",
+    "placeholder_matricula": "Your student ID or username",
+    "placeholder_email": "Your email address",
+    "placeholder_senha": "Your password",
+    "erro_matricula": "Please enter your student ID or username.",
+    "erro_senha": "Please enter your password.",
+    "erro_credenciais": "Incorrect username or password.",
+    "erro_conexao": "Connection error with institution."
+  },
+  "ajustes": {
+    "aparencia": "App Appearance",
+    "aparencia_desc": "Switch between official Light and Dark themes",
+    "tema_claro": "Light Theme",
+    "tema_escuro": "Dark Theme",
+    "seguir_sistema": "Automatically match operating system theme"
   }
 }

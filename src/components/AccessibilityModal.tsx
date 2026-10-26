@@ -255,7 +255,7 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({ isOpen, 
                   {t("acessibilidade.alto_contraste")}
                 </span>
                 <span className="text-[11px] text-[var(--app-text-muted)] block">
-                  Bordas marcadas e contraste reforçado conforme padrão WCAG AAA.
+                  Bordas marcadas e contraste reforçado para Acessibilidade e Inclusão.
                 </span>
               </div>
               <input

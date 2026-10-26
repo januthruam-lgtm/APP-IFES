@@ -318,26 +318,36 @@ export const OnboardingInstituicaoFlow: React.FC<OnboardingFlowProps> = ({
                 />
               </div>
 
-              {cidadesSugeridas.length > 0 && (
-                <div className="pt-1">
-                  <p className="text-[11px] text-slate-500 mb-2">Cidades sugeridas:</p>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                    {cidadesSugeridas.slice(0, 15).map((cid) => (
-                      <button
-                        key={cid}
-                        onClick={() => setCidade(cid)}
-                        className={`px-3 py-1 rounded-lg text-xs border transition ${
-                          cidade === cid
-                            ? "bg-indigo-600 border-indigo-500 text-white font-semibold"
-                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                        }`}
-                      >
-                        {cid}
-                      </button>
-                    ))}
+              {cidadesSugeridas.length > 0 && (() => {
+                const termoNorm = cidade.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+                const filtradas = termoNorm
+                  ? cidadesSugeridas.filter((cid) =>
+                      cid.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(termoNorm)
+                    )
+                  : cidadesSugeridas;
+                return (
+                  <div className="pt-1">
+                    <p className="text-[11px] text-slate-500 mb-2">
+                      {pais.toUpperCase() === "BR" ? "Municípios (IBGE Dados Abertos):" : "Cidades sugeridas:"}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                      {filtradas.slice(0, 20).map((cid) => (
+                        <button
+                          key={cid}
+                          onClick={() => setCidade(cid)}
+                          className={`px-3 py-1 rounded-lg text-xs border transition cursor-pointer ${
+                            cidade === cid
+                              ? "bg-indigo-600 border-indigo-500 text-white font-semibold"
+                              : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {cid}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 

@@ -265,7 +265,7 @@
     "equipes": "Equipos y Batallas",
     "loja_pets": "Tienda de Mascotas",
     "acessibilidade": "Accesibilidad",
-    "configuracoes": "Ajustes",
+    "configuracoes": "Configuración",
     "conectado": "Conectado IFES",
     "modo_offline": "Modo Desconectado",
     "sair": "Cerrar Sesión",
@@ -274,11 +274,12 @@
     "badge_sincronizado": "Sincronizado",
     "badge_conectar": "Conectar",
     "badge_tutora": "Tutora IA",
-    "dicionario": "Diccionario Inteligente"
+    "dicionario": "Diccionario Inteligente",
+    "cidade": "Ciudad del Saber"
   },
   "header": {
     "notificacoes": "Notificaciones y Alertas",
-    "acessibilidade": "Accesibilidad e Inclusión (WCAG AAA)",
+    "acessibilidade": "Accesibilidad e Inclusión",
     "configuracoes": "Ajustes del Aplicativo e Idioma",
     "estudantes_online": "Estudiantes en Línea",
     "energia": "Energía",
@@ -436,9 +437,9 @@
   },
   "tarefas": {
     "titulo": "Mis Tareas Académicas",
-    "subtitulo": "Organiza tus deberes, lecturas y entregas por asignatura con recompensas en monedas y XP.",
+    "subtitulo": "Organiza tus deberes, lecturas y entregas por asignatura con claridad y enfoque.",
     "gerenciador": "Gestor de Tareas de Estudio",
-    "gerenciador_desc": "Organiza tus deberes, lecturas y entregas por asignatura con recompensas en monedas y XP.",
+    "gerenciador_desc": "Organiza tus deberes, lecturas y entregas por asignatura con claridad y enfoque.",
     "todas": "Todas",
     "pendentes": "Pendientes",
     "concluidas": "Completadas",
@@ -539,5 +540,26 @@
     "confirmacao_rapida": "Enviar confirmación rápida",
     "visto": "Visto",
     "enviado": "Enviado"
+  },
+  "auth": {
+    "titulo": "Brain Studio • Acceso Institucional",
+    "subtitulo": "Identificación institucional y entorno de estudio",
+    "sucesso_login": "¡Conectado con éxito!",
+    "erro_preenchimento": "Complete su nombre y correo electrónico.",
+    "placeholder_nome": "Su nombre completo",
+    "placeholder_matricula": "Su matrícula o usuario",
+    "placeholder_email": "Su correo institucional",
+    "placeholder_senha": "Su contraseña de acceso",
+    "erro_matricula": "Ingrese su matrícula o usuario.",
+    "erro_senha": "Ingrese su contraseña de acceso.",
+    "erro_credenciais": "Nombre de usuario o contraseña incorrectos.",
+    "erro_conexao": "Error en la conexión institucional."
+  },
+  "ajustes": {
+    "aparencia": "Apariencia de la Aplicación",
+    "aparencia_desc": "Alterne entre los temas Claro y Oscuro",
+    "tema_claro": "Tema Claro",
+    "tema_escuro": "Tema Oscuro",
+    "seguir_sistema": "Seguir automáticamente el tema del sistema operativo"
   }
 }

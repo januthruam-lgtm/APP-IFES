@@ -1,18 +1,61 @@
-# Brain Studio - Acompanhamento do Progresso de Execução (Fases 0 a 13)
+# Progresso da Execução Autônoma • Brain Studio
 
-| Fase | Título | Status | Arquivos Criados / Modificados | Pendências / Observações |
-|---|---|---|---|---|
-| **Fase 0** | Fundação, Auditoria e Configuração Central | ✅ CONCLUÍDO | `src/config/*`, `docs/AUDITORIA.md`, `docs/DADOS.md`, `scripts/test-regras.ts`, `package.json` | Nenhuma. Build limpo, lint 0 erros, testes 100%. |
-| **Fase 1** | Sistema Universal de Idiomas (Sem Servidor / Fallback) | ✅ CONCLUÍDO | `src/i18n.ts`, `src/locales/*.json`, `scripts/check-i18n.ts`, `scripts/gerar-traducoes.mjs`, `docs/idiomas.md`, `docs/COBERTURA_IDIOMAS.md` | Tradução sem servidor, fallback estrito para en, paridade de 493 chaves 100%, sem quota 429. |
-| **Fase 2** | Temas Restritos (Somente Claro e Escuro) | ✅ CONCLUÍDO | `src/utils/themeManager.ts`, `src/index.css`, `index.html`, `src/components/Header.tsx`, `docs/temas.md` | Apenas Claro e Escuro, contraste WCAG AAA (12.5:1 / 13.4:1), zero flash ao carregar, atalho no cabeçalho. |
-| **Fase 3** | Matérias Excluídas (Soft-delete e Tombstones) | ✅ CONCLUÍDO | `src/utils/courseTombstones.ts`, `src/utils/courseSync.ts`, `src/components/tabs/IfesAvaTab.tsx`, `scripts/test-tombstones.ts` | Soft-delete com tombstones imunes à ressuscitação pelo Moodle, sub-abas Ativas/Excluídas, restauração e exclusão definitiva. |
-| **Fase 4** | Economia Acadêmica (Baú, Missões, Ofensiva, Ligas, Loja) | 🔄 EM ANDAMENTO | `src/config/economia.config.ts`, `src/utils/streakManager.ts` | Integrando 4A (Baú), 4B (Missões & Ofensiva), 4C (Ligas), 4D (Loja e Sumidouros). |
-| **Fase 5** | Estrutura de Planos (Gratuito, Lite, Pro) | ⏳ PENDENTE | | |
-| **Fase 6** | Cidade do Conhecimento (10 Cidades, Cooperativa) | ⏳ PENDENTE | | |
-| **Fase 7** | Suporte Multi-Instituição (Base Estática, Inep/e-MEC/ROR) | ⏳ PENDENTE | | |
-| **Fase 8** | Lumina IA (Tutora Humanizada, Memória, Segurança) | ⏳ PENDENTE | | |
-| **Fase 9** | Gerador de Quiz por Arquivo (Validação Binária e Cotas) | ⏳ PENDENTE | | |
-| **Fase 10**| Cursos Preparatórios Originais | ⏳ PENDENTE | | |
-| **Fase 11**| Biblioteca Virtual (Domínio Público) e Dicionário | ⏳ PENDENTE | | |
-| **Fase 12**| Guarda-Roupa dos Mascotes (Apenas Estético) | ⏳ PENDENTE | | |
-| **Fase 13**| Profissionalização, Segurança e Pacote Play Store | ⏳ PENDENTE | | |
+Status consolidado de implementação da **PARTE I (Reorganização Completa do App)** e da **PARTE II (Ajuste de Tarefas, Extrato e Fidelidade)**.
+
+---
+
+## PARTE I · Reorganização Completa do App
+
+- [x] **Auditoria de UX**: Inventário completo de telas, problemas e mapa antes/depois registrado em `docs/AUDITORIA-UX.md`.
+- [x] **Decisões Arquiteturais**: Eliminadas duplicatas e decisões registradas em `docs/DECISOES.md`.
+- [x] **Nova Arquitetura de Informação**:
+  - Aba 1: `Início` (Tela "Hoje" com saudação, continuar estudo, 3 prazos, 3 missões do dia, ofensiva, pet compacto, baú da equipe, 4 atalhos e checklist de primeiros passos).
+  - Aba 2: `Estudar` (Central com 4 grupos: Organizar [Disciplinas, Tarefas, Agenda], Praticar [Flashcards Anki, Simulados 10Q, Métodos], Aprender [Biblioteca, Dicionário], Estudar com outros [Sala Virtual], Sistemas Conectados [AVA IFES]).
+  - Aba 3: `Lumina` (Tutora socrática destacada no centro, histórico e níveis de explicação).
+  - Aba 4: `Jogo` (Vilas do Saber/Cidade com níveis ilimitados e botão sobre construção, Pet 3D, Equipes e Ligas com contador de online, Loja, Carteira/Extrato e Fidelidade).
+  - Aba 5: `Perfil` (Conta, Configurações completas como página, Modo Foco, Idioma, Acessibilidade e Inclusão, Notificações, Instituição, Planos, Cache offline, Privacidade e Sobre).
+- [x] **Responsividade**: `TabBar` para telas < 768px, `NavigationRail` para telas de 768px a 1023px, `Sidebar` para telas ≥ 1024px.
+- [x] **Busca Global Instantânea**: Ícone na TopBar e atalho `Ctrl+K` para busca em matérias, tarefas, flashcards e configurações com tolerância a acentos.
+- [x] **Acessibilidade e Usabilidade**:
+  - Termo "WCAG AAA" substituído por "Acessibilidade e Inclusão" (sem alegações não auditadas).
+  - Tamanho de fonte ajustável até 200%.
+  - Redução de movimento (prefers-reduced-motion).
+  - Alto contraste e leitura por síntese de voz.
+  - Alvos de toque ≥ 44x44px.
+- [x] **Ações Destrutivas**: Snackbar de 8 segundos com opção "Desfazer".
+- [x] **Design System Unificado**: Criado em `src/components/ui/` (`AppShell`, `TopBar`, `TabBar`, `NavigationRail`, `Button`, `Card`, `ListItem`, `Chip`, `Tabs`, `Badge`, `Avatar`, `Input`, `Switch`, `ProgressBar`, `Skeleton`, `EmptyState`, `Snackbar`, `BottomSheet`, `Dialog`).
+
+---
+
+## PARTE II · Tarefas, Extrato e Programa de Fidelidade
+
+- [x] **Remoção de Recompensas das Tarefas**:
+  - Recompensa desativada em `src/config/economia.config.ts` (`TAREFAS.recompensa = false`).
+  - Removido crédito de moedas e XP ao alternar tarefas em `TasksTab.tsx`.
+  - Exploit de farming eliminado definitivamente.
+- [x] **Livro-Razão Contábil (Extrato de Moedas)**:
+  - Coleção append-only `users/{uid}/extrato/{id}`.
+  - Função atômica `movimentarMoedas()` em `extratoService.ts` com idempotência e suporte offline.
+  - Função de auditoria matemática do saldo (`auditarExtrato`).
+  - Componente de extrato interativo com filtros e métricas (`ExtratoMoedasView.tsx`).
+- [x] **Programa de Fidelidade Acadêmica**:
+  - Regras determinísticas em `src/config/fidelidade.config.js`.
+  - Níveis por janela móvel de 30 dias (Bronze 1%, Prata 2%, Ouro 3%, Safira 4%, Diamante 5%).
+  - Cofre de Retorno com teto de 500 moedas, resgate semanal máximo de 250 moedas e exigência de 1 missão diária no dia do resgate.
+  - Concessão de selos de colecionador (1 a cada 100 moedas gastas) e catálogo de recompensas exclusivas.
+  - Vales-desconto com teto combinado de 20% e máximo de 150 moedas de desconto.
+  - Metas semanais de atividade (500->20, 1500->50, 3000->100 no cofre).
+  - Semanas temáticas com bônus de +5% no cofre.
+  - Componente visual do clube de fidelidade (`FidelidadeView.tsx`).
+- [x] **Regras de Segurança Firestore**: Atualizado em `firestore.rules` com restrição append-only no extrato e bloqueio estrito contra criação de créditos com origem de tarefas.
+- [x] **Documentações Concluídas**:
+  - `docs/AUDITORIA-UX.md`
+  - `docs/DECISOES.md`
+  - `docs/NAVEGACAO.md`
+  - `docs/DESIGN-SYSTEM.md`
+  - `docs/QA-UX.md`
+  - `docs/FIDELIDADE.md`
+  - `docs/EXTRATO.md`
+  - `docs/QA-FIDELIDADE.md`
+  - `docs/PROGRESSO.md`
+  - `docs/PENDENCIAS.md`

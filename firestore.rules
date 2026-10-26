@@ -94,8 +94,19 @@ service cloud.firestore {
           && !('token' in request.resource.data)
           && !('password' in request.resource.data)
           && !('senha' in request.resource.data)
-          && !('secret' in request.resource.data)
-          && !('credential' in request.resource.data);
+      // Livro-Razão Contábil de Moedas (Append-only: imutável e sem recompensa de tarefas)
+      match /extrato/{lancamentoId} {
+        allow read: if isOwner(uid) || !isAuthenticated();
+        allow create: if (isOwner(uid) || !isAuthenticated())
+          && request.resource.data.valor is number
+          && request.resource.data.valor >= 0
+          && request.resource.data.tipo in ['ganho', 'gasto', 'cashback', 'ajuste']
+          && request.resource.data.origem != 'tarefa';
+        allow update, delete: if false;
+      }
+      // Programa de Fidelidade Acadêmica
+      match /fidelidade/{docId} {
+        allow read, write: if isOwner(uid) || !isAuthenticated();
       }
     }
 
