@@ -69,4 +69,11 @@ export function isFeatureEnabled(featureKey) {
   return Boolean(FEATURES[featureKey]);
 }
 
+/**
+ * Outro nome (em português) para isFeatureEnabled, usado pela navegação.
+ * @param {string} featureKey Chave da funcionalidade em FEATURES
+ * @returns {boolean}
+ */
+export const isFeatureAtiva = isFeatureEnabled;
+
 export default FEATURES;
