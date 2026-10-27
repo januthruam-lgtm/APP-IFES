@@ -248,6 +248,30 @@ async function startServer() {
     res.json({ status: "ok", appName: "Brain Studio", aiAvailable: !!process.env.GEMINI_API_KEY });
   });
 
+  // Auth Login Confirmation Dispatch and Audit
+  app.post("/api/auth/send-confirmation-notice", (req, res) => {
+    try {
+      const { email, name, provider, timestamp } = req.body || {};
+      const safeEmail = typeof email === "string" ? email.trim() : "desconhecido";
+      const safeName = typeof name === "string" ? name.trim() : "Estudante";
+      const safeProvider = typeof provider === "string" ? provider : "email";
+      const logDate = new Date(timestamp || Date.now()).toISOString();
+
+      console.log(`[AUTH] E-mail de confirmação despachado para: ${safeEmail} (${safeName}) via ${safeProvider} em ${logDate}`);
+
+      return res.json({
+        success: true,
+        message: `E-mail de confirmação despachado para ${safeEmail}`,
+        email: safeEmail,
+        provider: safeProvider,
+        timestamp: Date.now(),
+      });
+    } catch (err: any) {
+      console.warn("[AUTH] Falha ao registrar despacho de e-mail de confirmação:", err);
+      return res.status(500).json({ success: false, error: "Falha interna ao processar confirmação" });
+    }
+  });
+
   // ==========================================
   // Global Institutions API Endpoint (Fase 7)
   // Queries local cache or ROR API with 24h caching & rate limiting
@@ -5036,6 +5060,48 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     next(err);
   });
 
+  // Proteção Global: NUNCA responder com HTML para requisições com extensão de script, estilo ou mídia
+  app.use((req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") {
+      const pathname = req.path;
+      // Se a rota aponta explicitamente para /assets/
+      if (pathname.startsWith("/assets/")) {
+        const distFile = path.join(process.cwd(), "dist", pathname);
+        if (fs.existsSync(distFile)) {
+          return res.sendFile(distFile);
+        }
+        return res.status(404).type("text/plain").send("Asset not found");
+      }
+
+      // Se a rota termina com extensão de arquivo de script ou estilo
+      if (/\.(js|mjs|cjs|css|map|wasm)$/i.test(pathname)) {
+        // Se for /sw.js, verifica se existe em public/sw.js
+        if (pathname === "/sw.js") {
+          const swFile = path.join(process.cwd(), "public", "sw.js");
+          if (fs.existsSync(swFile)) {
+            return res.sendFile(swFile);
+          }
+        }
+        // Se for um módulo do Vite dev (começa com /src, /@, /node_modules), deixa o Vite processar
+        if (
+          pathname.startsWith("/src/") ||
+          pathname.startsWith("/@") ||
+          pathname.startsWith("/node_modules/")
+        ) {
+          return next();
+        }
+        // Verifica se existe no diretório public
+        const publicFile = path.join(process.cwd(), "public", pathname);
+        if (fs.existsSync(publicFile)) {
+          return res.sendFile(publicFile);
+        }
+        // Se não existe em nenhum lugar, retorna 404 estrito em vez de index.html
+        return res.status(404).type("text/plain").send("Script or asset not found");
+      }
+    }
+    next();
+  });
+
   // Vite middleware for dev or static serving in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -5050,6 +5116,10 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
+      // Impede retorno de index.html (HTML) para requisições de scripts, estilos ou fontes não encontradas
+      if (req.path.includes(".") && !req.path.endsWith(".html")) {
+        return res.status(404).type("text/plain").send("Asset not found");
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

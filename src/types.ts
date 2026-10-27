@@ -111,6 +111,7 @@ export interface UserProfile {
   uid?: string;
   email: string;
   name: string;
+  avatar?: string;
   xp: number;
   coins: number; // Coins economy (🪙)
   level: number;

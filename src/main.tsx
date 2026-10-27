@@ -121,9 +121,34 @@ createRoot(document.getElementById('root')!).render(
 );
 
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('[SW] Registro do service worker:', err);
+  // Em ambiente de desenvolvimento e containers do AI Studio, desregistra Service Worker
+  // para evitar interceptação de módulos dinâmicos do Vite e colisões de scripts
+  const isDevHost =
+    window.location.hostname.includes('ais-dev') ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  if (import.meta.env.PROD && !isDevHost) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.warn('[SW] Registro do service worker:', err);
+      });
     });
-  });
+  } else {
+    // Desregistra qualquer Service Worker legado ativo no navegador
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    });
+    if (typeof caches !== 'undefined') {
+      caches.keys().then((keys) => {
+        for (const k of keys) {
+          if (k.includes('brain-studio')) {
+            caches.delete(k);
+          }
+        }
+      });
+    }
+  }
 }

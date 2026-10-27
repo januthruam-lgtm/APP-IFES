@@ -39,6 +39,13 @@
             document.documentElement.setAttribute('data-theme', 'claro');
           }
         } catch (e) {}
+        try {
+          if ('serviceWorker' in navigator && (location.hostname.includes('ais-dev') || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) regs[i].unregister();
+            });
+          }
+        } catch (e) {}
       })();
     </script>
     <meta name="application-name" content="Brain Studio" />

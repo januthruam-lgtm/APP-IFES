@@ -90,4 +90,6 @@ export function isFeatureEnabled(featureKey: FeatureKey | string): boolean {
   return Boolean(FEATURES[featureKey as FeatureKey]);
 }
 
+export const isFeatureAtiva = isFeatureEnabled;
+
 export default FEATURES;

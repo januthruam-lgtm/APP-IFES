@@ -75,7 +75,8 @@ import {
   clearOfflineCache,
 } from "./utils/indexedDB";
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
-import { saveUserProfileToFirestore, getUserProfileFromFirestore } from "./lib/firebase";
+import { saveUserProfileToFirestore, getUserProfileFromFirestore, auth } from "./lib/firebase";
+import { desconectarUsuario, monitorarEstadoAutenticacao } from "./services/authService";
 import { sanitizeUserStreak, getSaoPauloDateString } from "./utils/streakCalculator";
 import { CardConfirmacaoIfes } from "./features/instituicao/components/CardConfirmacaoIfes";
 import { precisaConfirmarInstituicao } from "./features/instituicao/services/migracaoIfes";
@@ -792,7 +793,7 @@ export default function App() {
     setUser((prev) => ({ ...prev, teamId }));
   };
 
-  const handleLogin = (email: string, name?: string, ifesAccount?: IfesAccountInfo) => {
+  const handleLogin = (email: string, name?: string, ifesAccount?: IfesAccountInfo, avatar?: string) => {
     let existingUser: Partial<UserProfile> = {};
     try {
       const saved = localStorage.getItem("brain_studio_user_v3");
@@ -807,12 +808,16 @@ export default function App() {
     );
 
     const isFirstTime = localStorage.getItem("brain_studio_tutorial_completed") !== "true";
+    const userUid = auth.currentUser?.uid || existingUser.id || existingUser.uid || email.trim();
 
     const loggedInUser: UserProfile = {
       ...baseUser,
       ...existingUser,
+      id: userUid,
+      uid: userUid,
       email: email.trim(),
       name: name?.trim() || existingUser.name || ifesAccount?.fullname || email.split("@")[0],
+      avatar: avatar || existingUser.avatar || baseUser.avatar,
       ifesAccount: ifesAccount || existingUser.ifesAccount,
       level: existingUser.level ?? baseUser.level,
       xp: existingUser.xp ?? baseUser.xp,
@@ -827,6 +832,7 @@ export default function App() {
     };
 
     setUser(loggedInUser);
+    saveUserProfileToFirestore(userUid, loggedInUser).catch(() => {});
     try {
       localStorage.setItem("brain_studio_is_logged_in", "true");
       localStorage.setItem("brain_studio_user_v3", JSON.stringify(loggedInUser));
@@ -975,6 +981,40 @@ export default function App() {
     restoreFromCloud();
   }, []);
 
+  // Monitora alterações de autenticação no Firebase Auth em tempo real
+  useEffect(() => {
+    const unsubscribe = monitorarEstadoAutenticacao(async (fbUser) => {
+      if (fbUser) {
+        try {
+          const remoteProfile = await getUserProfileFromFirestore(fbUser.uid);
+          if (remoteProfile) {
+            setUser((prev) => ({
+              ...prev,
+              ...remoteProfile,
+              id: fbUser.uid,
+              uid: fbUser.uid,
+              email: fbUser.email || prev.email,
+              name: fbUser.displayName || remoteProfile.name || prev.name,
+            }));
+          } else {
+            setUser((prev) => ({
+              ...prev,
+              id: fbUser.uid,
+              uid: fbUser.uid,
+              email: fbUser.email || prev.email,
+              name: fbUser.displayName || prev.name,
+            }));
+          }
+          setIsAuthOpen(false);
+        } catch (e) {
+          console.warn("Erro ao ler perfil do Firebase Auth:", e);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Reconexão automática transparente com o AVA IFES para manter sessão estável e permanente
   useEffect(() => {
     let isCancelled = false;
@@ -1047,6 +1087,13 @@ export default function App() {
   }, [user.ifesAccount?.connected, user.id, user.uid, user.email, handleUpdateCourses]);
 
   const handleLogout = async () => {
+    // 0. Desconecta do Firebase Auth
+    try {
+      await desconectarUsuario();
+    } catch (e) {
+      console.warn("Erro ao deslogar do Firebase Auth:", e);
+    }
+
     // 1. Zera e apaga todos os dados do LocalStorage e SessionStorage
     try {
       localStorage.clear();

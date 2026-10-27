@@ -57,3 +57,36 @@ Este documento registra todas as decisões tomadas durante a reorganização do 
 ## 6. Decisão: Preservação de Rótulos de Acessibilidade
 - **Problema**: O app afirmava "WCAG AAA" sem auditoria formal externa.
 - **Decisão Escolhida**: Substituído por "Acessibilidade e Inclusão", mantendo todos os recursos pré-existentes (alto contraste, dislexia, redução de movimento, temas) com alvos de toque aumentados para ≥ 44x44px.
+
+---
+
+## 7. Decisão: Chaves React Únicas para Seleção de Campus AVA
+- **Problema**: A lista de instâncias do Moodle AVA do IFES (`IFES_CAMPUSES_LIST`) possui múltiplos campi que compartilham o mesmo endpoint Moodle centralizado (`https://ava3.cefor.ifes.edu.br`). No `AuthModal.tsx`, a renderização usava `key={c.url}`, gerando colisões de chaves idênticas (`https://ava3.cefor.ifes.edu.br`) e warning de React.
+- **Decisão Escolhida**: Atualizada a chave para `key={'auth-campus-' + c.id}`, utilizando o identificador único e estável de cada campus (`guarapari`, `cefor-ava3`, `ava-geral`, `serra`, `vitoria`, etc.). Padronizado também o fallback com índice nos arrays de listas dinâmicas.
+
+---
+
+## 8. Decisão: Conexão com Conta Google e E-mail de Confirmação Obrigatório
+- **Problema**: Facilitar a entrada imediata dos estudantes com a conta Google sem perder o controle de autenticidade e validação de e-mails, com aviso instantâneo para o estudante.
+- **Decisão Escolhida**:
+  - Implementação do `entrarComGoogle()` usando `GoogleAuthProvider` nativo do Firebase Auth com seleção de conta (`prompt: select_account`).
+  - Sincronização atômica em `users/{uid}` com avatar, nome de exibição e valores iniciais de gamificação.
+  - Despacho automático de e-mail de confirmação via `sendEmailVerification` e notificação de auditoria `/api/auth/send-confirmation-notice`.
+  - Tratamento específico de popups bloqueados (`auth/popup-blocked`), janelas canceladas e limites de taxa de reenvio.
+  - Artefato de suporte e guia de configuração criado em `/.aistudio/artifacts/brain/76abf6e8-4f73-4011-91a7-7c8e5a183fec/guia_login_google_e_confirmacao_email.md`.
+
+---
+
+## 9. Decisão: Prevenção Definitiva de 'Unexpected token <' em Scripts
+- **Problema**: O erro de sintaxe `Uncaught SyntaxError: Unexpected token '<'` ocorre quando um script ou módulo JavaScript tenta carregar e o servidor (ou o Service Worker) responde com uma página HTML (`<!doctype html>`) em vez de código JavaScript válido.
+- **Causas Raiz Identificadas**:
+  1. O Service Worker (`public/sw.js`) continha um fallback genérico `cached || caches.match('/')` em caso de erro de rede, devolvendo o `index.html` para requisições de scripts e assets.
+  2. O Service Worker estava sendo registrado no ambiente de desenvolvimento, interceptando e armazenando módulos dinâmicos do Vite.
+  3. O servidor Vite em modo middleware com `appType: 'spa'` e o Express realizavam fallback de SPA para rotas de assets estáticos inexistentes.
+- **Decisão Escolhida**:
+  - `public/sw.js`: Fallback para `/` restrito estritamente a navegação de páginas inteiras (`event.request.mode === 'navigate'`). Requisições de assets devolvem 404 text/plain.
+  - `src/main.tsx` e `index.html`: Auto-recuperação que desregistra ativamente qualquer Service Worker em ambientes de desenvolvimento (`ais-dev`, `localhost`) e purga caches legados.
+  - `server.ts`: Middleware global que intercepta requisições com extensão de script/estilo (`.js`, `.css`, etc.) e devolve `404 Not Found` em texto puro em vez de `index.html`.
+
+
+

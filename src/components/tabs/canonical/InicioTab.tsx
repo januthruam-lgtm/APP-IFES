@@ -267,9 +267,9 @@ export const InicioTab: React.FC<InicioTabProps> = ({
                   Nenhum prazo acadêmico pendente no momento. Parabéns pelo ritmo em dia!
                 </div>
               ) : (
-                proximosPrazos.map((p) => (
+                proximosPrazos.map((p, idx) => (
                   <div
-                    key={p.id}
+                    key={`prazo-${p.id || idx}`}
                     className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-center justify-between gap-3"
                   >
                     <div className="min-w-0">

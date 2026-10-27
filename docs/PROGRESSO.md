@@ -48,14 +48,55 @@ Status consolidado de implementação da **PARTE I (Reorganização Completa do 
   - Semanas temáticas com bônus de +5% no cofre.
   - Componente visual do clube de fidelidade (`FidelidadeView.tsx`).
 - [x] **Regras de Segurança Firestore**: Atualizado em `firestore.rules` com restrição append-only no extrato e bloqueio estrito contra criação de créditos com origem de tarefas.
-- [x] **Documentações Concluídas**:
-  - `docs/AUDITORIA-UX.md`
-  - `docs/DECISOES.md`
-  - `docs/NAVEGACAO.md`
-  - `docs/DESIGN-SYSTEM.md`
-  - `docs/QA-UX.md`
-  - `docs/FIDELIDADE.md`
-  - `docs/EXTRATO.md`
-  - `docs/QA-FIDELIDADE.md`
-  - `docs/PROGRESSO.md`
-  - `docs/PENDENCIAS.md`
+
+---
+
+## PARTE III · Autenticação Completa com Firebase Auth
+
+- [x] **Cadastro com E-mail e Senha**:
+  - `cadastrarComEmailESenha(email, senha, nome)` em `src/services/authService.ts`.
+  - Atualização do perfil do Firebase Auth com `displayName`.
+  - Criação automática e segura do perfil em `users/{uid}` no Firestore.
+- [x] **Login com E-mail e Senha**:
+  - `entrarComEmailESenha(email, senha)` com leitura segura do documento no Firestore.
+  - Sincronização em tempo real via `monitorarEstadoAutenticacao(onAuthStateChanged)`.
+- [x] **Redefinição de Senha**:
+  - `enviarEmailRecuperacaoSenha(email)` com link seguro de recuperação via Firebase.
+- [x] **Logout Seguro**:
+  - `desconectarUsuario()` executa `signOut(auth)` e limpa storages locais.
+- [x] **Interface Aprimorada no `AuthModal.tsx`**:
+  - Modos Entrar, Cadastrar e Recuperar Senha com alternador fluido.
+  - Indicador e confirmação de senha com opção de mostrar/ocultar.
+  - Mensagens de erro contextualizadas e traduzidas em português.
+  - Preservação da opção de identificação institucional pelo AVA IFES.
+  - Resolução de colisões de chaves React em seletores de campus (`key={`auth-campus-${c.id}`}`).
+- [x] **Conexão com a Conta do Google**:
+  - `entrarComGoogle()` via `GoogleAuthProvider` e popup oficial no `src/services/authService.ts`.
+  - Botão estilizado "Continuar com o Google" com logotipo oficial no `AuthModal.tsx`.
+  - Sincronização automática do avatar (`photoURL`), nome e dados no Firestore `users/{uid}`.
+- [x] **Envio Direto de E-mail de Confirmação**:
+  - `enviarConfirmacaoPorEmail()` integrado ao `sendEmailVerification` do Firebase Auth tanto no login/cadastro por e-mail e senha quanto no login com a Conta Google.
+  - Endpoint de auditoria e despacho no backend (`/api/auth/send-confirmation-notice` em `server.ts`).
+  - Avisos visuais claros de confirmação na interface para o usuário.
+- [x] **Artefato Criado**:
+  - `guia_login_google_e_confirmacao_email.md` gerado na pasta de artefatos para referência e documentação.
+- [x] **Correção de Erro de Sintaxe ('Unexpected token <')**:
+  - Eliminado fallback indevido de HTML para scripts no Service Worker (`public/sw.js`).
+  - Auto-limpeza de Service Workers legados em ambientes de desenvolvimento e teste (`index.html` e `main.tsx`).
+  - Middleware de proteção de assets no `server.ts` devolvendo 404 text/plain para scripts inexistentes.
+
+---
+
+## Documentações Concluídas
+
+- `docs/AUDITORIA-UX.md`
+- `docs/DECISOES.md`
+- `docs/NAVEGACAO.md`
+- `docs/DESIGN-SYSTEM.md`
+- `docs/QA-UX.md`
+- `docs/FIDELIDADE.md`
+- `docs/EXTRATO.md`
+- `docs/QA-FIDELIDADE.md`
+- `docs/PROGRESSO.md`
+- `docs/PENDENCIAS.md`
+
