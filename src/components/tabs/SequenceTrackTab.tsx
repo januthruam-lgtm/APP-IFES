@@ -30,8 +30,6 @@ interface SequenceTrackTabProps {
   onOpenOfflineModal?: () => void;
   onResetCourses?: () => void;
   onDeleteCourse?: (courseId: string) => void;
-  onStartCallWithMember?: (member: CourseMember, isVideo: boolean) => void;
-  onStartGroupCallWithCourse?: () => void;
   onRewardXp?: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
   onOpenPrivateChatWithMember?: (member: CourseMember) => void;
@@ -48,8 +46,6 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
   onOpenOfflineModal,
   onResetCourses,
   onDeleteCourse,
-  onStartCallWithMember,
-  onStartGroupCallWithCourse,
   onRewardXp,
   onRewardCoins,
   onOpenPrivateChatWithMember,
@@ -65,7 +61,6 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
         onBack={() => setViewingWorkspace(false)}
         onRewardXp={onRewardXp || (() => {})}
         onRewardCoins={onRewardCoins}
-        onStartCallWithMember={onStartCallWithMember}
         onOpenLesson={onOpenLesson}
         onOpenPrivateChatWithMember={onOpenPrivateChatWithMember}
       />

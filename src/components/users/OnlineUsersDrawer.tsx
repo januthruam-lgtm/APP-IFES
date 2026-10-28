@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   Users,
   X,
-  Phone,
-  Video,
   MessageSquare,
   Sparkles,
   RefreshCw,
@@ -18,7 +16,6 @@ export interface RealOnlineUser {
   matricula?: string;
   campus?: string;
   courseName?: string;
-  inCall?: boolean;
   isOnline: boolean;
   lastAccess: string;
 }
@@ -27,7 +24,6 @@ interface OnlineUsersDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile;
-  onStartCall: (targetUser: RealOnlineUser, isVideo: boolean) => void;
   onOpenPrivateChat: (targetUser: RealOnlineUser) => void;
 }
 
@@ -35,7 +31,6 @@ export const OnlineUsersDrawer: React.FC<OnlineUsersDrawerProps> = ({
   isOpen,
   onClose,
   currentUser,
-  onStartCall,
   onOpenPrivateChat,
 }) => {
   const [onlineUsers, setOnlineUsers] = useState<RealOnlineUser[]>([]);
@@ -168,31 +163,13 @@ export const OnlineUsersDrawer: React.FC<OnlineUsersDrawerProps> = ({
                     </div>
                   </div>
 
-                  {/* Action buttons (Ligar e Mensagem Privada) beside EVERY user */}
+                  {/* Action button (Mensagem Privada) beside EVERY user */}
                   {!isSelf && (
                     <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                       <button
-                        onClick={() => onStartCall(member, false)}
-                        className="py-1.5 px-2.5 rounded-xl bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                        title={`Fazer chamada de voz com ${member.name}`}
-                      >
-                        <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Áudio</span>
-                      </button>
-
-                      <button
-                        onClick={() => onStartCall(member, true)}
-                        className="py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-xs shadow-emerald-600/20 cursor-pointer"
-                        title={`Fazer chamada de vídeo com ${member.name}`}
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>Vídeo</span>
-                      </button>
-
-                      <button
                         onClick={() => onOpenPrivateChat(member)}
-                        className="py-1.5 px-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition flex items-center gap-1 shadow-xs shadow-[#00a884]/20 cursor-pointer"
-                        title={`Enviar mensagem privada no estilo WhatsApp para ${member.name}`}
+                        className="py-1.5 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition flex items-center gap-1.5 shadow-xs shadow-[#00a884]/20 cursor-pointer"
+                        title={`Enviar mensagem privada para ${member.name}`}
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>Chat</span>

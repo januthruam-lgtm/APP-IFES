@@ -1,28 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Video,
-  VideoOff,
-  Mic,
-  MicOff,
-  PhoneOff,
+  Timer,
+  Play,
+  Pause,
+  RotateCcw,
+  Target,
   Users,
   MessageSquare,
-  Sparkles,
   Send,
-  ScreenShare,
-  ArrowLeft,
-  ShieldCheck,
-  Phone,
+  Sparkles,
+  CheckCircle2,
+  Coffee,
+  Brain,
   Smile,
-  Check,
+  ShieldCheck,
   CheckCheck,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { UserProfile, CourseTrack } from "../../types";
-import {
-  realtimeCallService,
-  CallPeerInfo,
-} from "../../services/realtimeCallService";
 import {
   firestoreChatService,
   TeamMessageItem,
@@ -32,58 +28,134 @@ interface StudyRoomVirtualTabProps {
   user: UserProfile;
   courses?: CourseTrack[];
   onRewardXp?: (amount: number) => void;
-  targetPeer?: { id: string; name: string; isVideo?: boolean } | null;
-  targetCallPeer?: { id: string; name: string; isVideo?: boolean } | null;
-  onClearTargetPeer?: () => void;
-  onClearTargetCallPeer?: () => void;
+  onRewardCoins?: (amount: number) => void;
   onNavigate?: (tab: string) => void;
-  onStartCallWithMember?: (member: { id: string; name: string; avatar?: string }, isVideo: boolean) => void;
   onOpenPrivateChatWithMember?: (member: { id: string; name: string; avatar?: string }) => void;
 }
+
+interface FocusingPeer {
+  id: string;
+  name: string;
+  campus?: string;
+  goal?: string;
+  isFocusing: boolean;
+  timeStudiedMinutes: number;
+}
+
+const PRESET_ROOMS = [
+  { id: "sala-geral-ifes", name: "Sala Geral de Estudos IFES", desc: "Ambiente aberto para todas as matérias e cursos" },
+  { id: "sala-exatas", name: "Sala Exatas & Cálculo", desc: "Foco intensivo em matemática, física e estatística" },
+  { id: "sala-ti", name: "Lab Informática & Programação", desc: "Sessões de código, algoritmos e engenharia" },
+  { id: "sala-gestao", name: "Sala Administração & Gestão", desc: "Leituras, estudos de caso e redações técnicas" },
+];
 
 export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
   user,
   courses = [],
-  targetPeer,
-  targetCallPeer,
-  onClearTargetPeer,
-  onClearTargetCallPeer,
+  onRewardXp,
+  onRewardCoins,
   onNavigate,
-  onStartCallWithMember,
   onOpenPrivateChatWithMember,
 }) => {
   const { t } = useTranslation();
-  const activePeer = targetPeer || targetCallPeer;
-  const clearPeer = onClearTargetPeer || onClearTargetCallPeer;
 
-  const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [connectedPeers, setConnectedPeers] = useState<CallPeerInfo[]>([]);
+  // Seleção de sala
+  const [selectedRoomId, setSelectedRoomId] = useState("sala-geral-ifes");
 
-  const roomId = user.teamId || "sala-estudo-ifes";
+  // Pomodoro Timer State
+  const [timerMode, setTimerMode] = useState<"focus" | "shortBreak" | "longBreak">("focus");
+  const [timeLeft, setTimeLeft] = useState<number>(25 * 60);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [completedSessionsCount, setCompletedSessionsCount] = useState<number>(0);
+
+  // Meta da sessão
+  const [sessionGoal, setSessionGoal] = useState<string>(() => {
+    try {
+      return localStorage.getItem("brain_studio_session_goal") || "";
+    } catch {
+      return "";
+    }
+  });
+  const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
+  const [goalDraft, setGoalDraft] = useState<string>("");
+
+  // Chat e participantes
+  const [activeSideTab, setActiveSideTab] = useState<"chat" | "focusers">("chat");
   const [firestoreMessages, setFirestoreMessages] = useState<TeamMessageItem[]>([]);
   const [roomTypers, setRoomTypers] = useState<string[]>([]);
+  const [chatInput, setChatInput] = useState("");
   const roomTypingTimeoutRef = useRef<any>(null);
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const [chatInput, setChatInput] = useState("");
+  // Colegas simulados/reais em foco
+  const [focusingPeers, setFocusingPeers] = useState<FocusingPeer[]>([
+    {
+      id: "peer-1",
+      name: "Camila Rocha (IFES Serra)",
+      campus: "Campus Serra",
+      goal: "Revisar exercícios de Álgebra Linear",
+      isFocusing: true,
+      timeStudiedMinutes: 45,
+    },
+    {
+      id: "peer-2",
+      name: "Lucas Vasconcelos (IFES Vitória)",
+      campus: "Campus Vitória",
+      goal: "Finalizar relatório de Sistemas Operacionais",
+      isFocusing: true,
+      timeStudiedMinutes: 70,
+    },
+    {
+      id: "peer-3",
+      name: "Mariana Dias (IFES Cefor)",
+      campus: "Campus Cefor",
+      goal: "Leitura do Módulo 3 de Gestão de Pessoas",
+      isFocusing: false,
+      timeStudiedMinutes: 25,
+    },
+  ]);
 
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const camStreamRef = useRef<MediaStream | null>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
-  const [screenShareError, setScreenShareError] = useState<string | null>(null);
-
-  // Escuta mensagens da sala de estudo em tempo real com persistência no Firestore
+  // Cronômetro local com tick a cada 1 segundo
   useEffect(() => {
-    const unsubMsgs = firestoreChatService.subscribeTeamMessages(roomId, (msgs) => {
+    let interval: any = null;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (isRunning && timeLeft === 0) {
+      // Conclusão de ciclo
+      setIsRunning(false);
+      try {
+        confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+      } catch {}
+
+      if (timerMode === "focus") {
+        setCompletedSessionsCount((c) => c + 1);
+        if (onRewardXp) onRewardXp(40);
+        if (onRewardCoins) onRewardCoins(10);
+        // Sugere pausa curta
+        setTimerMode("shortBreak");
+        setTimeLeft(5 * 60);
+      } else {
+        // Retorna ao foco
+        setTimerMode("focus");
+        setTimeLeft(25 * 60);
+      }
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRunning, timeLeft, timerMode, onRewardXp, onRewardCoins]);
+
+  // Escuta mensagens do Firestore para a sala selecionada
+  useEffect(() => {
+    const unsubMsgs = firestoreChatService.subscribeTeamMessages(selectedRoomId, (msgs) => {
       setFirestoreMessages(msgs);
     });
 
     const unsubTyping = firestoreChatService.subscribeTeamTypingStatus(
-      roomId,
-      user.name || "user",
+      selectedRoomId,
+      user.name || "Você",
       (typers) => {
         setRoomTypers(typers);
       }
@@ -94,488 +166,476 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
       unsubTyping();
       if (roomTypingTimeoutRef.current) clearTimeout(roomTypingTimeoutRef.current);
     };
-  }, [roomId, user.name]);
+  }, [selectedRoomId, user.name]);
 
   useEffect(() => {
     chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [firestoreMessages, roomTypers]);
 
-  // Initialize camera and local media on mount
-  useEffect(() => {
-    let localStream: MediaStream | null = null;
-
-    const startLocalMedia = async () => {
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: { echoCancellation: true, noiseSuppression: true },
-          });
-          localStream = stream;
-          camStreamRef.current = stream;
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-            localVideoRef.current.play().catch(() => {});
-          }
-        }
-      } catch (err) {
-        console.warn("Could not capture camera in StudyRoom:", err);
-      }
-    };
-
-    startLocalMedia();
-
-    // Listen to real-time remote stream if in a direct call
-    const unsubRemote = realtimeCallService.onRemoteStreamChange((stream) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = stream;
-        remoteVideoRef.current.play().catch(() => {});
-      }
-    });
-
-    // If activePeer passed, start or ensure call
-    if (activePeer) {
-      setConnectedPeers([
-        {
-          id: activePeer.id,
-          name: activePeer.name,
-          isVideo: activePeer.isVideo,
-        },
-      ]);
-    }
-
-    return () => {
-      unsubRemote();
-      if (localStream) {
-        localStream.getTracks().forEach((t) => t.stop());
-      }
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, [activePeer]);
-
-  // Mic toggle
-  const handleToggleMic = () => {
-    if (localVideoRef.current && localVideoRef.current.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMicOn(audioTrack.enabled);
-      }
-    }
+  const handleStartPause = () => {
+    setIsRunning(!isRunning);
   };
 
-  // Video toggle
-  const handleToggleVideo = () => {
-    if (localVideoRef.current && localVideoRef.current.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOn(videoTrack.enabled);
-      }
-    }
+  const handleResetTimer = () => {
+    setIsRunning(false);
+    if (timerMode === "focus") setTimeLeft(25 * 60);
+    else if (timerMode === "shortBreak") setTimeLeft(5 * 60);
+    else setTimeLeft(15 * 60);
   };
 
-  // Screen share toggle (Cross-platform Android Chrome & Desktop compatible)
-  const handleToggleScreenShare = async () => {
-    setScreenShareError(null);
-
-    if (isScreenSharing) {
-      // Revert to camera stream
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach((track) => track.stop());
-        screenStreamRef.current = null;
-      }
-      setIsScreenSharing(false);
-
-      if (camStreamRef.current && localVideoRef.current) {
-        localVideoRef.current.srcObject = camStreamRef.current;
-        localVideoRef.current.play().catch(() => {});
-      } else {
-        try {
-          const freshCam = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          camStreamRef.current = freshCam;
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = freshCam;
-            localVideoRef.current.play().catch(() => {});
-          }
-        } catch {}
-      }
-      return;
-    }
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-      setScreenShareError("Compartilhamento de tela não suportado neste navegador. Use o Google Chrome atualizado.");
-      setTimeout(() => setScreenShareError(null), 5000);
-      return;
-    }
-
-    try {
-      // Android Chrome requires video only (audio: true throws on mobile)
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-        });
-      } catch (err1: any) {
-        // Fallback for browsers with no argument requirements
-        stream = await (navigator.mediaDevices as any).getDisplayMedia();
-      }
-
-      if (stream) {
-        screenStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-          localVideoRef.current.play().catch(() => {});
-        }
-        setIsScreenSharing(true);
-
-        const videoTrack = stream.getVideoTracks()[0];
-        if (videoTrack) {
-          videoTrack.onended = () => {
-            setIsScreenSharing(false);
-            screenStreamRef.current = null;
-            if (camStreamRef.current && localVideoRef.current) {
-              localVideoRef.current.srcObject = camStreamRef.current;
-              localVideoRef.current.play().catch(() => {});
-            }
-          };
-        }
-      }
-    } catch (err: any) {
-      console.warn("Screen share error:", err);
-      if (err.name !== "NotAllowedError" && err.name !== "AbortError") {
-        setScreenShareError("Aviso de tela: " + (err.message || "Permissão necessária"));
-        setTimeout(() => setScreenShareError(null), 5000);
-      }
-    }
+  const handleSwitchMode = (newMode: "focus" | "shortBreak" | "longBreak") => {
+    setIsRunning(false);
+    setTimerMode(newMode);
+    if (newMode === "focus") setTimeLeft(25 * 60);
+    else if (newMode === "shortBreak") setTimeLeft(5 * 60);
+    else setTimeLeft(15 * 60);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSaveGoal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const textToSend = chatInput.trim();
-    setChatInput("");
-
-    if (roomTypingTimeoutRef.current) clearTimeout(roomTypingTimeoutRef.current);
-    firestoreChatService.setTeamTypingStatus(
-      roomId,
-      user.email || user.name || "user",
-      user.name || "Estudante",
-      false
-    );
-
-    try {
-      await firestoreChatService.sendTeamMessage({
-        teamId: roomId,
-        autorId: user.email || user.name || "user",
-        autorName: user.name || "Estudante",
-        conteudo: textToSend,
-      });
-    } catch (err) {
-      console.warn("Erro ao enviar mensagem no Firestore:", err);
+    if (goalDraft.trim()) {
+      setSessionGoal(goalDraft.trim());
+      try {
+        localStorage.setItem("brain_studio_session_goal", goalDraft.trim());
+      } catch {}
+      setIsEditingGoal(false);
     }
   };
 
   const handleChatInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setChatInput(val);
+    const text = e.target.value;
+    setChatInput(text);
 
     firestoreChatService.setTeamTypingStatus(
-      roomId,
-      user.email || user.name || "user",
-      user.name || "Estudante",
+      selectedRoomId,
+      user.name || "Você",
       true
     );
 
     if (roomTypingTimeoutRef.current) clearTimeout(roomTypingTimeoutRef.current);
     roomTypingTimeoutRef.current = setTimeout(() => {
       firestoreChatService.setTeamTypingStatus(
-        roomId,
-        user.email || user.name || "user",
-        user.name || "Estudante",
+        selectedRoomId,
+        user.name || "Você",
         false
       );
     }, 2200);
   };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const text = chatInput.trim();
+    setChatInput("");
+
+    await firestoreChatService.sendTeamMessage({
+      teamId: selectedRoomId,
+      autorId: user.email || user.name || "user-id",
+      autorName: user.name || "Estudante IFES",
+      autorAvatar: user.avatar,
+      conteudo: text,
+      tipo: "texto",
+    });
+
+    firestoreChatService.setTeamTypingStatus(
+      selectedRoomId,
+      user.name || "Você",
+      false
+    );
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const activeRoom = PRESET_ROOMS.find((r) => r.id === selectedRoomId) || PRESET_ROOMS[0];
+
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-4">
-      {/* Call Header */}
-      <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-sm">
-            <Video className="w-5 h-5" />
+    <div className="space-y-6 max-w-6xl mx-auto pb-16 animate-in fade-in-50">
+      {/* Header com seleção de salas */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--app-card)] p-5 rounded-3xl border border-[var(--app-border)] shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black text-[var(--app-text)] flex items-center gap-2">
+              <Timer className="w-6 h-6 text-[var(--app-primary)]" />
+              <span>{t("sala_estudo.titulo", "Sala de Foco em Grupo")}</span>
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-black border border-emerald-500/20 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Sincronizado</span>
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-sm sm:text-base font-bold text-[var(--app-text)]">
-                {activePeer ? `Chamada com ${activePeer.name}` : t("sala_estudo.titulo", "Grupo de Estudos Virtual ao Vivo")}
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Câmera & Áudio Ativos
-              </span>
-            </div>
-            <p className="text-xs text-[var(--app-text-muted)] flex items-center gap-2 mt-0.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{t("sala_estudo.subtitulo", "Videoconferência acadêmica, compartilhamento de tela e chat colaborativo")}</span>
-            </p>
-          </div>
+          <p className="text-xs text-[var(--app-text-muted)] mt-1">
+            {t("sala_estudo.subtitulo", "Foco compartilhado com método Pomodoro, metas da sessão e chat em tempo real.")}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {activePeer && clearPeer && (
+        {/* Seletor de Sala */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          {PRESET_ROOMS.map((room) => (
             <button
-              onClick={clearPeer}
-              className="px-3.5 py-1.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 text-xs font-bold transition cursor-pointer"
+              key={room.id}
+              onClick={() => setSelectedRoomId(room.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                selectedRoomId === room.id
+                  ? "bg-[var(--app-primary)] text-white shadow-xs"
+                  : "bg-[var(--app-bg)] text-[var(--app-text)] border border-[var(--app-border)] hover:bg-[var(--app-card-secondary)]"
+              }`}
             >
-              Encerrar Chamada Direta
+              {room.name.replace("Sala ", "").replace("Lab ", "")}
             </button>
-          )}
-
-          {onNavigate && (
-            <button
-              onClick={() => onNavigate("ifes")}
-              className="px-3.5 py-1.5 rounded-xl bg-[var(--app-card-secondary)] hover:bg-[var(--app-card-hover)] text-xs font-bold text-[var(--app-text)] border border-[var(--app-border)] transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Voltar ao AVA IFES</span>
-            </button>
-          )}
+          ))}
         </div>
       </div>
 
-      {/* Main Grid: Video Streams & WhatsApp-style Room Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[460px]">
-        {/* Video Streams Container */}
-        <div className="lg:col-span-2 bg-neutral-950 rounded-3xl p-4 flex flex-col justify-between relative overflow-hidden border border-neutral-800">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-            {/* Peer / Remote Video */}
-            <div className="bg-neutral-900 rounded-2xl overflow-hidden relative border border-neutral-800 flex flex-col justify-between min-h-[220px]">
-              <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-2">
-                <span>{activePeer ? activePeer.name : "Colega Conectado"}</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
+      {/* Grid Principal: Bloco de Foco (Esquerda) + Bloco Social (Direita) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* LADO ESQUERDO: CRONÔMETRO POMODORO & METAS (7 colunas) */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Card do Cronômetro Pomodoro */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-sm text-center space-y-6">
+            {/* Seletor de modo Pomodoro */}
+            <div className="inline-flex p-1 bg-[var(--app-bg)] rounded-2xl border border-[var(--app-border)]">
+              <button
+                onClick={() => handleSwitchMode("focus")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  timerMode === "focus"
+                    ? "bg-[var(--app-primary)] text-white shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>Foco (25m)</span>
+              </button>
 
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
+              <button
+                onClick={() => handleSwitchMode("shortBreak")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  timerMode === "shortBreak"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                <Coffee className="w-3.5 h-3.5" />
+                <span>Pausa Curta (5m)</span>
+              </button>
 
-              {!activePeer && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2 pointer-events-none">
-                  <div className="w-14 h-14 rounded-2xl bg-neutral-800 text-neutral-400 flex items-center justify-center text-xl font-bold">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <p className="text-xs font-bold text-neutral-300">
-                    Aguardando colega entrar
-                  </p>
-                  <p className="text-[11px] text-neutral-500 max-w-xs">
-                    Compartilhe o app para iniciar chamadas de áudio e vídeo com sua turma.
-                  </p>
-                </div>
-              )}
+              <button
+                onClick={() => handleSwitchMode("longBreak")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  timerMode === "longBreak"
+                    ? "bg-amber-600 text-white shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                <Coffee className="w-3.5 h-3.5" />
+                <span>Pausa Longa (15m)</span>
+              </button>
             </div>
 
-            {/* Local Video Stream (Camera / Screen) */}
-            <div className="bg-neutral-900 rounded-2xl overflow-hidden relative border border-neutral-800 flex flex-col justify-between min-h-[220px]">
-              <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white flex items-center gap-2">
-                <span>{user.name} (Você)</span>
-                <span className="text-[10px] font-semibold text-emerald-400">
-                  {isScreenSharing ? "Compartilhando Tela" : isVideoOn ? "Câmera On" : "Câmera Off"}
-                </span>
-              </div>
+            {/* Display do Relógio */}
+            <div className="py-4">
+              <span className="text-6xl sm:text-7xl font-black tracking-tight text-[var(--app-text)] tabular-nums block font-mono">
+                {formatTime(timeLeft)}
+              </span>
+              <span className="text-xs font-bold text-[var(--app-text-muted)] mt-2 block uppercase tracking-wider">
+                {timerMode === "focus"
+                  ? isRunning ? "Em sessão de foco intensivo" : "Pronto para focar"
+                  : "Momento de descanso"}
+              </span>
+            </div>
 
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${isVideoOn || isScreenSharing ? "block" : "hidden"}`}
-              />
-
-              {!(isVideoOn || isScreenSharing) && (
-                <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 gap-1 bg-neutral-800 py-12">
-                  <VideoOff className="w-8 h-8 text-neutral-500" />
-                  <span className="text-xs font-semibold">Câmera desativada</span>
-                </div>
-              )}
-
-              <div className="absolute bottom-3 left-3 z-10 text-[10px] text-neutral-300 flex items-center gap-1.5 font-semibold bg-black/60 px-2 py-0.5 rounded">
-                {isMicOn ? (
+            {/* Ações do Cronômetro */}
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={handleStartPause}
+                className={`px-7 py-3 rounded-2xl text-white font-black text-sm transition flex items-center gap-2 shadow-sm cursor-pointer active:scale-95 ${
+                  isRunning
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)]"
+                }`}
+              >
+                {isRunning ? (
                   <>
-                    <Mic className="w-3 h-3 text-emerald-400" />
-                    <span>Microfone ligado</span>
+                    <Pause className="w-4 h-4" />
+                    <span>{t("sala_estudo.pausar_foco", "Pausar")}</span>
                   </>
                 ) : (
                   <>
-                    <MicOff className="w-3 h-3 text-red-400" />
-                    <span>Silenciado</span>
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>{t("sala_estudo.iniciar_foco", "Iniciar Foco")}</span>
                   </>
                 )}
-              </div>
+              </button>
+
+              <button
+                onClick={handleResetTimer}
+                className="p-3 rounded-2xl bg-[var(--app-bg)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] border border-[var(--app-border)] transition cursor-pointer active:scale-95"
+                title={t("sala_estudo.reiniciar_foco", "Reiniciar cronômetro")}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Contador de Ciclos Concluídos */}
+            <div className="pt-4 border-t border-[var(--app-border)] flex items-center justify-center gap-2 text-xs font-semibold text-[var(--app-text-muted)]">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span>
+                Ciclos de foco concluídos hoje:{" "}
+                <strong className="text-[var(--app-text)] font-black">{completedSessionsCount}</strong> (+{completedSessionsCount * 40} XP)
+              </span>
             </div>
           </div>
 
-          {/* Screen Share Feedback Banner */}
-          {screenShareError && (
-            <div className="mt-3 p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs text-center font-bold animate-in fade-in">
-              {screenShareError}
+          {/* Card de Meta da Sessão Atual */}
+          <div className="p-6 rounded-3xl bg-[var(--app-card)] border border-[var(--app-border)] shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[var(--app-text)] flex items-center gap-2">
+                <Target className="w-4 h-4 text-[var(--app-primary)]" />
+                <span>Meta da Sessão de Estudo</span>
+              </h3>
+              {!isEditingGoal && sessionGoal && (
+                <button
+                  onClick={() => {
+                    setGoalDraft(sessionGoal);
+                    setIsEditingGoal(true);
+                  }}
+                  className="text-xs text-[var(--app-primary)] font-bold hover:underline cursor-pointer"
+                >
+                  Alterar Meta
+                </button>
+              )}
             </div>
-          )}
 
-          {/* Controls Bar */}
-          <div className="flex items-center justify-center gap-3 pt-4 border-t border-neutral-800/80 mt-3">
-            <button
-              type="button"
-              onClick={handleToggleMic}
-              className={`p-3 rounded-2xl transition cursor-pointer ${
-                isMicOn
-                  ? "bg-neutral-800 hover:bg-neutral-700 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
-              }`}
-              title={isMicOn ? t("sala_estudo.desligar_mic", "Desligar Microfone") : t("sala_estudo.ligar_mic", "Ligar Microfone")}
-            >
-              {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleVideo}
-              className={`p-3 rounded-2xl transition cursor-pointer ${
-                isVideoOn
-                  ? "bg-neutral-800 hover:bg-neutral-700 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
-              }`}
-              title={isVideoOn ? t("sala_estudo.desligar_video", "Desligar Câmera") : t("sala_estudo.ligar_video", "Ligar Câmera")}
-            >
-              {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleScreenShare}
-              className={`p-3 rounded-2xl transition cursor-pointer ${
-                isScreenSharing
-                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-                  : "bg-neutral-800 hover:bg-neutral-700 text-white"
-              }`}
-              title={isScreenSharing ? t("sala_estudo.parar_compartilhamento", "Parar Compartilhamento") : t("sala_estudo.compartilhar_tela", "Compartilhar Tela")}
-            >
-              <ScreenShare className="w-5 h-5" />
-            </button>
-
-            {activePeer && clearPeer && (
-              <button
-                onClick={clearPeer}
-                className="p-3 rounded-2xl bg-red-600 text-white hover:bg-red-700 transition cursor-pointer"
-                title="Desconectar"
-              >
-                <PhoneOff className="w-5 h-5" />
-              </button>
+            {isEditingGoal || !sessionGoal ? (
+              <form onSubmit={handleSaveGoal} className="space-y-2">
+                <input
+                  type="text"
+                  value={goalDraft}
+                  onChange={(e) => setGoalDraft(e.target.value)}
+                  placeholder="Ex: Resolver 10 exercícios da lista de Cálculo ou ler módulo de Redes"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text)] outline-none focus:border-[var(--app-primary)]"
+                  autoFocus
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  {sessionGoal && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingGoal(false)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-[var(--app-text-muted)] hover:bg-[var(--app-bg)] cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 rounded-xl bg-[var(--app-primary)] text-white text-xs font-bold cursor-pointer hover:bg-[var(--app-primary-hover)] transition"
+                  >
+                    Definir Meta
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                    {sessionGoal}
+                  </p>
+                </div>
+                <span className="text-[10px] uppercase font-black text-emerald-600 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                  Em Andamento
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* WhatsApp-Style Study Room Chat */}
-        <div className="bg-[#efeae2] dark:bg-[#0b141a] border border-[var(--app-border)] rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between h-[460px]">
-          <div className="bg-[#075e54] dark:bg-[#202c33] text-white px-4 py-3 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-emerald-300" />
-              <h4 className="text-xs font-bold text-white">{t("sala_estudo.chat_ao_vivo", "Chat ao Vivo da Sala")}</h4>
+        {/* LADO DIREITO: CHAT DA SALA & COLEGAS EM FOCO (5 colunas) */}
+        <div className="lg:col-span-5 bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl shadow-sm flex flex-col h-[560px] overflow-hidden">
+          {/* Top Bar com Navegação entre Chat e Colegas */}
+          <div className="p-3 bg-[var(--app-bg)] border-b border-[var(--app-border)] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setActiveSideTab("chat")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  activeSideTab === "chat"
+                    ? "bg-[var(--app-card)] text-[var(--app-text)] shadow-xs border border-[var(--app-border)]"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Chat</span>
+              </button>
+
+              <button
+                onClick={() => setActiveSideTab("focusers")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  activeSideTab === "focusers"
+                    ? "bg-[var(--app-card)] text-[var(--app-text)] shadow-xs border border-[var(--app-border)]"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Colegas ({focusingPeers.length + 1})</span>
+              </button>
             </div>
-            <span className="text-[10px] text-emerald-200">Tempo Real</span>
+
+            <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5 rounded-full bg-emerald-500/15">
+              {activeRoom.name.replace("Sala ", "")}
+            </span>
           </div>
 
-          <div className="overflow-y-auto space-y-2 p-3 flex-1">
-            {firestoreMessages.length === 0 ? (
-              <div className="text-center py-12 text-xs text-neutral-500 space-y-1">
-                <p className="font-bold text-neutral-600 dark:text-neutral-400">Nenhuma mensagem enviada ainda na sala.</p>
-                <p className="text-[11px] opacity-75">Envie uma mensagem abaixo para colaborar com os colegas de estudo!</p>
-              </div>
-            ) : (
-              firestoreMessages.map((m) => {
-                const isMe = m.autorName === user.name || m.autorId === (user.email || user.name);
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in fade-in duration-100`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs shadow-2xs break-words leading-relaxed ${
-                        isMe
-                          ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none"
-                          : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none border border-neutral-200/40 dark:border-neutral-700/40"
-                      }`}
-                    >
-                      {!isMe && (
-                        <span className="text-[10px] font-bold text-[#00a884] block mb-0.5">
-                          {m.autorName}
-                        </span>
-                      )}
-                      <p className="text-xs">{m.conteudo}</p>
-                      <div className="flex items-center justify-end gap-1 text-[9px] text-neutral-500 dark:text-neutral-400 float-right ml-2 mt-0.5 select-none">
-                        <span>{m.timeFormatted || "agora"}</span>
-                        {isMe && (
-                          <span title="Entregue / Visto">
-                            <CheckCheck className="w-3 h-3 text-[#53bdeb]" />
-                          </span>
-                        )}
+          {/* CONTEÚDO: CHAT EM TEMPO REAL */}
+          {activeSideTab === "chat" && (
+            <div className="flex-1 flex flex-col justify-between overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {firestoreMessages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400 space-y-2">
+                    <MessageSquare className="w-8 h-8 opacity-40 text-[var(--app-primary)]" />
+                    <p className="text-xs font-bold text-[var(--app-text)]">
+                      Nenhuma mensagem enviada nesta sala ainda.
+                    </p>
+                    <p className="text-[11px] text-[var(--app-text-muted)] max-w-xs">
+                      Envie uma mensagem abaixo para cumprimentar os colegas e compartilhar seu foco de estudos!
+                    </p>
+                  </div>
+                ) : (
+                  firestoreMessages.map((m) => {
+                    const isMe = m.autorName === user.name || m.autorId === (user.email || user.name);
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in fade-in duration-100`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs shadow-2xs break-words leading-relaxed ${
+                            isMe
+                              ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none"
+                              : "bg-[var(--app-bg)] text-[var(--app-text)] rounded-tl-none border border-[var(--app-border)]"
+                          }`}
+                        >
+                          {!isMe && (
+                            <span className="text-[10px] font-bold text-[#00a884] block mb-0.5">
+                              {m.autorName}
+                            </span>
+                          )}
+                          <p className="text-xs">{m.conteudo}</p>
+                          <div className="flex items-center justify-end gap-1 text-[9px] text-[var(--app-text-muted)] float-right ml-2 mt-0.5 select-none">
+                            <span>{m.timeFormatted || "agora"}</span>
+                            {isMe && (
+                              <span title="Entregue">
+                                <CheckCheck className="w-3 h-3 text-[#53bdeb]" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })
+                )}
+
+                {/* Typing indicator */}
+                {roomTypers.length > 0 && (
+                  <div className="flex justify-start">
+                    <div className="bg-[var(--app-bg)] text-xs text-[var(--app-text-muted)] rounded-2xl rounded-tl-none px-3 py-1 border border-[var(--app-border)] flex items-center gap-1.5">
+                      <span className="text-emerald-500 font-bold">{roomTypers.join(", ")} digitando</span>
+                      <span className="inline-flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-75" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-150" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-300" />
+                      </span>
                     </div>
                   </div>
-                );
-              })
-            )}
-
-            {/* Balão flutuante de digitação ("digitando...") */}
-            {roomTypers.length > 0 && (
-              <div className="flex justify-start animate-in fade-in duration-150">
-                <div className="bg-white dark:bg-[#202c33] text-neutral-600 dark:text-neutral-300 rounded-2xl rounded-tl-none px-3.5 py-1.5 text-[11px] shadow-xs border border-neutral-200/40 dark:border-neutral-700/40 flex items-center gap-1.5">
-                  <span className="text-emerald-500 font-bold">
-                    {roomTypers.join(", ")} {roomTypers.length === 1 ? "está digitando" : "estão digitando"}
-                  </span>
-                  <span className="inline-flex gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-75" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-150" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-300" />
-                  </span>
-                </div>
+                )}
+                <div ref={chatMessagesEndRef} />
               </div>
-            )}
-            <div ref={chatMessagesEndRef} />
-          </div>
 
-          <form
-            onSubmit={handleSendMessage}
-            className="bg-[#f0f2f5] dark:bg-[#202c33] p-2 flex gap-2 border-t border-neutral-200/50 dark:border-neutral-700/50"
-          >
-            <input
-              type="text"
-              value={chatInput}
-              onChange={handleChatInputChange}
-              placeholder={
-                roomTypers.length > 0
-                  ? `${roomTypers.join(", ")} digitando...`
-                  : t("sala_estudo.enviar_mensagem", "Enviar mensagem para o grupo...")
-              }
-              className="flex-1 px-3.5 py-2 text-xs rounded-full bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef] outline-none shadow-xs"
-            />
-            <button
-              type="submit"
-              className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center transition cursor-pointer shrink-0"
-              title={t("chat_direto.enviar", "Enviar mensagem")}
-            >
-              <Send className="w-3.5 h-3.5 ml-0.5" />
-            </button>
-          </form>
+              {/* Input Form do Chat */}
+              <form
+                onSubmit={handleSendMessage}
+                className="bg-[var(--app-bg)] p-2.5 flex items-center gap-2 border-t border-[var(--app-border)]"
+              >
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={handleChatInputChange}
+                  placeholder={
+                    roomTypers.length > 0
+                      ? `${roomTypers.join(", ")} digitando...`
+                      : "Mensagem para o grupo de foco..."
+                  }
+                  className="flex-1 px-4 py-2 text-xs rounded-full bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-border)] outline-none focus:border-[var(--app-primary)] shadow-2xs"
+                />
+                <button
+                  type="submit"
+                  className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center transition cursor-pointer shrink-0 shadow-xs"
+                  title="Enviar mensagem"
+                >
+                  <Send className="w-4 h-4 ml-0.5" />
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* CONTEÚDO: LISTA DE COLEGAS EM FOCO */}
+          {activeSideTab === "focusers" && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Seu próprio status */}
+              <div className="p-3.5 rounded-2xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--app-primary)] text-white font-black text-xs flex items-center justify-center shrink-0">
+                    Você
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[var(--app-text)] truncate">{user.name || "Você"}</p>
+                    <span className="text-[10px] text-[var(--app-text-muted)] block truncate">
+                      {sessionGoal || "Nenhuma meta definida ainda"}
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isRunning ? "bg-emerald-500/15 text-emerald-600" : "bg-neutral-500/15 text-neutral-600"}`}>
+                  {isRunning ? "Focando 🎯" : "Pausado ⏸️"}
+                </span>
+              </div>
+
+              {/* Colegas da sala */}
+              {focusingPeers.map((peer) => (
+                <div
+                  key={peer.id}
+                  className="p-3.5 rounded-2xl bg-[var(--app-bg)] border border-[var(--app-border)] flex items-center justify-between gap-3 hover:border-[var(--app-primary)]/30 transition"
+                >
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {peer.name[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[var(--app-text)] truncate">{peer.name}</p>
+                      <p className="text-[10px] text-[var(--app-text-muted)] truncate">
+                        {peer.goal || "Foco em disciplinas acadêmicas"}
+                      </p>
+                      <span className="text-[9px] text-[var(--app-primary)] font-semibold mt-0.5 block">
+                        {peer.timeStudiedMinutes} min em foco hoje
+                      </span>
+                    </div>
+                  </div>
+
+                  {onOpenPrivateChatWithMember && (
+                    <button
+                      onClick={() => onOpenPrivateChatWithMember({ id: peer.id, name: peer.name })}
+                      className="p-2 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition flex items-center gap-1 shadow-2xs shrink-0 cursor-pointer"
+                      title={`Conversar com ${peer.name}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

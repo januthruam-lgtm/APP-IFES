@@ -11,8 +11,6 @@ import {
   Clock,
   AlertCircle,
   FileCheck,
-  Video,
-  Phone,
   Paperclip,
   Trash2,
   Sparkles,
@@ -47,8 +45,6 @@ interface CourseWorkspaceViewProps {
   onBack: () => void;
   onRewardXp: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
-  onStartCallWithMember?: (member: CourseMember, isVideo: boolean) => void;
-  onStartGroupCallWithCourse?: (course: CourseTrack | IfesCourse, members: CourseMember[]) => void;
   onOpenLesson?: (module: TrackModule) => void;
   onOpenPrivateChatWithMember?: (member: CourseMember) => void;
 }
@@ -60,8 +56,6 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
   onBack,
   onRewardXp,
   onRewardCoins,
-  onStartCallWithMember,
-  onStartGroupCallWithCourse,
   onOpenLesson,
   onOpenPrivateChatWithMember,
 }) => {
@@ -107,7 +101,6 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
   // Participants
   const [participants, setParticipants] = useState<CourseMember[]>([]);
   const [searchParticipant, setSearchParticipant] = useState("");
-  const [selectedForGroupCall, setSelectedForGroupCall] = useState<string[]>([]);
 
   const { isReducedMotion } = useAccessibility();
   const sectionStorageKey = `brain_studio_course_sections_${course.id}`;
@@ -495,12 +488,6 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
       p.role.toLowerCase().includes(searchParticipant.toLowerCase())
   );
 
-  const toggleSelectForGroup = (memberId: string) => {
-    setSelectedForGroupCall((prev) =>
-      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
-    );
-  };
-
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16 animate-in fade-in-50">
       {/* Top Breadcrumb & Back Bar */}
@@ -562,16 +549,6 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                 <span>Abrir no AVA Oficial</span>
               </a>
             ) : null}
-
-            {onStartGroupCallWithCourse && (
-              <button
-                onClick={() => onStartGroupCallWithCourse(course, participants)}
-                className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs transition flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer"
-              >
-                <Video className="w-4 h-4" />
-                <span>Chamada da Turma</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -1385,24 +1362,11 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                 Integrantes da Turma ({participants.length})
               </h2>
               <p className="text-xs text-[var(--app-text-muted)]">
-                Docente e colegas matriculados nesta disciplina. Faça chamadas de áudio, vídeo ou reúna a turma em chamada coletiva.
+                Docente e colegas matriculados nesta disciplina. Envie mensagens privadas no chat para tirar dúvidas e colaborar.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              {selectedForGroupCall.length > 0 && onStartCallWithMember && (
-                <button
-                  onClick={() => {
-                    const firstSelected = participants.find((p) => p.id === selectedForGroupCall[0]);
-                    if (firstSelected) onStartCallWithMember(firstSelected, true);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white font-extrabold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                >
-                  <Video className="w-3.5 h-3.5" />
-                  <span>Chamada em Grupo ({selectedForGroupCall.length} selecionados)</span>
-                </button>
-              )}
-
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)]" />
                 <input
@@ -1418,17 +1382,12 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredParticipants.map((member) => {
-              const isSelected = selectedForGroupCall.includes(member.id);
               const isCurrentUser = member.name.includes("(Você)");
 
               return (
                 <div
                   key={member.id}
-                  className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 bg-[var(--app-card)] shadow-xs ${
-                    isSelected
-                      ? "border-[var(--app-primary)] ring-1 ring-[var(--app-primary)]"
-                      : "border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
-                  }`}
+                  className="p-4 rounded-2xl border transition flex flex-col justify-between gap-3 bg-[var(--app-card)] shadow-xs border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
                 >
                   <div className="flex items-start gap-3">
                     <div
@@ -1445,15 +1404,6 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                         <h4 className="text-xs font-bold text-[var(--app-text)] truncate">
                           {member.name}
                         </h4>
-                        {!isCurrentUser && (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectForGroup(member.id)}
-                            title="Selecionar para chamada em grupo"
-                            className="cursor-pointer rounded accent-[var(--app-primary)] w-3.5 h-3.5 shrink-0"
-                          />
-                        )}
                       </div>
                       <span className="text-[10px] font-semibold text-[var(--app-primary)] block">
                         {member.role} • {member.matricula}
@@ -1464,40 +1414,16 @@ export const CourseWorkspaceView: React.FC<CourseWorkspaceViewProps> = ({
                     </div>
                   </div>
 
-                  {!isCurrentUser && (
+                  {!isCurrentUser && onOpenPrivateChatWithMember && (
                     <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--app-border)]">
-                      {onStartCallWithMember && (
-                        <>
-                          <button
-                            onClick={() => onStartCallWithMember(member, false)}
-                            className="flex-1 py-1.5 px-2 rounded-xl bg-[var(--app-bg)] hover:bg-[var(--app-card)] text-[var(--app-text)] border border-[var(--app-border)] text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-                            title="Fazer chamada de voz"
-                          >
-                            <Phone className="w-3 h-3 text-emerald-500" />
-                            <span>Áudio</span>
-                          </button>
-
-                          <button
-                            onClick={() => onStartCallWithMember(member, true)}
-                            className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 border border-emerald-500/30 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
-                            title="Fazer chamada de vídeo"
-                          >
-                            <Video className="w-3 h-3" />
-                            <span>Vídeo</span>
-                          </button>
-                        </>
-                      )}
-
-                      {onOpenPrivateChatWithMember && (
-                        <button
-                          onClick={() => onOpenPrivateChatWithMember(member)}
-                          className="flex-1 py-1.5 px-2 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer"
-                          title="Enviar mensagem privada no estilo WhatsApp"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          <span>Chat</span>
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onOpenPrivateChatWithMember(member)}
+                        className="w-full py-1.5 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                        title="Enviar mensagem privada no estilo WhatsApp"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Conversar no Chat</span>
+                      </button>
                     </div>
                   )}
                 </div>

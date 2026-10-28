@@ -11,8 +11,6 @@ import {
   Send,
   CheckCircle2,
   Trash2,
-  Phone,
-  Video,
   Sparkles,
   ArrowRight,
   Smile,
@@ -30,7 +28,6 @@ interface GuildsBattlesTabProps {
   onConsumeEnergy?: (amount: number) => boolean;
   onAddEnergy?: (amount: number) => void;
   onUpdateUserTeam?: (teamId: string | null) => void;
-  onStartCallWithMember?: (member: { id: string; name: string; avatar?: string }, isVideo: boolean) => void;
   onOpenPrivateChatWithMember?: (member: { id: string; name: string; avatar?: string }) => void;
 }
 
@@ -40,7 +37,6 @@ export const GuildsBattlesTab: React.FC<GuildsBattlesTabProps> = ({
   onConsumeEnergy,
   onAddEnergy,
   onUpdateUserTeam,
-  onStartCallWithMember,
   onOpenPrivateChatWithMember,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"teams" | "battles">("teams");
@@ -570,33 +566,9 @@ export const GuildsBattlesTab: React.FC<GuildsBattlesTabProps> = ({
                           </div>
                         </div>
 
-                        {/* Action buttons (Ligar e Mensagem) beside each member */}
+                        {/* Action button (Mensagem) beside each member */}
                         {!isSelf ? (
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => {
-                                if (onStartCallWithMember) {
-                                  onStartCallWithMember(m, false);
-                                }
-                              }}
-                              className="p-1.5 rounded-lg bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] transition cursor-pointer"
-                              title={`Ligar para ${m.name}`}
-                            >
-                              <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                if (onStartCallWithMember) {
-                                  onStartCallWithMember(m, true);
-                                }
-                              }}
-                              className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer"
-                              title={`Vídeo com ${m.name}`}
-                            >
-                              <Video className="w-3.5 h-3.5" />
-                            </button>
-
                             <button
                               onClick={() => {
                                 if (onOpenPrivateChatWithMember) {
@@ -650,7 +622,7 @@ export const GuildsBattlesTab: React.FC<GuildsBattlesTabProps> = ({
                   Nenhuma equipe criada no momento
                 </h4>
                 <p className="text-xs text-[var(--app-text-muted)] max-w-sm mx-auto">
-                  Seja o primeiro a formar uma equipe de estudos da sua turma! Você poderá convidar colegas, conversar e fazer chamadas em grupo.
+                  Seja o primeiro a formar uma equipe de estudos da sua turma! Você poderá convidar colegas, conversar e focar em grupo.
                 </p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}

@@ -72,7 +72,7 @@ export interface ActiveUserPresence {
   campus: string;
   avatar?: string;
   petName?: string;
-  status: "disponivel" | "em_chamada" | "estudando";
+  status: "disponivel" | "em_foco" | "estudando";
   lastSeen: number; // Unix timestamp in ms
 }
 
@@ -87,7 +87,7 @@ export async function sendPresenceHeartbeat(userData: {
   campus?: string;
   avatar?: string;
   petName?: string;
-  status?: "disponivel" | "em_chamada" | "estudando";
+  status?: "disponivel" | "em_foco" | "estudando";
 }) {
   try {
     const presenceRef = doc(db, "presencas", userData.uid);
@@ -146,214 +146,7 @@ export function subscribeOnlineUsers(
 }
 
 // ==========================================
-// 2. WEBRTC SIGNALING (1:1 & Group Calls via Firestore)
-// ==========================================
-export interface CallSession {
-  id: string;
-  callerId: string;
-  callerName: string;
-  callerMatricula?: string;
-  targetUserId?: string; // If 1:1 call
-  type: "individual" | "grupo";
-  mediaType: "video" | "audio";
-  status: "calling" | "active" | "rejected" | "ended";
-  roomTitle?: string;
-  participants: string[]; // List of user IDs
-  participantNames?: Record<string, string>;
-  createdAt: number;
-  // Signal payloads for 1:1
-  offer?: RTCSessionDescriptionInit;
-  answer?: RTCSessionDescriptionInit;
-}
-
-export interface SignalingCandidate {
-  senderId: string;
-  targetId?: string;
-  candidate: RTCIceCandidateInit;
-  createdAt: number;
-}
-
-/**
- * Initiates an outgoing call
- */
-export async function createCallSession(params: {
-  callerId: string;
-  callerName: string;
-  callerMatricula?: string;
-  targetUserId?: string;
-  type: "individual" | "grupo";
-  mediaType: "video" | "audio";
-  roomTitle?: string;
-  offer?: RTCSessionDescriptionInit;
-}): Promise<string> {
-  const callsRef = collection(db, "chamadas");
-  const newCallDoc = doc(callsRef);
-  const callId = newCallDoc.id;
-
-  const participants = [params.callerId];
-  if (params.targetUserId && params.type === "individual") {
-    participants.push(params.targetUserId);
-  }
-
-  const callData: CallSession = {
-    id: callId,
-    callerId: params.callerId,
-    callerName: params.callerName,
-    callerMatricula: params.callerMatricula,
-    targetUserId: params.targetUserId,
-    type: params.type,
-    mediaType: params.mediaType,
-    status: "calling",
-    roomTitle: params.roomTitle || `Sala de Estudos (${params.type === "grupo" ? "Grupo" : "Direta"})`,
-    participants,
-    participantNames: {
-      [params.callerId]: params.callerName,
-    },
-    createdAt: Date.now(),
-  };
-
-  if (params.offer) {
-    callData.offer = params.offer;
-  }
-
-  await setDoc(newCallDoc, callData);
-  return callId;
-}
-
-/**
- * Listens for incoming calls directed to the current user
- */
-export function subscribeIncomingCalls(
-  currentUserId: string,
-  onIncomingCall: (call: CallSession | null) => void
-) {
-  const callsRef = collection(db, "chamadas");
-  const q = query(
-    callsRef,
-    where("targetUserId", "==", currentUserId),
-    where("status", "==", "calling"),
-    limit(5)
-  );
-
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const now = Date.now();
-      let activeIncoming: CallSession | null = null;
-
-      snapshot.forEach((d) => {
-        const data = d.data() as CallSession;
-        // Ignore calls older than 60s
-        if (now - data.createdAt < 60000) {
-          activeIncoming = data;
-        }
-      });
-
-      onIncomingCall(activeIncoming);
-    },
-    (err) => {
-      console.warn("[Firebase Call] Incoming listen error:", err);
-    }
-  );
-}
-
-/**
- * Answer or reject a call
- */
-export async function updateCallStatus(
-  callId: string,
-  status: "active" | "rejected" | "ended",
-  extraData?: {
-    answer?: RTCSessionDescriptionInit;
-    participantId?: string;
-    participantName?: string;
-  }
-) {
-  try {
-    const callRef = doc(db, "chamadas", callId);
-    const updatePayload: any = { status };
-
-    if (extraData?.answer) {
-      updatePayload.answer = extraData.answer;
-    }
-
-    if (extraData?.participantId) {
-      updatePayload.participants = arrayUnion(extraData.participantId);
-      if (extraData.participantName) {
-        updatePayload[`participantNames.${extraData.participantId}`] = extraData.participantName;
-      }
-    }
-
-    await updateDoc(callRef, updatePayload);
-  } catch (err) {
-    console.warn("[Firebase Call] Status update error:", err);
-  }
-}
-
-/**
- * Listen to a specific active call's changes (e.g. answer received, participants, ended)
- */
-export function subscribeCallSession(
-  callId: string,
-  onUpdate: (call: CallSession | null) => void
-) {
-  const callRef = doc(db, "chamadas", callId);
-  return onSnapshot(callRef, (docSnap) => {
-    if (docSnap.exists()) {
-      onUpdate(docSnap.data() as CallSession);
-    } else {
-      onUpdate(null);
-    }
-  });
-}
-
-/**
- * Send ICE candidate to call subcollection
- */
-export async function addCallIceCandidate(
-  callId: string,
-  candidate: RTCIceCandidateInit,
-  senderId: string,
-  targetId?: string
-) {
-  try {
-    const candidatesCol = collection(db, "chamadas", callId, "candidatos");
-    await addDoc(candidatesCol, {
-      senderId,
-      targetId: targetId || null,
-      candidate: JSON.parse(JSON.stringify(candidate)),
-      createdAt: Date.now(),
-    });
-  } catch (err) {
-    console.warn("[Firebase Call] Add ICE error:", err);
-  }
-}
-
-/**
- * Listen to ICE candidates from peers
- */
-export function subscribeCallIceCandidates(
-  callId: string,
-  currentUserId: string,
-  onCandidate: (candidate: RTCIceCandidateInit, senderId: string) => void
-) {
-  const candidatesCol = collection(db, "chamadas", callId, "candidatos");
-  return onSnapshot(candidatesCol, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === "added") {
-        const data = change.doc.data();
-        if (data.senderId !== currentUserId) {
-          if (!data.targetId || data.targetId === currentUserId) {
-            onCandidate(data.candidate, data.senderId);
-          }
-        }
-      }
-    });
-  });
-}
-
-// ==========================================
-// 3. UNIFIED NOTIFICATIONS
+// 2. UNIFIED NOTIFICATIONS
 // ==========================================
 export interface AppNotification {
   id: string;
@@ -363,7 +156,7 @@ export interface AppNotification {
   mensagem: string;
   lida: boolean;
   linkTab?: string;
-  tipo?: "chamada_perdida" | "nota" | "tarefa" | "equipe" | "sistema";
+  tipo?: "foco" | "nota" | "tarefa" | "equipe" | "sistema" | "mensagem";
   createdAt: number;
 }
 

@@ -92,26 +92,9 @@ interface ActiveClient {
   courseId?: string;
   courseName?: string;
   campus?: string;
-  inCall?: boolean;
   isOnline?: boolean;
 }
 const activeClientsMap = new Map<string, ActiveClient>();
-
-// In-Memory Direct Calls & Signaling Store
-interface ActiveCallSession {
-  callId: string;
-  callerId: string;
-  callerName: string;
-  callerAvatar?: string;
-  receiverId: string;
-  receiverName: string;
-  receiverAvatar?: string;
-  isVideo: boolean;
-  status: "ringing" | "connected" | "rejected" | "ended";
-  createdAt: number;
-  pendingSignals: { targetUserId: string; signal: any }[];
-}
-const activeCallsStore = new Map<string, ActiveCallSession>();
 
 // In-Memory Real Private Chat Messages Store (WhatsApp style)
 interface StoredPrivateMessage {
@@ -4442,8 +4425,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
   });
 
   // ==========================================
-  // REAL-TIME VIRTUAL STUDY ROOM & WEBRTC SIGNALING
-  // Mesh WebRTC (Audio, Video, Screen Sharing) + Live Chat + Pomodoro Foco
+  // REAL-TIME GROUP FOCUS ROOM (SALA DE FOCO EM GRUPO)
+  // Sincronização Pomodoro + Metas de Estudo + Chat em Tempo Real
   // ==========================================
 
   interface StudyRoomPeer {
@@ -4452,10 +4435,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     campus?: string;
     matricula?: string;
     ws?: WebSocket;
-    isVideo: boolean;
-    isAudio: boolean;
-    isScreenSharing: boolean;
-    isSpeaking: boolean;
+    goal?: string;
+    isFocusing?: boolean;
     joinedAt: number;
   }
 
@@ -4473,7 +4454,6 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     roomName: string;
     peers: Map<string, StudyRoomPeer>;
     messages: StudyRoomMessage[];
-    pendingSignals: Map<string, Array<{ senderId: string; signal: any }>>;
     pomodoro: {
       isRunning: boolean;
       mode: "focus" | "shortBreak" | "longBreak";
@@ -4502,12 +4482,11 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
             id: `msg-welcome-${Date.now()}`,
             senderId: "system",
             senderName: "Brain Studio",
-            text: "Bem-vindos à sala virtual de estudos! Comunicação em tempo real entre estudantes do IFES com áudio, vídeo e compartilhamento de tela.",
+            text: "Bem-vindos à sala de foco em grupo! Cronômetro Pomodoro sincronizado, metas de estudo e colaboração em tempo real.",
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             type: "text",
           },
         ],
-        pendingSignals: new Map(),
         pomodoro: {
           isRunning: false,
           mode: "focus",
@@ -4536,10 +4515,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
         peerId: p.peerId,
         peerName: p.peerName,
         campus: p.campus,
-        isVideo: p.isVideo,
-        isAudio: p.isAudio,
-        isScreenSharing: p.isScreenSharing,
-        isSpeaking: p.isSpeaking,
+        goal: p.goal || "",
+        isFocusing: !!p.isFocusing,
       })),
       pomodoroMode: r.pomodoro.mode,
       isPomodoroRunning: r.pomodoro.isRunning,
@@ -4558,10 +4535,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
         peerId: p.peerId,
         peerName: p.peerName,
         campus: p.campus,
-        isVideo: p.isVideo,
-        isAudio: p.isAudio,
-        isScreenSharing: p.isScreenSharing,
-        isSpeaking: p.isSpeaking,
+        goal: p.goal || "",
+        isFocusing: !!p.isFocusing,
       })),
       messages: room.messages.slice(-50),
       pomodoro: room.pomodoro,
@@ -4595,33 +4570,6 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
       }
     }
     return res.json({ success: true, message: newMsg });
-  });
-
-  app.post("/api/study-room/rooms/:roomId/signal", (req, res) => {
-    const { roomId } = req.params;
-    const { senderId, targetPeerId, signal } = req.body;
-    const room = getOrCreateStudyRoom(roomId);
-    const target = room.peers.get(targetPeerId);
-
-    if (target && target.ws && target.ws.readyState === WebSocket.OPEN) {
-      try {
-        target.ws.send(JSON.stringify({ type: "signal", senderId, signal }));
-      } catch {}
-    } else {
-      if (!room.pendingSignals.has(targetPeerId)) {
-        room.pendingSignals.set(targetPeerId, []);
-      }
-      room.pendingSignals.get(targetPeerId)!.push({ senderId, signal });
-    }
-    return res.json({ success: true });
-  });
-
-  app.get("/api/study-room/rooms/:roomId/signals/:peerId", (req, res) => {
-    const { roomId, peerId } = req.params;
-    const room = getOrCreateStudyRoom(roomId);
-    const signals = room.pendingSignals.get(peerId) || [];
-    room.pendingSignals.set(peerId, []);
-    return res.json({ signals });
   });
 
   app.post("/api/study-room/rooms/:roomId/pomodoro", (req, res) => {
@@ -4687,81 +4635,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
           }
         }
 
-        // Direct 1-on-1 Call Signaling Events
-        else if (type === "call-user") {
-          const { callId, callerId, callerName, callerAvatar, targetUserId, isVideo } = data;
-          const session: ActiveCallSession = {
-            callId,
-            callerId,
-            callerName: callerName || "Colega IFES",
-            callerAvatar,
-            receiverId: targetUserId,
-            receiverName: "",
-            isVideo: isVideo !== false,
-            status: "ringing",
-            createdAt: Date.now(),
-            pendingSignals: [],
-          };
-          activeCallsStore.set(callId, session);
-
-          const targetWs = userSocketsMap.get(targetUserId);
-          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-            targetWs.send(
-              JSON.stringify({
-                type: "incoming-call",
-                call: {
-                  callId,
-                  callerId,
-                  callerName: session.callerName,
-                  callerAvatar: session.callerAvatar,
-                  isVideo: session.isVideo,
-                },
-              })
-            );
-          }
-        } else if (type === "accept-call") {
-          const { callId, callerId, targetUserId } = data;
-          const session = activeCallsStore.get(callId);
-          if (session) session.status = "connected";
-
-          const callerWs = userSocketsMap.get(callerId);
-          if (callerWs && callerWs.readyState === WebSocket.OPEN) {
-            callerWs.send(JSON.stringify({ type: "call-accepted", callId, targetUserId }));
-          }
-        } else if (type === "reject-call") {
-          const { callId, callerId, reason } = data;
-          const session = activeCallsStore.get(callId);
-          if (session) session.status = "rejected";
-
-          const callerWs = userSocketsMap.get(callerId);
-          if (callerWs && callerWs.readyState === WebSocket.OPEN) {
-            callerWs.send(JSON.stringify({ type: "call-rejected", callId, reason }));
-          }
-          activeCallsStore.delete(callId);
-        } else if (type === "direct-signal") {
-          const { callId, targetUserId, signal } = data;
-          const targetWs = userSocketsMap.get(targetUserId);
-          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-            targetWs.send(
-              JSON.stringify({
-                type: "direct-signal",
-                callId,
-                senderId: currentUserId || currentPeerId,
-                signal,
-              })
-            );
-          }
-        } else if (type === "end-call") {
-          const { callId, targetUserId } = data;
-          const targetWs = userSocketsMap.get(targetUserId);
-          if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-            targetWs.send(JSON.stringify({ type: "call-ended", callId }));
-          }
-          activeCallsStore.delete(callId);
-        }
-
         // WhatsApp-style Private Chat Messaging Events
-        else if (type === "send-private-message") {
+        if (type === "send-private-message") {
           const { message } = data;
           if (message && message.receiverId && message.text) {
             const chatId = getChatId(message.senderId, message.receiverId);
@@ -4805,9 +4680,9 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
           }
         }
 
-        // Group Study Room WebRTC & Room Events
+        // Group Focus Room Events (Sala de Foco em Grupo)
         else if (type === "join") {
-          const { roomId, peerId, peerName, campus, matricula, isVideo = true, isAudio = true, isScreenSharing = false } = data;
+          const { roomId, peerId, peerName, campus, matricula, goal = "", isFocusing = true } = data;
           if (!roomId || !peerId) return;
 
           currentRoomId = roomId;
@@ -4820,10 +4695,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
             campus: campus || "IFES",
             matricula: matricula || "",
             ws,
-            isVideo: !!isVideo,
-            isAudio: !!isAudio,
-            isScreenSharing: !!isScreenSharing,
-            isSpeaking: false,
+            goal: String(goal || ""),
+            isFocusing: !!isFocusing,
             joinedAt: Date.now(),
           };
 
@@ -4837,10 +4710,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
               peerName: p.peerName,
               campus: p.campus,
               matricula: p.matricula,
-              isVideo: p.isVideo,
-              isAudio: p.isAudio,
-              isScreenSharing: p.isScreenSharing,
-              isSpeaking: p.isSpeaking,
+              goal: p.goal || "",
+              isFocusing: !!p.isFocusing,
             }));
 
           ws.send(
@@ -4862,10 +4733,8 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
               peerName: newPeer.peerName,
               campus: newPeer.campus,
               matricula: newPeer.matricula,
-              isVideo: newPeer.isVideo,
-              isAudio: newPeer.isAudio,
-              isScreenSharing: newPeer.isScreenSharing,
-              isSpeaking: false,
+              goal: newPeer.goal,
+              isFocusing: newPeer.isFocusing,
             },
           });
 
@@ -4875,29 +4744,6 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
                 p.ws.send(joinNotification);
               } catch {}
             }
-          }
-        } else if (type === "signal") {
-          const { roomId, targetPeerId, signal } = data;
-          if (!roomId || !targetPeerId || !signal) return;
-          const room = studyRoomsStore.get(roomId);
-          if (!room) return;
-
-          const target = room.peers.get(targetPeerId);
-          if (target && target.ws && target.ws.readyState === WebSocket.OPEN) {
-            try {
-              target.ws.send(
-                JSON.stringify({
-                  type: "signal",
-                  senderId: currentPeerId,
-                  signal,
-                })
-              );
-            } catch {}
-          } else {
-            if (!room.pendingSignals.has(targetPeerId)) {
-              room.pendingSignals.set(targetPeerId, []);
-            }
-            room.pendingSignals.get(targetPeerId)!.push({ senderId: currentPeerId || "", signal });
           }
         } else if (type === "chat") {
           const { roomId, message } = data;
@@ -4923,56 +4769,6 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
               try {
                 p.ws.send(chatPayload);
               } catch {}
-            }
-          }
-        } else if (type === "media-state") {
-          const { roomId, peerId, isVideo, isAudio, isScreenSharing } = data;
-          if (!roomId || !peerId) return;
-          const room = studyRoomsStore.get(roomId);
-          if (!room) return;
-
-          const peer = room.peers.get(peerId);
-          if (peer) {
-            if (typeof isVideo === "boolean") peer.isVideo = isVideo;
-            if (typeof isAudio === "boolean") peer.isAudio = isAudio;
-            if (typeof isScreenSharing === "boolean") peer.isScreenSharing = isScreenSharing;
-
-            const mediaPayload = JSON.stringify({
-              type: "peer-media-state",
-              peerId,
-              isVideo: peer.isVideo,
-              isAudio: peer.isAudio,
-              isScreenSharing: peer.isScreenSharing,
-            });
-
-            for (const [pId, p] of room.peers.entries()) {
-              if (pId !== peerId && p.ws && p.ws.readyState === WebSocket.OPEN) {
-                try {
-                  p.ws.send(mediaPayload);
-                } catch {}
-              }
-            }
-          }
-        } else if (type === "speaking") {
-          const { roomId, peerId, isSpeaking } = data;
-          if (!roomId || !peerId) return;
-          const room = studyRoomsStore.get(roomId);
-          if (!room) return;
-
-          const peer = room.peers.get(peerId);
-          if (peer) {
-            peer.isSpeaking = !!isSpeaking;
-            const speakingPayload = JSON.stringify({
-              type: "peer-speaking",
-              peerId,
-              isSpeaking: peer.isSpeaking,
-            });
-            for (const [pId, p] of room.peers.entries()) {
-              if (pId !== peerId && p.ws && p.ws.readyState === WebSocket.OPEN) {
-                try {
-                  p.ws.send(speakingPayload);
-                } catch {}
-              }
             }
           }
         } else if (type === "pomodoro-action") {

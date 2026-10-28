@@ -31,7 +31,7 @@ import {
   Hammer,
 } from "lucide-react";
 
-import { isFeatureAtiva } from "./features.js";
+import { isFeatureAtiva } from "./features";
 
 /**
  * Definição canônica das 5 abas principais do aplicativo

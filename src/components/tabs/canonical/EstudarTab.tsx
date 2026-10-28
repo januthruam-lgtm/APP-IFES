@@ -14,7 +14,7 @@ import {
   BrainCircuit,
   Library,
   BookA,
-  Video,
+  Timer,
   ExternalLink,
 } from "lucide-react";
 import {
@@ -62,7 +62,6 @@ export interface EstudarTabProps {
   onOpenOfflineModal: () => void;
   onResetCourses: () => void;
   onDeleteCourse: (courseId: string) => void;
-  onStartCallWithMember: (member: any, isVideo?: boolean) => void;
   onRewardXp?: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
   onConsumeEnergy?: (amount: number) => boolean;
@@ -86,7 +85,6 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
   onOpenOfflineModal,
   onResetCourses,
   onDeleteCourse,
-  onStartCallWithMember,
   onRewardXp,
   onRewardCoins,
   onConsumeEnergy,
@@ -204,7 +202,7 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
       label: "Estudar com outros",
       icon: Users2,
       subViews: [
-        { id: "sala_virtual" as SubViewEstudoId, label: "Sala de Estudo Virtual", icon: Video },
+        { id: "sala_virtual" as SubViewEstudoId, label: "Sala de Foco em Grupo", icon: Timer },
       ],
     },
     {
@@ -292,8 +290,6 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
             onOpenOfflineModal={onOpenOfflineModal}
             onResetCourses={onResetCourses}
             onDeleteCourse={onDeleteCourse}
-            onStartCallWithMember={onStartCallWithMember}
-            onStartGroupCallWithCourse={() => setActiveSubView("sala_virtual")}
             onRewardXp={onRewardXp}
             onRewardCoins={onRewardCoins}
             onOpenPrivateChatWithMember={onOpenPrivateChatWithMember}
@@ -372,7 +368,6 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
             courses={courses}
             onRewardXp={onRewardXp}
             onNavigate={(tab) => onNavigateToTab?.(tab)}
-            onStartCallWithMember={onStartCallWithMember}
             onOpenPrivateChatWithMember={onOpenPrivateChatWithMember}
           />
         )}

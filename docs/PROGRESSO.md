@@ -87,8 +87,45 @@ Status consolidado de implementação da **PARTE I (Reorganização Completa do 
 
 ---
 
-## Documentações Concluídas
+## EXECUÇÃO DO PROMPT MESTRE (ORDEM DOS BLOCOS)
 
+### [x] BLOCO 1. ESTABILIZAÇÃO
+- **1.1 Build e Duplicidade**: Unificada fonte única de verdade em `src/config/features.ts` (exportando `isFeatureEnabled` e o alias `isFeatureAtiva`). Removido `features.js` duplicado. Corrigido aviso de `__dirname` em `vite.config.ts` com `import.meta.dirname || process.cwd()`.
+- **1.2 Prevenção CI/Lint**: Criado `.github/workflows/ci.yml` cobrindo lint, testes unitários e build de produção para impedir regressões.
+- **1.3 Auditoria de Flags**: Todas as 19 flags auditadas e documentadas em `docs/FLAGS.md`.
+
+### [x] BLOCO 1B. REMOÇÃO DE TUDO QUE ENVOLVE CHAMADAS
+- **1B.1 Inventário**: Documentado em `docs/REMOCAO-CHAMADAS.md`.
+- **1B.2 Remoção Completa**:
+  - Excluído `ActiveCallModal.tsx` e `realtimeCallService.ts`.
+  - Removidos botões de áudio/vídeo e listeners de chamadas em `WhatsAppChatModal.tsx`, `OnlineUsersDrawer.tsx`, `CourseWorkspaceView.tsx`, `SequenceTrackTab.tsx`, `GuildsBattlesTab.tsx`, `EstudarTab.tsx`, `JogoTab.tsx`, `App.tsx`.
+  - Limpeza no `server.ts`: removidas sessões e rotas de sinalização WebRTC HTTP/WS.
+  - Limpeza no `firestore.rules`: removida coleção `/chamadas/{callId}` e corrigida sintaxe em `/sistemas/{sistemaId}`.
+  - Limpeza no `src/lib/firebase.ts`: removidas funções WebRTC, tipo `chamada_perdida` e atualizado status para `em_foco`.
+  - Limpeza de traduções (`pt-BR.json`, `en.json`, `es.json`).
+- **1B.3 Permissões**: Removidas permissões `CAMERA`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` de `android/app/src/main/AndroidManifest.xml` e limpo `requestFramePermissions` em `metadata.json`. Atualizado `index.html`.
+- **1B.4 Sala de Foco em Grupo**: Transformada a antiga tela em `StudyRoomVirtualTab.tsx` com Pomodoro sincronizado, metas de estudo, colegas focando e chat colaborativo por texto.
+- **1B.5 Critérios**: Sem chamadas ou captura de vídeo/áudio no app. Testes e build validados.
+
+### [ ] BLOCO 2. IDIOMAS: TEXTO INVERTIDO (Em andamento)
+### [ ] BLOCO 3. EXTRATO DE MOEDAS E TRANSAÇÕES ATÔMICAS
+### [ ] BLOCO 4. CENTRAL DE NOTIFICAÇÕES UNIFICADA
+### [ ] BLOCO 5. MATÉRIAS E AGENDA
+### [ ] BLOCO 5B. MÉTODOS DE ESTUDO EFICAZES
+### [ ] BLOCO 6. EXCLUÍDOS
+### [ ] BLOCO 7. ASSINATURAS E PLANOS
+### [ ] BLOCO 8. CONEXÕES COM FUNÇÃO EXCLUSIVA
+### [ ] BLOCO 9A. LUMINA SEM DEPENDÊNCIA DE MATÉRIA
+### [ ] BLOCO 9B. PRECISÃO E CONFIABILIDADE DAS RESPOSTAS
+### [ ] BLOCO 9. VELOCIDADE DA LUMINA E DICIONÁRIO
+### [ ] BLOCO 10. DICIONÁRIO MULTILÍNGUE
+### [ ] BLOCO 11. BIBLIOTECA COMPLETA
+### [ ] BLOCO 12. SOBRE, SUPORTE, POLÍTICAS E TUTORIAL
+### [ ] BLOCO 13. PROFISSIONALIZAÇÃO E ENTREGA FINAL
+
+---
+
+## Documentações Concluídas
 - `docs/AUDITORIA-UX.md`
 - `docs/DECISOES.md`
 - `docs/NAVEGACAO.md`
@@ -97,6 +134,9 @@ Status consolidado de implementação da **PARTE I (Reorganização Completa do 
 - `docs/FIDELIDADE.md`
 - `docs/EXTRATO.md`
 - `docs/QA-FIDELIDADE.md`
+- `docs/FLAGS.md`
+- `docs/REMOCAO-CHAMADAS.md`
 - `docs/PROGRESSO.md`
 - `docs/PENDENCIAS.md`
+
 

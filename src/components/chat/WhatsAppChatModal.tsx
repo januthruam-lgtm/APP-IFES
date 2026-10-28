@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   X,
-  Phone,
-  Video,
   Send,
   Smile,
   Paperclip,
@@ -31,7 +29,6 @@ interface WhatsAppChatModalProps {
     isOnline?: boolean;
   };
   onClose: () => void;
-  onStartCall: (targetUser: any, isVideo: boolean) => void;
 }
 
 const QUICK_EMOJIS = ["📚", "💡", "✍️", "👍", "🎯", "🚀", "⭐", "🔥", "🎓", "🧠"];
@@ -41,7 +38,6 @@ export const WhatsAppChatModal: React.FC<WhatsAppChatModalProps> = ({
   currentUserName,
   targetUser,
   onClose,
-  onStartCall,
 }) => {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<DirectMessageItem[]>([]);
@@ -198,26 +194,8 @@ export const WhatsAppChatModal: React.FC<WhatsAppChatModalProps> = ({
             </div>
           </div>
 
-          {/* Action Call & Close Buttons */}
+          {/* Action Close Button */}
           <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              type="button"
-              onClick={() => onStartCall(targetUser, false)}
-              className="p-2 rounded-full hover:bg-white/15 transition cursor-pointer text-white"
-              title={t("chat_direto.iniciar_chamada_voz", "Chamada de Voz")}
-            >
-              <Phone className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onStartCall(targetUser, true)}
-              className="p-2 rounded-full hover:bg-white/15 transition cursor-pointer text-white"
-              title={t("chat_direto.iniciar_chamada_video", "Chamada de Vídeo")}
-            >
-              <Video className="w-4 h-4" />
-            </button>
-
             <button
               type="button"
               onClick={onClose}

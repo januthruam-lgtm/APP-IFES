@@ -45,8 +45,8 @@ export const FEATURES: Readonly<Record<FeatureKey, boolean>> = Object.freeze({
   fase4c_ligas_semanais: true,
   fase4d_loja_sumidouros: true,
 
-  // Fase 5: Estrutura comercial de Planos (Gratuito, Lite, Pro)
-  fase5_planos: false,
+  // Fase 5: Estrutura comercial de Planos (Gratuito, Bronze, Prata, Ouro, Diamante)
+  fase5_planos: true,
 
   // Fase 6: Cidade do Conhecimento (progressão acadêmica sem sorteio e sem ataque)
   fase6_cidade: true,
@@ -68,10 +68,10 @@ export const FEATURES: Readonly<Record<FeatureKey, boolean>> = Object.freeze({
   fase11_biblioteca_dicionario: true,
 
   // Fase 12: Guarda-roupa dos Mascotes 3D (acessórios estéticos sem vantagem de jogo)
-  fase12_guarda_roupa: false,
+  fase12_guarda_roupa: true,
 
   // Fase 13: Profissionalização, observabilidade e pacote Google Play AAB
-  fase13_lancamento: false,
+  fase13_lancamento: true,
 });
 
 /**

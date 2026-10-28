@@ -1,0 +1,39 @@
+name: CI Continuous Integration
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Lint, Testes e Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Instalar Dependências
+        run: bun install
+
+      - name: Verificação Estrita de Tipos e Imports (Lint)
+        run: bun run lint
+
+      - name: Executar Bateria de Testes
+        run: bun run test
+
+      - name: Executar Teste de Instituições e Cidades
+        run: bun run test:instituicao && bun run test:cidades
+
+      - name: Build de Produção
+        run: bun run build

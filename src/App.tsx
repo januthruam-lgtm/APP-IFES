@@ -32,10 +32,8 @@ import { AgendaTab } from "./components/tabs/AgendaTab";
 import { FlashcardsAnkiTab } from "./components/tabs/FlashcardsAnkiTab";
 import { StudyMethodsCentralTab } from "./components/tabs/StudyMethodsCentralTab";
 import { StudyRoomVirtualTab } from "./components/tabs/StudyRoomVirtualTab";
-import { ActiveCallModal } from "./components/calls/ActiveCallModal";
 import { WhatsAppChatModal } from "./components/chat/WhatsAppChatModal";
 import { OnlineUsersDrawer } from "./components/users/OnlineUsersDrawer";
-import { realtimeCallService } from "./services/realtimeCallService";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { NativeTitleBar } from "./components/NativeTitleBar";
 import { NativeAppModal } from "./components/NativeAppModal";
@@ -315,7 +313,6 @@ export default function App() {
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
   const [selectedDeckForGames, setSelectedDeckForGames] = useState<string | null>(null);
-  const [targetCallPeer, setTargetCallPeer] = useState<{ id: string; name: string; isVideo?: boolean } | null>(null);
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [activeChatTargetUser, setActiveChatTargetUser] = useState<{
     id: string;
@@ -393,22 +390,6 @@ export default function App() {
     activeLessonModule,
     currentTab,
   ]);
-
-  const handleStartCallWithMember = useCallback(
-    (member: { id: string; name: string; avatar?: string; isVideo?: boolean }, isVideo: boolean = true) => {
-      realtimeCallService.startCall(
-        {
-          id: member.id,
-          name: member.name,
-          avatar: member.avatar,
-          isVideo,
-        },
-        isVideo
-      );
-      stopSpeaking();
-    },
-    []
-  );
 
   const handleOpenPrivateChatWithMember = useCallback(
     (member: { id: string; name: string; avatar?: string; campus?: string; isOnline?: boolean }) => {
@@ -1317,7 +1298,6 @@ export default function App() {
             onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
             onResetCourses={handleResetCourses}
             onDeleteCourse={handleDeleteSingleCourse}
-            onStartCallWithMember={handleStartCallWithMember}
             onRewardXp={handleRewardXp}
             onRewardCoins={handleRewardCoins}
             onConsumeEnergy={handleConsumeEnergy}
@@ -1357,7 +1337,6 @@ export default function App() {
             onConsumeEnergy={handleConsumeEnergy}
             onAddEnergy={handleAddEnergy}
             onUpdateUserTeam={handleUpdateUserTeam}
-            onStartCallWithMember={handleStartCallWithMember}
             onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
             onBuyBadge={handleBuyBadge}
             onEquipBadge={handleEquipBadge}
@@ -1417,12 +1396,6 @@ export default function App() {
         />
       )}
 
-      {/* Real-time WebRTC Video & Audio Call Modal (Receber e Fazer Ligações) */}
-      <ActiveCallModal
-        currentUserId={user.email || user.name || "user-id"}
-        currentUserName={user.name || "Estudante"}
-      />
-
       {/* WhatsApp-Style 1-on-1 Private Chat Modal */}
       {activeChatTargetUser && (
         <WhatsAppChatModal
@@ -1430,9 +1403,6 @@ export default function App() {
           currentUserName={user.name || "Estudante"}
           targetUser={activeChatTargetUser}
           onClose={() => setActiveChatTargetUser(null)}
-          onStartCall={(target, isVideo) => {
-            handleStartCallWithMember(target, isVideo);
-          }}
         />
       )}
 
@@ -1441,10 +1411,6 @@ export default function App() {
         isOpen={isOnlineUsersOpen}
         onClose={() => setIsOnlineUsersOpen(false)}
         currentUser={user}
-        onStartCall={(target, isVideo) => {
-          setIsOnlineUsersOpen(false);
-          handleStartCallWithMember(target, isVideo);
-        }}
         onOpenPrivateChat={(target) => {
           setIsOnlineUsersOpen(false);
           handleOpenPrivateChatWithMember(target);

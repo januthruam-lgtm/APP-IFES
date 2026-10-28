@@ -88,5 +88,20 @@ Este documento registra todas as decisões tomadas durante a reorganização do 
   - `src/main.tsx` e `index.html`: Auto-recuperação que desregistra ativamente qualquer Service Worker em ambientes de desenvolvimento (`ais-dev`, `localhost`) e purga caches legados.
   - `server.ts`: Middleware global que intercepta requisições com extensão de script/estilo (`.js`, `.css`, etc.) e devolve `404 Not Found` em texto puro em vez de `index.html`.
 
+---
+
+## 10. Decisão: Remoção Integral de Chamadas e Transformação na Sala de Foco em Grupo (Bloco 1B)
+- **Problema**: O aplicativo continha chamadas de vídeo e áudio em tempo real via WebRTC e servidores de mídia/sinalização, o que gerava complexidade extrema, instabilidade em conexões móveis, custos de servidor e riscos de privacidade/segurança para menores de idade.
+- **Opções Analisadas**:
+  1. Manter chamadas com limitação de largura de banda e aviso parental.
+  2. Remover completamente áudio/vídeo/WebRTC e transformar o espaço coletivo na "Sala de Foco em Grupo" (Pomodoro + metas de sessão + chat de texto colaborativo + presença).
+- **Decisão Escolhida**: Opção 2.
+- **Justificativa**:
+  - Elimina riscos de assédio audiovisual e exposição para estudantes menores de idade (alinhado com ECA Digital).
+  - Elimina necessidade de permissões perigosas (`CAMERA`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`) no AndroidManifest e PWA.
+  - Reduz drasticamente a latência e o consumo de dados móveis em redes 3G/4G/5G de estudantes de baixa renda.
+  - Preserva 100% da colaboração e apoio mútuo através de cronômetro Pomodoro sincronizado, canal de texto e metas de foco em tempo real.
+
+
 
 

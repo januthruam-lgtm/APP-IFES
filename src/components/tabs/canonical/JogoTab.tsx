@@ -39,7 +39,6 @@ export interface JogoTabProps {
   onConsumeEnergy?: (amount: number) => boolean;
   onAddEnergy?: (amount: number) => void;
   onUpdateUserTeam?: (teamId: string | null) => void;
-  onStartCallWithMember?: (member: any, isVideo: boolean) => void;
   onOpenPrivateChatWithMember?: (member: any) => void;
   onBuyBadge?: (badgeName: string, cost: number) => void;
   onEquipBadge?: (badgeName: string) => void;
@@ -59,7 +58,6 @@ export const JogoTab: React.FC<JogoTabProps> = ({
   onConsumeEnergy,
   onAddEnergy,
   onUpdateUserTeam,
-  onStartCallWithMember,
   onOpenPrivateChatWithMember,
   onBuyBadge,
   onEquipBadge,
@@ -232,7 +230,6 @@ export const JogoTab: React.FC<JogoTabProps> = ({
             onConsumeEnergy={onConsumeEnergy}
             onAddEnergy={onAddEnergy}
             onUpdateUserTeam={onUpdateUserTeam}
-            onStartCallWithMember={onStartCallWithMember}
             onOpenPrivateChatWithMember={onOpenPrivateChatWithMember}
           />
         )}

@@ -1,10 +1,7 @@
 {
   "name": "Brain Studio",
-  "description": "Brain Studio: Conecte. Estude. Conquiste. Plataforma de aprendizado gamificada com tutoria inteligente Lumina, chamadas de vídeo e áudio em tempo real, chats no estilo WhatsApp, equipes colaborativas e integração direta com o AVA Moodle IFES.",
-  "requestFramePermissions": [
-    "microphone",
-    "camera"
-  ],
+  "description": "Brain Studio: Conecte. Estude. Conquiste. Plataforma de aprendizado gamificada com tutoria inteligente Lumina, salas de foco sincronizadas, chats no estilo WhatsApp, equipes colaborativas e integração direta com o AVA Moodle IFES.",
+  "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

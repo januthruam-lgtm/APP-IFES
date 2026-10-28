@@ -64,20 +64,12 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 7. Chamadas WebRTC e Sinalização
-    match /chamadas/{callId} {
-      allow read, write: if true;
-      match /candidatos/{candidatoId} {
-        allow read, write: if true;
-      }
-    }
-
-    // 8. Notificações Unificadas
+    // 7. Notificações Unificadas
     match /notificacoes/{notifId} {
       allow read, write: if true;
     }
 
-    // 9. Dados do Usuário e Memória da Lumina
+    // 8. Dados do Usuário e Memória da Lumina
     match /users/{uid} {
       allow read, write: if isOwner(uid) || !isAuthenticated();
       match /credentials/{credType} {
@@ -93,7 +85,8 @@ service cloud.firestore {
         allow write: if (isOwner(uid) || !isAuthenticated())
           && !('token' in request.resource.data)
           && !('password' in request.resource.data)
-          && !('senha' in request.resource.data)
+          && !('senha' in request.resource.data);
+      }
       // Livro-Razão Contábil de Moedas (Append-only: imutável e sem recompensa de tarefas)
       match /extrato/{lancamentoId} {
         allow read: if isOwner(uid) || !isAuthenticated();
