@@ -14,10 +14,16 @@ import {
   Users,
   Video,
   ExternalLink,
+  Settings,
+  Plus,
+  MapPin,
+  Clock,
+  User,
 } from "lucide-react";
 import { UserProfile, TrackModule, CourseTrack } from "../../types";
 import { CourseMember } from "../../utils/courseParticipants";
 import { CourseWorkspaceView } from "../CourseWorkspaceView";
+import { CourseManagerModal } from "../courses/CourseManagerModal";
 
 interface SequenceTrackTabProps {
   modules: TrackModule[];
@@ -33,6 +39,7 @@ interface SequenceTrackTabProps {
   onRewardXp?: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
   onOpenPrivateChatWithMember?: (member: CourseMember) => void;
+  onUpdateCourses?: (updatedCourses: CourseTrack[]) => void;
 }
 
 export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
@@ -49,8 +56,10 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
   onRewardXp,
   onRewardCoins,
   onOpenPrivateChatWithMember,
+  onUpdateCourses,
 }) => {
   const [viewingWorkspace, setViewingWorkspace] = useState(false);
+  const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
 
   if (viewingWorkspace) {
     return (
@@ -78,16 +87,45 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
       <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-3xl">{currentCourse.icon || "📚"}</span>
               <span className="px-3 py-1 rounded-full bg-[var(--app-primary)]/10 text-[var(--app-primary)] border border-[var(--app-primary)]/20 text-xs font-black uppercase">
                 {currentCourse.category || "Trilha Oficial IFES"}
               </span>
+              {currentCourse.isSynced && (
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[10px] font-extrabold">
+                  Sincronizada
+                </span>
+              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-[var(--app-text)] tracking-tight">
-              {currentCourse.title}
+              {currentCourse.displayName || currentCourse.title}
             </h1>
+
+            {/* Metadados da Matéria: Professor, Sala/Link e Horário */}
+            {(currentCourse.professor || currentCourse.roomOrLink || currentCourse.weeklySchedule) && (
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--app-text-muted)] font-medium pt-0.5">
+                {currentCourse.professor && (
+                  <span className="flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+                    {currentCourse.professor}
+                  </span>
+                )}
+                {currentCourse.roomOrLink && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                    {currentCourse.roomOrLink}
+                  </span>
+                )}
+                {currentCourse.weeklySchedule && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    {currentCourse.weeklySchedule}
+                  </span>
+                )}
+              </div>
+            )}
 
             <p className="text-xs sm:text-sm text-[var(--app-text-muted)] max-w-2xl leading-relaxed">
               {currentCourse.description}
@@ -118,6 +156,14 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
               <span>Sala de Aula & Tarefas</span>
             </button>
 
+            <button
+              onClick={() => setIsManagerModalOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-[var(--app-bg)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <Settings className="w-4 h-4 text-[var(--app-primary)]" />
+              <span>Gerenciar Matérias</span>
+            </button>
+
             {onOpenOfflineModal && (
               <button
                 onClick={onOpenOfflineModal}
@@ -132,12 +178,13 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
       </div>
 
       {/* Courses Switcher Bar */}
-      {courses.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-[10px] font-bold uppercase text-[var(--app-text-muted)] shrink-0 pr-2">
-            Disciplinas:
-          </span>
-          {courses.map((c) => {
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <span className="text-[10px] font-bold uppercase text-[var(--app-text-muted)] shrink-0 pr-2">
+          Disciplinas:
+        </span>
+        {courses
+          .filter((c) => !c.archived && !c.hidden)
+          .map((c) => {
             const isSelected = c.id === currentCourse.id;
             return (
               <button
@@ -150,12 +197,20 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
                 }`}
               >
                 <span>{c.icon || "📖"}</span>
-                <span className="truncate max-w-[160px]">{c.title}</span>
+                <span className="truncate max-w-[160px]">{c.displayName || c.title}</span>
               </button>
             );
           })}
-        </div>
-      )}
+
+        <button
+          onClick={() => setIsManagerModalOpen(true)}
+          className="px-3 py-2 rounded-2xl text-xs font-bold bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] border border-dashed border-[var(--app-border)] text-[var(--app-primary)] flex items-center gap-1.5 transition shrink-0 cursor-pointer"
+          title="Adicionar ou organizar disciplinas"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Nova / Gerenciar</span>
+        </button>
+      </div>
 
       {/* Modules Roadmap Grid */}
       <div className="space-y-4">
@@ -249,6 +304,17 @@ export const SequenceTrackTab: React.FC<SequenceTrackTabProps> = ({
           })}
         </div>
       </div>
+
+      {/* Modal de Gerenciamento e Edição de Matérias */}
+      <CourseManagerModal
+        isOpen={isManagerModalOpen}
+        onClose={() => setIsManagerModalOpen(false)}
+        courses={courses}
+        onCoursesUpdated={(updated) => {
+          if (onUpdateCourses) onUpdateCourses(updated);
+        }}
+        onSelectCourse={onSelectCourse}
+      />
     </div>
   );
 };

@@ -35,6 +35,7 @@ export interface AppShellProps {
   onToggleModoFoco: (ativo: boolean) => void;
   onLogout: () => void;
   onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
   onOpenWallet?: () => void;
   onOpenSettings?: () => void;
   onOpenAccessibility?: () => void;
@@ -54,6 +55,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onToggleModoFoco,
   onLogout,
   onOpenNotifications,
+  unreadNotificationsCount = 0,
   onOpenWallet,
   onOpenSettings,
   onOpenAccessibility,
@@ -231,6 +233,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           onOpenWallet={onOpenWallet}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenNotifications={onOpenNotifications}
+          unreadNotificationsCount={unreadNotificationsCount}
         />
 
         {/* Viewport de Conteúdo com Scroll Próprio */}

@@ -238,6 +238,18 @@ export interface CourseTrack {
   accentBg: string;
   tags: string[];
   modules: TrackModule[];
+  // Bloco 5: Edição pelo Usuário e Matérias Sincronizadas
+  officialName?: string;
+  displayName?: string;
+  isSynced?: boolean;
+  professor?: string;
+  roomOrLink?: string;
+  weeklySchedule?: string;
+  syllabus?: string;
+  notes?: string;
+  archived?: boolean;
+  hidden?: boolean;
+  order?: number;
 }
 
 export interface Flashcard {
@@ -437,7 +449,19 @@ export interface TaskItem {
   reminderEnabled?: boolean;
 }
 
-export type EventType = "prova" | "trabalho" | "reuniao" | "estudo" | "plantao";
+export type EventType =
+  | "aula"
+  | "prova"
+  | "trabalho"
+  | "entrega"
+  | "revisao"
+  | "pessoal"
+  | "feriado"
+  | "reuniao"
+  | "estudo"
+  | "plantao";
+
+export type EventRecurrence = "none" | "daily" | "weekly" | "biweekly" | "monthly";
 
 export interface AgendaEvent {
   id: string;
@@ -452,6 +476,15 @@ export interface AgendaEvent {
   locationOrLink?: string;
   participants?: string[];
   reminderMinutesBefore?: number;
+  // Bloco 5: Recorrência, Integração com Tarefas/Entregas e Feriados
+  recurrence?: EventRecurrence;
+  recurrenceEndDate?: string; // YYYY-MM-DD
+  completed?: boolean;
+  isSynced?: boolean;
+  assignmentId?: string;
+  taskId?: string;
+  isHoliday?: boolean;
+  holidayType?: "nacional" | "local" | "academico";
 }
 
 export type AnkiIntervalGrade = "again" | "hard" | "good" | "easy";

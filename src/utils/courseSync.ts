@@ -752,9 +752,9 @@ export function purgeAnyFictitiousCourses(): { courses: IfesCourse[] } {
 function generateDefaultModulesForCourse(course: IfesCourse): TrackModule[] {
   const modTitles = [
     {
-      title: "Fundamentos e Conceituação Inicial",
+      title: "Introdução e Visão Geral da Matéria",
       subtitle: `Visão geral de ${course.name} e terminologia técnica`,
-      summary: `Neste módulo introdutório, exploramos as raízes epistemológicas, os objetivos principais e os conceitos norteadores de ${course.name}.`,
+      summary: `Neste módulo introdutório, exploramos o escopo, os objetivos principais e a estrutura de tópicos de ${course.name}.`,
       concepts: ["Origens históricas", "Princípios basilares", "Aplicações práticas no mercado"],
     },
     {

@@ -338,7 +338,7 @@ export const LessonModal: React.FC<LessonModalProps> = ({
           <div className="p-5 bg-[var(--app-card-secondary)] border border-[var(--app-border)] rounded-2xl space-y-2">
             <div className="flex items-center gap-2 text-[var(--app-text)] font-bold text-xs uppercase tracking-wider">
               <BookOpen className="w-4 h-4 text-[var(--app-primary)]" />
-              <span>Conceito Fundamental</span>
+              <span>Tópico Teórico</span>
             </div>
             <p className="text-xs sm:text-sm text-[var(--app-text-muted)] leading-relaxed font-normal">
               {currentLesson.conceptText}

@@ -7,6 +7,7 @@
 import {
   collection,
   doc,
+  setDoc,
   runTransaction,
   query,
   orderBy,
@@ -374,4 +375,77 @@ export async function auditarExtrato(
     saldoRecalculado: audit.saldoRecalculado,
   };
 }
+
+/**
+ * Reconcilia o saldo contábil com o extrato.
+ * Se houver divergência, registra um lançamento de 'ajuste' no livro-razão e corrige o saldo.
+ */
+export async function reconciliarSaldoExtrato(
+  uid: string,
+  saldoAtual: number
+): Promise<{ corrigido: boolean; novoSaldo: number; diferenca: number }> {
+  const audit = await auditarExtrato(uid, saldoAtual);
+  if (audit.valido || audit.diferenca === 0) {
+    return { corrigido: false, novoSaldo: saldoAtual, diferenca: 0 };
+  }
+
+  // O livro-razão (extrato) é a fonte da verdade imutável.
+  const novoSaldo = audit.saldoRecalculado;
+  const deltaAjuste = novoSaldo - saldoAtual;
+  const agoraIso = new Date().toISOString();
+  const chaveAjuste = `reconciliacao_${uid}_${Date.now()}`;
+
+  // 1. Atualiza o perfil do usuário para o saldo contábil exato
+  if (db) {
+    try {
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, { coins: novoSaldo, atualizadoEm: agoraIso }, { merge: true });
+    } catch (e) {
+      console.warn("Aviso ao reconciliar saldo no Firestore:", e);
+    }
+  }
+
+  try {
+    const userRaw = localStorage.getItem("brain_studio_user_profile");
+    if (userRaw) {
+      const u = JSON.parse(userRaw);
+      u.coins = novoSaldo;
+      localStorage.setItem("brain_studio_user_profile", JSON.stringify(u));
+    }
+  } catch {}
+
+  // 2. Registra o lançamento de ajuste no extrato
+  const lancamentoAjuste: LancamentoExtrato = {
+    id: chaveAjuste,
+    tipo: "ajuste",
+    origem: "admin",
+    valor: Math.abs(deltaAjuste),
+    saldoApos: novoSaldo,
+    descricao: `Reconciliação e Auditoria Contábil (${deltaAjuste > 0 ? "+" : ""}${deltaAjuste} moedas)`,
+    refId: "reconciliacao_auditoria",
+    idempotencyKey: chaveAjuste,
+    criadoEm: agoraIso,
+  };
+
+  salvarExtratoLocal(uid, lancamentoAjuste);
+
+  if (db) {
+    try {
+      const docRef = doc(db, "users", uid, "extrato", chaveAjuste);
+      await setDoc(docRef, {
+        ...lancamentoAjuste,
+        timestampServidor: Timestamp.now(),
+      });
+    } catch (e) {
+      console.warn("Aviso ao salvar lançamento de reconciliação no Firestore:", e);
+    }
+  }
+
+  return {
+    corrigido: true,
+    novoSaldo,
+    diferenca: audit.diferenca,
+  };
+}
+
 

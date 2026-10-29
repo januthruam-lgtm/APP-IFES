@@ -101,6 +101,10 @@ service cloud.firestore {
       match /fidelidade/{docId} {
         allow read, write: if isOwner(uid) || !isAuthenticated();
       }
+      // Notificações Unificadas do Usuário (Bloco 4)
+      match /notificacoes/{notifId} {
+        allow read, write, delete: if isOwner(uid) || !isAuthenticated();
+      }
     }
 
     // 10. Biblioteca Virtual Aberta (Apenas obras ativas com licença auditada)
