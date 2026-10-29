@@ -93,6 +93,7 @@ interface ActiveClient {
   courseName?: string;
   campus?: string;
   isOnline?: boolean;
+  inCall?: boolean;
 }
 const activeClientsMap = new Map<string, ActiveClient>();
 
@@ -112,6 +113,25 @@ const privateChatStore = new Map<string, StoredPrivateMessage[]>();
 
 // Global mapping of connected WebSockets by userId for instant signaling
 const userSocketsMap = new Map<string, WebSocket>();
+
+// In-memory active call sessions used by the HTTP signaling fallback.
+interface ActiveCallSession {
+  callId: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar?: string;
+  receiverId: string;
+  receiverName: string;
+  isVideo: boolean;
+  status: "ringing" | "connected" | "rejected" | "ended";
+  createdAt: number;
+  pendingSignals: Array<{
+    targetUserId: string;
+    signal: unknown;
+  }>;
+}
+
+const activeCallsStore = new Map<string, ActiveCallSession>();
 
 // In-Memory Store for Course Activity Submissions
 interface ServerActivitySubmission {
