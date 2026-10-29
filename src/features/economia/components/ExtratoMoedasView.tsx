@@ -13,8 +13,6 @@ import {
 import {
   carregarExtrato,
   auditarExtrato,
-  reconciliarSaldoExtrato,
-  garantirSaldoInicialExtrato,
   LancamentoExtrato,
   TipoLancamento,
 } from "../services/extratoService";
@@ -27,35 +25,27 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 interface ExtratoMoedasViewProps {
   uid: string;
   saldoAtual: number;
-  onSaldoAtualizado?: (novoSaldo: number) => void;
   onClose?: () => void;
 }
 
 export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
   uid,
   saldoAtual,
-  onSaldoAtualizado,
   onClose,
 }) => {
   const [lancamentos, setLancamentos] = useState<LancamentoExtrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState<"todos" | TipoLancamento>("todos");
-  const [filtroPeriodo, setFiltroPeriodo] = useState<"tudo" | "7d" | "30d">("tudo");
-  const [isReconciliando, setIsReconciliando] = useState(false);
   const [resultadoAuditoria, setResultadoAuditoria] = useState<{
     auditado: boolean;
     valido: boolean;
     mensagem: string;
-    diferenca?: number;
   } | null>(null);
 
   const carregarDados = async () => {
     setLoading(true);
     try {
-      if (saldoAtual > 0) {
-        await garantirSaldoInicialExtrato(uid, saldoAtual);
-      }
-      const lista = await carregarExtrato(uid, 100);
+      const lista = await carregarExtrato(uid, 60);
       setLancamentos(lista);
     } catch (err) {
       console.error("Erro ao carregar extrato:", err);
@@ -73,45 +63,16 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
     setResultadoAuditoria({
       auditado: true,
       valido: res.valido,
-      diferenca: res.diferenca,
       mensagem: res.valido
         ? "Seu livro-razão está 100% equilibrado e verificado!"
-        : `Divergência detectada: ${Math.abs(res.diferenca)} moedas de diferença contábil.`,
+        : `Divergência detectada: ${res.diferenca} moedas de diferença contábil.`,
     });
   };
 
-  const handleReconciliar = async () => {
-    setIsReconciliando(true);
-    try {
-      const res = await reconciliarSaldoExtrato(uid, saldoAtual);
-      if (res.corrigido) {
-        if (onSaldoAtualizado) onSaldoAtualizado(res.novoSaldo);
-        setResultadoAuditoria({
-          auditado: true,
-          valido: true,
-          mensagem: `Saldo reconciliado com sucesso para ${res.novoSaldo} moedas!`,
-        });
-        await carregarDados();
-      }
-    } catch (err) {
-      console.error("Erro ao reconciliar:", err);
-    } finally {
-      setIsReconciliando(false);
-    }
-  };
-
-  // Filtragem da lista por Tipo e Período (7 dias, 30 dias, tudo)
+  // Filtragem da lista
   const lancamentosFiltrados = lancamentos.filter((item) => {
-    if (filtroTipo !== "todos" && item.tipo !== filtroTipo) return false;
-
-    if (filtroPeriodo !== "tudo") {
-      const itemTime = new Date(item.criadoEm).getTime();
-      const now = Date.now();
-      const maxAgeMs = filtroPeriodo === "7d" ? 7 * 86400000 : 30 * 86400000;
-      if (now - itemTime > maxAgeMs) return false;
-    }
-
-    return true;
+    if (filtroTipo === "todos") return true;
+    return item.tipo === filtroTipo;
   });
 
   // Métricas do período
@@ -180,27 +141,14 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
       {/* Alerta de Auditoria se acionado */}
       {resultadoAuditoria && (
         <div
-          className={`p-3.5 rounded-2xl border text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+          className={`p-3.5 rounded-2xl border text-xs sm:text-sm flex items-center gap-3 ${
             resultadoAuditoria.valido
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
               : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400"
           }`}
         >
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 shrink-0" />
-            <span>{resultadoAuditoria.mensagem}</span>
-          </div>
-          {!resultadoAuditoria.valido && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleReconciliar}
-              disabled={isReconciliando}
-              className="shrink-0"
-            >
-              {isReconciliando ? "Reconciliando..." : "Corrigir e Reconciliar Agora"}
-            </Button>
-          )}
+          <ShieldCheck className="w-5 h-5 shrink-0" />
+          <span>{resultadoAuditoria.mensagem}</span>
         </div>
       )}
 
@@ -239,58 +187,32 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
       </div>
 
-      {/* Controles de Filtros: Tipo e Período (7 dias, 30 dias, tudo) */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-        {/* Filtros de Tipo */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none w-full sm:w-auto">
-          <Chip
-            label="Todos"
-            selected={filtroTipo === "todos"}
-            onClick={() => setFiltroTipo("todos")}
-            size="sm"
-          />
-          <Chip
-            label="Ganhos (+)"
-            selected={filtroTipo === "ganho"}
-            onClick={() => setFiltroTipo("ganho")}
-            size="sm"
-          />
-          <Chip
-            label="Gastos (-)"
-            selected={filtroTipo === "gasto"}
-            onClick={() => setFiltroTipo("gasto")}
-            size="sm"
-          />
-          <Chip
-            label="Cashback"
-            selected={filtroTipo === "cashback"}
-            onClick={() => setFiltroTipo("cashback")}
-            size="sm"
-          />
-        </div>
-
-        {/* Filtros de Período (7 dias, 30 dias, tudo) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Calendar className="w-3.5 h-3.5 text-[var(--app-text-muted)]" />
-          <Chip
-            label="7 dias"
-            selected={filtroPeriodo === "7d"}
-            onClick={() => setFiltroPeriodo("7d")}
-            size="sm"
-          />
-          <Chip
-            label="30 dias"
-            selected={filtroPeriodo === "30d"}
-            onClick={() => setFiltroPeriodo("30d")}
-            size="sm"
-          />
-          <Chip
-            label="Tudo"
-            selected={filtroPeriodo === "tudo"}
-            onClick={() => setFiltroPeriodo("tudo")}
-            size="sm"
-          />
-        </div>
+      {/* Filtros de Tipo */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <Chip
+          label="Todos"
+          selected={filtroTipo === "todos"}
+          onClick={() => setFiltroTipo("todos")}
+          size="sm"
+        />
+        <Chip
+          label="Ganhos (+)"
+          selected={filtroTipo === "ganho"}
+          onClick={() => setFiltroTipo("ganho")}
+          size="sm"
+        />
+        <Chip
+          label="Gastos (-)"
+          selected={filtroTipo === "gasto"}
+          onClick={() => setFiltroTipo("gasto")}
+          size="sm"
+        />
+        <Chip
+          label="Cashback & Fidelidade"
+          selected={filtroTipo === "cashback"}
+          onClick={() => setFiltroTipo("cashback")}
+          size="sm"
+        />
       </div>
 
       {/* Lista de Transações */}

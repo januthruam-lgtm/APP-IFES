@@ -69,7 +69,7 @@ export interface EstudarTabProps {
   onOpenAvaConnect?: () => void;
   onNavigateToTab?: (tab: string, subView?: string) => void;
   onUpdateIfesAccount?: (account: any) => void;
-  onUpdateCourses?: (courses: any[]) => void;
+  onUpdateCourses?: (courses: IfesCourse[]) => void;
 }
 
 export const EstudarTab: React.FC<EstudarTabProps> = ({
@@ -293,9 +293,6 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
             onRewardXp={onRewardXp}
             onRewardCoins={onRewardCoins}
             onOpenPrivateChatWithMember={onOpenPrivateChatWithMember}
-            onUpdateCourses={(updated) => {
-              if (onUpdateCourses) onUpdateCourses(updated);
-            }}
           />
         )}
 

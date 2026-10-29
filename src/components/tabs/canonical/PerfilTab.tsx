@@ -37,7 +37,6 @@ import { LanguageSelector } from "../../LanguageSelector";
 import { useAccessibility, TextScale, ColorBlindMode } from "../../../lib/accessibility";
 import { MeusSistemasView } from "../../../features/instituicao/components/MeusSistemasView";
 import { getTemaAtual, alternarTema, TemaTipo, aplicarTema } from "../../../utils/themeManager";
-import { CentralNotificacoesView } from "../../notifications/CentralNotificacoesView";
 
 export type SecaoConfigId =
   | "menu"
@@ -63,8 +62,6 @@ export interface PerfilTabProps {
   onReopenTutorial?: () => void;
   onOpenPaywall?: () => void;
   onOpenOfflineDetail?: () => void;
-  initialSecao?: SecaoConfigId;
-  onNavigateToTab?: (tab: string, subView?: string) => void;
 }
 
 export const PerfilTab: React.FC<PerfilTabProps> = ({
@@ -77,17 +74,9 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   onReopenTutorial,
   onOpenPaywall,
   onOpenOfflineDetail,
-  initialSecao,
-  onNavigateToTab,
 }) => {
   const { t, i18n } = useTranslation();
-  const [secaoAtiva, setSecaoAtiva] = useState<SecaoConfigId>(initialSecao || "menu");
-
-  useEffect(() => {
-    if (initialSecao) {
-      setSecaoAtiva(initialSecao);
-    }
-  }, [initialSecao]);
+  const [secaoAtiva, setSecaoAtiva] = useState<SecaoConfigId>("menu");
   const [busca, setBusca] = useState("");
   const [temaAtual, setTemaAtual] = useState<TemaTipo>(getTemaAtual);
   const { settings: a11ySettings, updateSetting, resetDefaults } = useAccessibility();
@@ -566,15 +555,6 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
             <span>Restaurar Padrões de Acessibilidade</span>
           </Button>
         </Card>
-      )}
-
-      {/* Subpágina: Notificações e Central Unificada (Bloco 4) */}
-      {secaoAtiva === "notificacoes" && (
-        <CentralNotificacoesView
-          uid={user.id || user.uid || "local_user"}
-          onNavigateToTab={onNavigateToTab}
-          onBack={() => setSecaoAtiva("menu")}
-        />
       )}
 
       {/* Subpágina: Instituição e Sistemas */}

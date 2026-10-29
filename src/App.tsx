@@ -15,7 +15,7 @@ import { ProfileSettingsModal } from "./components/ProfileSettingsModal";
 import { SettingsModal, SettingsTabId } from "./components/SettingsModal";
 import { AccessibilityModal } from "./components/AccessibilityModal";
 import PaywallModal from "./components/PaywallModal";
-import { escutarNotificacoes } from "./services/notificationService";
+import { NotificationSettingsModal } from "./components/NotificationSettingsModal";
 import { DashboardTab } from "./components/tabs/DashboardTab";
 import { SocraticTutorTab } from "./components/tabs/SocraticTutorTab";
 import { SequenceTrackTab } from "./components/tabs/SequenceTrackTab";
@@ -303,16 +303,8 @@ export default function App() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>("idioma");
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-
-  // Escuta contagem de notificações não lidas em tempo real
-  useEffect(() => {
-    const unsub = escutarNotificacoes(user.id || user.uid || "local_user", (items) => {
-      setUnreadNotificationsCount(items.filter((n) => !n.lida).length);
-    });
-    return () => unsub();
-  }, [user.id, user.uid]);
   const [activeLessonModule, setActiveLessonModule] = useState<TrackModule | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
@@ -361,6 +353,10 @@ export default function App() {
           setIsProfileSettingsOpen(false);
           return true;
         }
+        if (isNotificationModalOpen) {
+          setIsNotificationModalOpen(false);
+          return true;
+        }
         if (isOfflineModalOpen) {
           setIsOfflineModalOpen(false);
           return true;
@@ -388,11 +384,10 @@ export default function App() {
   }, [
     isNativeAppModalOpen,
     isProfileSettingsOpen,
+    isNotificationModalOpen,
     isOfflineModalOpen,
     isAvaConnectOpen,
     activeLessonModule,
-    canonicalSubView,
-    canonicalTab,
     currentTab,
   ]);
 
@@ -1196,6 +1191,11 @@ export default function App() {
         }}
       />
 
+      {/* Strict Notification Settings & Dynamic Lead Time Modal */}
+      <NotificationSettingsModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+      />
 
       {/* Official Native App Center & Standalone Window Modal */}
       <NativeAppModal
@@ -1234,11 +1234,8 @@ export default function App() {
         currentTheme={currentTheme}
         modoFoco={modoFoco}
         onToggleModoFoco={handleToggleModoFoco}
-        unreadNotificationsCount={unreadNotificationsCount}
-        onOpenNotifications={() => {
-          setCanonicalTab("perfil");
-          setCanonicalSubView("notificacoes");
-        }}
+        onLogout={handleLogout}
+        onOpenNotifications={() => setIsNotificationModalOpen(true)}
         onOpenWallet={() => {
           setCanonicalTab("jogo");
           setCanonicalSubView("carteira");
@@ -1360,11 +1357,6 @@ export default function App() {
             onReopenTutorial={() => setShowTutorial(true)}
             onOpenPaywall={() => setIsPaywallOpen(true)}
             onOpenOfflineDetail={() => setIsOfflineModalOpen(true)}
-            initialSecao={canonicalSubView as any}
-            onNavigateToTab={(tab, sub) => {
-              setCanonicalTab(tab as any);
-              if (sub) setCanonicalSubView(sub);
-            }}
           />
         )}
       </AppShell>
