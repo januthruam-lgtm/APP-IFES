@@ -93,7 +93,6 @@ interface ActiveClient {
   courseName?: string;
   campus?: string;
   isOnline?: boolean;
-  inCall?: boolean;
 }
 const activeClientsMap = new Map<string, ActiveClient>();
 
@@ -114,24 +113,6 @@ const privateChatStore = new Map<string, StoredPrivateMessage[]>();
 // Global mapping of connected WebSockets by userId for instant signaling
 const userSocketsMap = new Map<string, WebSocket>();
 
-// In-memory active call sessions used by the HTTP signaling fallback.
-interface ActiveCallSession {
-  callId: string;
-  callerId: string;
-  callerName: string;
-  callerAvatar?: string;
-  receiverId: string;
-  receiverName: string;
-  isVideo: boolean;
-  status: "ringing" | "connected" | "rejected" | "ended";
-  createdAt: number;
-  pendingSignals: Array<{
-    targetUserId: string;
-    signal: unknown;
-  }>;
-}
-
-const activeCallsStore = new Map<string, ActiveCallSession>();
 
 // In-Memory Store for Course Activity Submissions
 interface ServerActivitySubmission {
@@ -698,7 +679,7 @@ REGRAS OBRIGATÓRIAS:
 
   // REAL ONLINE USERS TRACKER: Heartbeat & Active Clients Endpoint
   app.post("/api/heartbeat", (req, res) => {
-    const { clientId, userName, level, matricula, courseId, courseName, campus, inCall } = req.body;
+    const { clientId, userName, level, matricula, courseId, courseName, campus } = req.body;
     
     // Ignore heartbeat if no real user name is provided
     if (!userName || userName.trim() === "" || userName.trim() === "Estudante") {
@@ -732,7 +713,6 @@ REGRAS OBRIGATÓRIAS:
       courseId,
       courseName,
       campus: campus || "IFES",
-      inCall: !!inCall,
     });
 
     return res.json({
@@ -752,7 +732,6 @@ REGRAS OBRIGATÓRIAS:
         courseId: c.courseId,
         courseName: c.courseName,
         campus: c.campus,
-        inCall: c.inCall,
         isOnline: true,
         lastAccess: "Online agora",
       }));
@@ -839,131 +818,6 @@ REGRAS OBRIGATÓRIAS:
     return res.json({ success: true, message: newMsg });
   });
 
-  // Real-time Direct Call Signaling Endpoints (HTTP Fallback & State Check)
-  app.post("/api/calls/initiate", (req, res) => {
-    const { callerId, callerName, callerAvatar, receiverId, receiverName, isVideo } = req.body;
-    if (!callerId || !receiverId) {
-      return res.status(400).json({ error: "IDs de chamador e receptor obrigatórios." });
-    }
-
-    const callId = `call-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const session: ActiveCallSession = {
-      callId,
-      callerId,
-      callerName: callerName || "Colega IFES",
-      callerAvatar,
-      receiverId,
-      receiverName: receiverName || "Colega IFES",
-      isVideo: isVideo !== false,
-      status: "ringing",
-      createdAt: Date.now(),
-      pendingSignals: [],
-    };
-
-    activeCallsStore.set(callId, session);
-
-    // Alert receiver via WebSocket if online
-    const receiverWs = userSocketsMap.get(receiverId);
-    if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
-      try {
-        receiverWs.send(
-          JSON.stringify({
-            type: "incoming-call",
-            call: {
-              callId,
-              callerId,
-              callerName: session.callerName,
-              callerAvatar: session.callerAvatar,
-              isVideo: session.isVideo,
-            },
-          })
-        );
-      } catch {}
-    }
-
-    return res.json({ success: true, callId, session });
-  });
-
-  app.get("/api/calls/pending/:userId", (req, res) => {
-    const { userId } = req.params;
-    const incoming: ActiveCallSession[] = [];
-    const now = Date.now();
-
-    for (const session of activeCallsStore.values()) {
-      if (session.receiverId === userId && session.status === "ringing" && now - session.createdAt < 45000) {
-        incoming.push(session);
-      }
-    }
-
-    return res.json({ success: true, incomingCalls: incoming });
-  });
-
-  app.post("/api/calls/respond", (req, res) => {
-    const { callId, accept } = req.body;
-    const session = activeCallsStore.get(callId);
-    if (!session) {
-      return res.status(404).json({ error: "Chamada não encontrada ou expirada." });
-    }
-
-    session.status = accept ? "connected" : "rejected";
-
-    // Notify caller via WebSocket
-    const callerWs = userSocketsMap.get(session.callerId);
-    if (callerWs && callerWs.readyState === WebSocket.OPEN) {
-      try {
-        callerWs.send(
-          JSON.stringify({
-            type: accept ? "call-accepted" : "call-rejected",
-            callId,
-          })
-        );
-      } catch {}
-    }
-
-    return res.json({ success: true, status: session.status });
-  });
-
-  app.post("/api/calls/signal", (req, res) => {
-    const { callId, targetUserId, signal } = req.body;
-    const session = activeCallsStore.get(callId);
-    if (!session) {
-      return res.status(404).json({ error: "Sessão de chamada não encontrada." });
-    }
-
-    session.pendingSignals.push({ targetUserId, signal });
-
-    // Push signal directly if target has open socket
-    const targetWs = userSocketsMap.get(targetUserId);
-    if (targetWs && targetWs.readyState === WebSocket.OPEN) {
-      try {
-        targetWs.send(
-          JSON.stringify({
-            type: "direct-signal",
-            callId,
-            signal,
-          })
-        );
-      } catch {}
-    }
-
-    return res.json({ success: true });
-  });
-
-  app.post("/api/calls/end", (req, res) => {
-    const { callId } = req.body;
-    const session = activeCallsStore.get(callId);
-    if (session) {
-      session.status = "ended";
-      // Notify both parties
-      const cWs = userSocketsMap.get(session.callerId);
-      const rWs = userSocketsMap.get(session.receiverId);
-      const endPayload = JSON.stringify({ type: "call-ended", callId });
-      if (cWs && cWs.readyState === WebSocket.OPEN) try { cWs.send(endPayload); } catch {}
-      if (rWs && rWs.readyState === WebSocket.OPEN) try { rWs.send(endPayload); } catch {}
-      activeCallsStore.delete(callId);
-    }
-    return res.json({ success: true });
-  });
 
   // AVA IFES: Activity Submissions API
   app.post("/api/activities/submit", (req, res) => {
@@ -4623,7 +4477,7 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
     return res.json({ success: true, pomodoro: room.pomodoro });
   });
 
-  // WebSocket Server for WebRTC Signaling, Direct Calls & Real-time Private Chats
+  // WebSocket Server for real-time private chats and study rooms
   const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws: WebSocket) => {
@@ -4836,7 +4690,6 @@ Retorne ESTRITAMENTE um JSON no seguinte schema:
         const room = studyRoomsStore.get(currentRoomId);
         if (room) {
           room.peers.delete(currentPeerId);
-          room.pendingSignals.delete(currentPeerId);
 
           const leftPayload = JSON.stringify({ type: "peer-left", peerId: currentPeerId });
           for (const p of room.peers.values()) {
