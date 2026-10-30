@@ -190,6 +190,35 @@
         "updatedAt": { "type": "number" }
       },
       "required": ["email", "name", "updatedAt"]
+    },
+    "JogoPartida": {
+      "title": "JogoPartida",
+      "description": "Registro de partida dos 8 minigames da Área Games",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "score": { "type": "number" },
+        "coinsEarned": { "type": "number" },
+        "xpEarned": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "completedAt": { "type": "string" }
+      },
+      "required": ["id", "gameId", "userId", "score", "completedAt"]
+    },
+    "JogoEstatistica": {
+      "title": "JogoEstatistica",
+      "description": "Estatísticas, recordes e limites diários de minigames do aluno",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "totalPartidas": { "type": "number" },
+        "recordes": { "type": "object" },
+        "atualizadoEm": { "type": "number" }
+      },
+      "required": ["uid", "totalPartidas", "atualizadoEm"]
     }
   },
   "firestore": {
@@ -256,6 +285,14 @@
     "/users/{uid}/credentials/{credType}": {
       "schema": { "$ref": "#/entities/Presenca" },
       "description": "Credenciais isoladas de Q-Acadêmico e Moodle do aluno"
+    },
+    "/jogosPartidas/{partidaId}": {
+      "schema": "JogoPartida",
+      "description": "Histórico de partidas concluídas dos minigames"
+    },
+    "/jogosEstatisticas/{uid}": {
+      "schema": "JogoEstatistica",
+      "description": "Estatísticas agregadas de minigames do usuário"
     }
   }
 }

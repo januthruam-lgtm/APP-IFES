@@ -239,7 +239,7 @@ export default function App() {
         "tasks",
         "agenda",
         "flashcards",
-        "games",
+        "simulados",
         "study_methods",
         "library",
         "dictionary",
@@ -257,6 +257,7 @@ export default function App() {
     } else if (
       [
         "jogo",
+        "games",
         "cidade",
         "construcoes",
         "teams",
@@ -268,8 +269,8 @@ export default function App() {
       ].includes(target)
     ) {
       setCanonicalTab("jogo");
-      setCanonicalSubView(target === "jogo" ? subView : target);
-      setCurrentTab(target === "jogo" ? "cidade" : (target as TabId));
+      setCanonicalSubView(target === "jogo" ? (subView || "games") : target);
+      setCurrentTab(target === "jogo" ? "games" : (target as TabId));
     } else if (target === "perfil" || target === "settings") {
       setCanonicalTab("perfil");
       setCanonicalSubView(subView);

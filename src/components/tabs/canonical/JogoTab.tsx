@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Castle,
@@ -9,6 +9,7 @@ import {
   Sparkles,
   Award,
   Radio,
+  Gamepad2,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors, UserPet } from "../../../types";
 import { CidadeDoConhecimentoTab } from "../CidadeDoConhecimentoTab";
@@ -17,10 +18,12 @@ import { StoreTab } from "../StoreTab";
 import { Pet3DView } from "../../pet3d/Pet3DView";
 import { ExtratoMoedasView } from "../../../features/economia/components/ExtratoMoedasView";
 import { FidelidadeView } from "../../../features/economia/components/FidelidadeView";
+import { GamesHub } from "../../../features/games/components/GamesHub";
 import { Card } from "../../ui/Card";
 import { Button } from "../../ui/Button";
 
 export type SubViewJogoId =
+  | "games"
   | "cidade"
   | "pet"
   | "teams"
@@ -69,6 +72,11 @@ export const JogoTab: React.FC<JogoTabProps> = ({
 
   const resolveSubView = (sub?: string): SubViewJogoId => {
     switch (sub) {
+      case "games":
+      case "jogos":
+      case "minigames":
+      case "arena":
+        return "games";
       case "cidade":
       case "construcoes":
         return "cidade";
@@ -87,7 +95,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
       case "fidelidade":
         return "fidelidade";
       default:
-        return "cidade";
+        return "games";
     }
   };
 
@@ -95,7 +103,14 @@ export const JogoTab: React.FC<JogoTabProps> = ({
     resolveSubView(initialSubView)
   );
 
+  useEffect(() => {
+    if (initialSubView) {
+      setActiveSubView(resolveSubView(initialSubView));
+    }
+  }, [initialSubView]);
+
   const subNavItems = [
+    { id: "games" as SubViewJogoId, label: "Área Games", icon: Gamepad2 },
     { id: "cidade" as SubViewJogoId, label: "Vilas do Saber", icon: Castle },
     { id: "pet" as SubViewJogoId, label: "Mascote 3D", icon: Dog },
     { id: "teams" as SubViewJogoId, label: "Equipes & Ligas", icon: Users },
@@ -145,6 +160,15 @@ export const JogoTab: React.FC<JogoTabProps> = ({
 
       {/* Conteúdo da Área Selecionada */}
       <div className="flex-1">
+        {activeSubView === "games" && (
+          <GamesHub
+            user={user}
+            onRewardCoins={onRewardCoins}
+            onRewardXp={onRewardXp}
+            onNavigateToWallet={() => setActiveSubView("carteira")}
+          />
+        )}
+
         {activeSubView === "cidade" && (
           <CidadeDoConhecimentoTab
             user={user}

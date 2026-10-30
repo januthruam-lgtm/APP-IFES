@@ -174,8 +174,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: "games" as TabId,
-          label: t("nav.simulados", "Simulados 10Q"),
+          label: t("nav.games", "Área Games (8 Jogos)"),
           icon: Gamepad2,
+          badge: "Nível 1-30",
+          badgeColor: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20",
         },
         {
           id: "library" as TabId,

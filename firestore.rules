@@ -123,5 +123,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false; // Somente via scripts administrativos autorizados
     }
+
+    // 13. Partidas de Jogos e Estatísticas da Área Games
+    match /jogosPartidas/{partidaId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    match /jogosEstatisticas/{uid} {
+      allow read, write: if true;
+    }
   }
 }

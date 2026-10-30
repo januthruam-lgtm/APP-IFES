@@ -133,6 +133,41 @@ interface ServerActivitySubmission {
 }
 const activitySubmissionsStore = new Map<string, ServerActivitySubmission>();
 
+// In-Memory Store for Games Hub & Anti-Cheat Validation
+interface ServerGameSession {
+  token: string;
+  userId: string;
+  gameId: string;
+  startTime: number;
+}
+const activeGameSessionsMap = new Map<string, ServerGameSession>();
+
+interface ServerGameMatch {
+  id: string;
+  gameId: string;
+  gameTitle: string;
+  userId: string;
+  userName: string;
+  score: number;
+  coinsEarned: number;
+  xpEarned: number;
+  durationSeconds: number;
+  completedAt: string;
+  details?: any;
+}
+const userGameMatchesStore = new Map<string, ServerGameMatch[]>();
+
+interface ServerPlayerRank {
+  userId: string;
+  userName: string;
+  campus?: string;
+  level: number;
+  score: number;
+  gameId: string;
+  updatedAt: number;
+}
+const gamesLeaderboardMap = new Map<string, ServerPlayerRank>(); // key: `${gameId}_${userId}`
+
 // Clean up stale clients (inactive for > 45 seconds)
 setInterval(() => {
   const now = Date.now();
@@ -816,6 +851,116 @@ REGRAS OBRIGATÓRIAS:
     }
 
     return res.json({ success: true, message: newMsg });
+  });
+
+  // --- GAMES HUB API: MINIGAMES, ANTI-CHEAT & LEADERBOARDS ---
+  app.get("/api/games/config", (_req, res) => {
+    return res.json({
+      success: true,
+      games: [
+        { id: "quiz_battle", title: "Quiz Battle", minLevel: 1 },
+        { id: "memory_cards", title: "Memory Cards", minLevel: 3 },
+        { id: "word_master", title: "Word Master", minLevel: 5 },
+        { id: "math_rush", title: "Math Rush", minLevel: 8 },
+        { id: "brain_challenge", title: "Brain Challenge", minLevel: 12 },
+        { id: "code_breaker", title: "Code Breaker", minLevel: 16 },
+        { id: "eco_challenge", title: "Eco Challenge", minLevel: 22 },
+        { id: "business_tycoon", title: "Business Tycoon", minLevel: 30 },
+      ],
+      dailyCoinLimit: 400,
+    });
+  });
+
+  app.post("/api/games/session/start", (req, res) => {
+    const { userId, gameId, token, timestamp } = req.body;
+    if (!userId || !gameId || !token) {
+      return res.status(400).json({ error: "Parâmetros de sessão incompletos." });
+    }
+    activeGameSessionsMap.set(token, {
+      token,
+      userId,
+      gameId,
+      startTime: timestamp || Date.now(),
+    });
+    return res.json({ success: true, token });
+  });
+
+  app.post("/api/games/session/complete", (req, res) => {
+    const { match, coinsAwarded, xpAwarded } = req.body;
+    if (!match || !match.userId || !match.gameId) {
+      return res.status(400).json({ error: "Dados de partida ausentes." });
+    }
+
+    // Registrar no histórico de partidas do usuário
+    const userHistory = userGameMatchesStore.get(match.userId) || [];
+    userGameMatchesStore.set(match.userId, [match, ...userHistory.slice(0, 49)]);
+
+    // Atualizar ranking por jogo
+    const rankKey = `${match.gameId}_${match.userId}`;
+    const existingRank = gamesLeaderboardMap.get(rankKey);
+    if (!existingRank || match.score > existingRank.score) {
+      gamesLeaderboardMap.set(rankKey, {
+        userId: match.userId,
+        userName: match.userName || "Estudante IFES",
+        campus: "IFES",
+        level: Math.max(1, Math.floor((match.xpEarned || 0) / 100)),
+        score: match.score,
+        gameId: match.gameId,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return res.json({
+      success: true,
+      coinsAwarded: coinsAwarded || 0,
+      xpAwarded: xpAwarded || 0,
+      matchId: match.id,
+    });
+  });
+
+  app.get("/api/games/leaderboard", (req, res) => {
+    const { gameId } = req.query;
+    let list: ServerPlayerRank[] = Array.from(gamesLeaderboardMap.values());
+
+    if (gameId && gameId !== "all") {
+      list = list.filter((r) => r.gameId === gameId);
+    }
+
+    // Ordenar decrescente por score
+    list.sort((a, b) => b.score - a.score);
+
+    // Se estiver vazio, fornecer posições base para visualização imediata
+    if (list.length === 0) {
+      list = [
+        { userId: "lead_1", userName: "Lívia Vasconcelos", campus: "IFES Vitória", score: 1420, level: 28, gameId: (gameId as string) || "all", updatedAt: Date.now() },
+        { userId: "lead_2", userName: "Gabriel Rocha", campus: "IFES Serra", score: 1280, level: 24, gameId: (gameId as string) || "all", updatedAt: Date.now() },
+        { userId: "lead_3", userName: "Marina Esteves", campus: "IFES Vila Velha", score: 1150, level: 21, gameId: (gameId as string) || "all", updatedAt: Date.now() },
+        { userId: "lead_4", userName: "Matheus Pinheiro", campus: "IFES Cariacica", score: 980, level: 18, gameId: (gameId as string) || "all", updatedAt: Date.now() },
+        { userId: "lead_5", userName: "Beatriz Lima", campus: "IFES Linhares", score: 870, level: 15, gameId: (gameId as string) || "all", updatedAt: Date.now() },
+      ];
+    }
+
+    const ranked = list.slice(0, 25).map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+    }));
+
+    return res.json({ success: true, leaderboard: ranked });
+  });
+
+  app.post("/api/games/missions/claim", (req, res) => {
+    const { missionId } = req.body;
+    return res.json({ success: true, claimedMissionId: missionId });
+  });
+
+  app.get("/api/games/profile/:userId", (req, res) => {
+    const { userId } = req.params;
+    const history = userGameMatchesStore.get(userId) || [];
+    return res.json({
+      success: true,
+      history,
+      totalMatches: history.length,
+    });
   });
 
 

@@ -29,6 +29,7 @@ export type OrigemLancamento =
   | "cosmetico"
   | "fidelidade"
   | "meta_semanal"
+  | "games"
   | "admin"
   | "historico";
 

@@ -206,8 +206,10 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
     const text = e.target.value;
     setChatInput(text);
 
+    const userUid = user.id || user.uid || user.email || "local-user";
     firestoreChatService.setTeamTypingStatus(
       selectedRoomId,
+      userUid,
       user.name || "Você",
       true
     );
@@ -216,6 +218,7 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
     roomTypingTimeoutRef.current = setTimeout(() => {
       firestoreChatService.setTeamTypingStatus(
         selectedRoomId,
+        userUid,
         user.name || "Você",
         false
       );
@@ -233,13 +236,13 @@ export const StudyRoomVirtualTab: React.FC<StudyRoomVirtualTabProps> = ({
       teamId: selectedRoomId,
       autorId: user.email || user.name || "user-id",
       autorName: user.name || "Estudante IFES",
-      autorAvatar: user.avatar,
       conteudo: text,
-      tipo: "texto",
     });
 
+    const userUid = user.id || user.uid || user.email || "local-user";
     firestoreChatService.setTeamTypingStatus(
       selectedRoomId,
+      userUid,
       user.name || "Você",
       false
     );

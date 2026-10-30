@@ -1,27 +1,21 @@
 /**
- * Brain Studio - Serviço da Cidade do Conhecimento (Fase 6)
- * Progressão acadêmica cooperativa: sem sorteio, sem ataque e sem roubo.
- * Integração com Firestore (/users/{uid}/cidade) e cache local seguro no cliente.
+ * APP-IFES - Serviço da Cidade do Conhecimento
+ * Experiência com visual de jogo mobile profissional inspirado em vilas (Coin Master).
+ * Suporte a 4 cidades temáticas com 5 monumentos únicos cada e persistência robusta.
  */
 
-import {
-  CIDADES,
-  ESTAGIOS_CIDADE,
-  calcularCustoEstagio,
-  obterCidadeDefinicao,
-  obterEstagio,
-  CidadeDefinicao,
-} from "../../../config/cidade.config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
+import { CIDADES_DATA, obterCidadePorId, obterCustoEstagio } from "../data/cidadesData";
+import { movimentarMoedas } from "../../economia/services/extratoService";
 
 export interface EstadoCidadeUsuario {
-  cidadeAtual: number; // 1 a infinito
-  construcoes: Record<string, number>; // chaveConstrucao -> nivel (1 a infinito)
+  cidadeAtual: number; // 1 a 4
+  construcoes: Record<string, number>; // chaveConstrucao -> nivel (1 a 5, ou 6+)
   cidadesCompletadas: number[];
   selos: string[];
-  ajudasHoje: number; // Máximo 3 por dia
-  ultimaAjudaData: string; // YYYY-MM-DD
+  ajudasHoje: number;
+  ultimaAjudaData: string;
   totalObrasConcluidas: number;
   atualizadoEm: string;
 }
@@ -29,21 +23,21 @@ export interface EstadoCidadeUsuario {
 const LOCAL_STORAGE_KEY_PREFIX = "brain_cidade_state_";
 
 /**
- * Retorna o estado inicial padrão para uma cidade.
+ * Retorna o estado inicial padrão para a cidade.
  */
 export function obterEstadoCidadePadrao(cidadeId = 1): EstadoCidadeUsuario {
-  const cidade = obterCidadeDefinicao(cidadeId);
+  const cidade = obterCidadePorId(cidadeId);
   const construcoes: Record<string, number> = {};
 
-  for (const chave of cidade.chavesConstrucoes) {
-    construcoes[chave] = 1; // Começa no nível 1 (Terreno)
+  for (const m of cidade.monumentos) {
+    construcoes[m.id] = 1; // Começa no estágio 1 (Terreno)
   }
 
   return {
     cidadeAtual: cidade.id,
     construcoes,
     cidadesCompletadas: [],
-    selos: ["Cidadão Iniciante"],
+    selos: ["Cidadão Acadêmico do IFES"],
     ajudasHoje: 0,
     ultimaAjudaData: new Date().toISOString().slice(0, 10),
     totalObrasConcluidas: 0,
@@ -54,25 +48,28 @@ export function obterEstadoCidadePadrao(cidadeId = 1): EstadoCidadeUsuario {
 /**
  * Normaliza o estado garantindo que todas as construções da cidade ativa existam.
  */
-export function normalizarEstadoCidade(estado: Partial<EstadoCidadeUsuario>, cidadeId?: number): EstadoCidadeUsuario {
-  const idAtivo = cidadeId || estado.cidadeAtual || 1;
-  const cidade = obterCidadeDefinicao(idAtivo);
+export function normalizarEstadoCidade(
+  estado: Partial<EstadoCidadeUsuario>,
+  cidadeId?: number
+): EstadoCidadeUsuario {
+  const idAtivo = Math.min(4, Math.max(1, cidadeId || estado.cidadeAtual || 1));
+  const cidade = obterCidadePorId(idAtivo);
 
   const construcoes: Record<string, number> = { ...(estado.construcoes || {}) };
-  for (const chave of cidade.chavesConstrucoes) {
-    if (!construcoes[chave] || construcoes[chave] < 1) {
-      construcoes[chave] = 1;
+  for (const m of cidade.monumentos) {
+    if (!construcoes[m.id] || construcoes[m.id] < 1) {
+      construcoes[m.id] = 1;
     }
   }
 
   const hoje = new Date().toISOString().slice(0, 10);
-  const ajudasHoje = estado.ultimaAjudaData === hoje ? (estado.ajudasHoje ?? 0) : 0;
+  const ajudasHoje = estado.ultimaAjudaData === hoje ? estado.ajudasHoje ?? 0 : 0;
 
   return {
     cidadeAtual: idAtivo,
     construcoes,
     cidadesCompletadas: Array.isArray(estado.cidadesCompletadas) ? estado.cidadesCompletadas : [],
-    selos: Array.isArray(estado.selos) && estado.selos.length > 0 ? estado.selos : ["Cidadão Iniciante"],
+    selos: Array.isArray(estado.selos) && estado.selos.length > 0 ? estado.selos : ["Cidadão Acadêmico do IFES"],
     ajudasHoje,
     ultimaAjudaData: hoje,
     totalObrasConcluidas: estado.totalObrasConcluidas ?? 0,
@@ -86,7 +83,7 @@ export function normalizarEstadoCidade(estado: Partial<EstadoCidadeUsuario>, cid
 export async function carregarEstadoCidade(userId: string): Promise<EstadoCidadeUsuario> {
   const localKey = `${LOCAL_STORAGE_KEY_PREFIX}${userId}`;
 
-  // 1. Tentar ler do localStorage para exibição instantânea offline
+  // 1. Tentar ler do localStorage para exibição instantânea
   let estadoLocal: EstadoCidadeUsuario | null = null;
   if (typeof window !== "undefined") {
     try {
@@ -114,12 +111,11 @@ export async function carregarEstadoCidade(userId: string): Promise<EstadoCidade
         }
         return estadoFinal;
       } else if (estadoLocal) {
-        // Se ainda não existe no Firestore mas tem local, salva
         await setDoc(cidadeRef, estadoLocal, { merge: true });
         return estadoLocal;
       }
     } catch {
-      // Falha de rede ou sem permissão: continua com o local
+      // Offline ou sem permissão: continua com o local
     }
   }
 
@@ -149,23 +145,26 @@ export async function salvarEstadoCidade(userId: string, estado: EstadoCidadeUsu
 }
 
 /**
- * Calcula o progresso percentual e contagem de estágios da cidade.
+ * Calcula o progresso de estrelas da vila atual.
  */
-export function calcularProgressoCidade(estado: EstadoCidadeUsuario, cidadeId: number): {
+export function calcularProgressoCidade(
+  estado: EstadoCidadeUsuario,
+  cidadeId: number
+): {
   concluidos: number;
   total: number;
   porcentagem: number;
   todasNoMaximo: boolean;
 } {
-  const cidade = obterCidadeDefinicao(cidadeId);
+  const cidade = obterCidadePorId(cidadeId);
   const maxNivelPorConstrucao = 5;
-  const total = cidade.totalConstrucoes * maxNivelPorConstrucao;
+  const total = cidade.monumentos.length * maxNivelPorConstrucao;
 
   let concluidos = 0;
   let todasNoMaximo = true;
 
-  for (const chave of cidade.chavesConstrucoes) {
-    const nivel = estado.construcoes[chave] || 1;
+  for (const m of cidade.monumentos) {
+    const nivel = estado.construcoes[m.id] || 1;
     concluidos += Math.min(5, nivel);
     if (nivel < maxNivelPorConstrucao) {
       todasNoMaximo = false;
@@ -178,7 +177,6 @@ export function calcularProgressoCidade(estado: EstadoCidadeUsuario, cidadeId: n
 
 /**
  * Evolui o estágio de uma construção na cidade ativa.
- * Suporta níveis ilimitados: estágios 1 a 5 para conquista da vila e Mestria Contínua (6+) após conquista.
  */
 export async function evoluirConstrucao(
   userId: string,
@@ -193,26 +191,25 @@ export async function evoluirConstrucao(
   cidadeCompletou: boolean;
 }> {
   const estadoAtual = await carregarEstadoCidade(userId);
-  const cidade = obterCidadeDefinicao(estadoAtual.cidadeAtual);
+  const cidade = obterCidadePorId(estadoAtual.cidadeAtual);
 
   const nivelAtual = estadoAtual.construcoes[chaveConstrucao] || 1;
   const progressoAntes = calcularProgressoCidade(estadoAtual, cidade.id);
 
-  // Se a construção já está no nível 5 e a cidade AINDA NÃO foi conquistada,
-  // incentiva a focar em completar as outras obras da vila para avançar!
+  // Se já está no nível 5 e a cidade ainda não foi conquistada, incentiva a focar nas outras obras
   if (nivelAtual >= 5 && !progressoAntes.todasNoMaximo) {
     return {
       sucesso: false,
       novoEstado: estadoAtual,
       custoMoedas: 0,
       xpGanho: 0,
-      mensagem: "Esta obra já atingiu o nível 5! Complete as demais construções para conquistar a vila e liberar a próxima cidade e o modo de Mestria!",
+      mensagem: "Este monumento já atingiu 5 estrelas! Complete as outras obras da vila para avançar.",
       cidadeCompletou: false,
     };
   }
 
   const proximoNivel = nivelAtual + 1;
-  const custo = calcularCustoEstagio(cidade.id, proximoNivel);
+  const custo = obterCustoEstagio(cidade.id, proximoNivel);
 
   if (saldoMoedas < custo) {
     return {
@@ -220,18 +217,29 @@ export async function evoluirConstrucao(
       novoEstado: estadoAtual,
       custoMoedas: custo,
       xpGanho: 0,
-      mensagem: `Moedas insuficientes. Você precisa de ${custo} moedas para esta evolução.`,
+      mensagem: `Moedas insuficientes. Você precisa de ${custo} IF Coins para esta construção.`,
       cidadeCompletou: false,
     };
   }
+
+  // Registra movimentação no livro-razão financeiro do APP-IFES
+  try {
+    await movimentarMoedas(
+      userId,
+      -custo,
+      "cidade",
+      chaveConstrucao,
+      `cidade_build_${Date.now()}_${chaveConstrucao}`,
+      `Construção na ${cidade.nome}: ${chaveConstrucao} (Nível ${proximoNivel})`
+    );
+  } catch {}
 
   const novasConstrucoes = {
     ...estadoAtual.construcoes,
     [chaveConstrucao]: proximoNivel,
   };
 
-  // XP ganho é metade do custo em moedas
-  const xpGanho = Math.round(custo * 0.5);
+  const xpGanho = Math.round(custo * 0.6);
 
   const novoEstado: EstadoCidadeUsuario = {
     ...estadoAtual,
@@ -240,23 +248,23 @@ export async function evoluirConstrucao(
     atualizadoEm: new Date().toISOString(),
   };
 
-  // Verificar se todas as construções da cidade atingiram ao menos o nível 5
-  const progresso = calcularProgressoCidade(novoEstado, cidade.id);
+  // Verifica se todas as construções atingiram o nível 5
+  const progressoDepois = calcularProgressoCidade(novoEstado, cidade.id);
   let cidadeCompletou = false;
 
-  if (progresso.todasNoMaximo && !novoEstado.cidadesCompletadas.includes(cidade.id)) {
+  if (progressoDepois.todasNoMaximo && !novoEstado.cidadesCompletadas.includes(cidade.id)) {
     cidadeCompletou = true;
     novoEstado.cidadesCompletadas = [...novoEstado.cidadesCompletadas, cidade.id];
     novoEstado.selos = [...novoEstado.selos, `Mestre de ${cidade.nome}`];
 
-    // Avança para a próxima cidade ilimitada!
-    const proximaCidadeId = cidade.id + 1;
-    const proximaCidade = obterCidadeDefinicao(proximaCidadeId);
-    if (proximaCidade) {
-      novoEstado.cidadeAtual = proximaCidadeId;
-      for (const chave of proximaCidade.chavesConstrucoes) {
-        if (!novoEstado.construcoes[chave]) {
-          novoEstado.construcoes[chave] = 1;
+    // Se houver próxima cidade, avança automaticamente
+    if (cidade.id < CIDADES_DATA.length) {
+      const proximaId = cidade.id + 1;
+      const proximaCidade = obterCidadePorId(proximaId);
+      novoEstado.cidadeAtual = proximaId;
+      for (const m of proximaCidade.monumentos) {
+        if (!novoEstado.construcoes[m.id]) {
+          novoEstado.construcoes[m.id] = 1;
         }
       }
     }
@@ -264,20 +272,50 @@ export async function evoluirConstrucao(
 
   await salvarEstadoCidade(userId, novoEstado);
 
-  const nomeEstagio = obterEstagio(proximoNivel).nome;
   return {
     sucesso: true,
     novoEstado,
     custoMoedas: custo,
     xpGanho,
-    mensagem: `Evolução concluída! Construção avançou para ${nomeEstagio}.`,
+    mensagem: `Construção avançou para o Estágio ${proximoNivel}!`,
     cidadeCompletou,
   };
 }
 
 /**
- * Ação cooperativa diária: enviar ajuda de estudo para colegas da equipe (máx. 3 vezes ao dia).
- * Fornece moedas ao ajudante e cooperação sem ataques ou perdas.
+ * Alterna a cidade ativa (permite qualquer cidade desbloqueada).
+ */
+export async function trocarCidadeAtiva(userId: string, novaCidadeId: number): Promise<EstadoCidadeUsuario> {
+  const estadoAtual = await carregarEstadoCidade(userId);
+  const novaCidade = obterCidadePorId(novaCidadeId);
+
+  // Cidade 1 é sempre desbloqueada; cidades seguintes exigem ter completado a anterior
+  const desbloqueada = novaCidadeId === 1 || estadoAtual.cidadesCompletadas.includes(novaCidadeId - 1);
+
+  if (!desbloqueada) {
+    throw new Error(`A ${novaCidade.nome} está bloqueada. Complete todas as estrelas da vila anterior.`);
+  }
+
+  const construcoes = { ...estadoAtual.construcoes };
+  for (const m of novaCidade.monumentos) {
+    if (!construcoes[m.id]) {
+      construcoes[m.id] = 1;
+    }
+  }
+
+  const novoEstado: EstadoCidadeUsuario = {
+    ...estadoAtual,
+    cidadeAtual: novaCidadeId,
+    construcoes,
+    atualizadoEm: new Date().toISOString(),
+  };
+
+  await salvarEstadoCidade(userId, novoEstado);
+  return novoEstado;
+}
+
+/**
+ * Ação de cooperação / ajuda diária
  */
 export async function prestarAjudaCooperativa(userId: string): Promise<{
   sucesso: boolean;
@@ -296,12 +334,23 @@ export async function prestarAjudaCooperativa(userId: string): Promise<{
       novoEstado: estadoAtual,
       moedasGanhas: 0,
       xpGanho: 0,
-      mensagem: "Você já realizou suas 3 ajudas comunitárias de hoje. Volte amanhã!",
+      mensagem: "Você já realizou suas 3 ajudas de hoje. Volte amanhã!",
     };
   }
 
-  const moedasGanhas = 15;
-  const xpGanho = 25;
+  const moedasGanhas = 25;
+  const xpGanho = 30;
+
+  try {
+    await movimentarMoedas(
+      userId,
+      moedasGanhas,
+      "cidade",
+      "ajuda_comunitaria",
+      `ajuda_${Date.now()}`,
+      "Ajuda Comunitária na Cidade"
+    );
+  } catch {}
 
   const novoEstado: EstadoCidadeUsuario = {
     ...estadoAtual,
@@ -317,41 +366,6 @@ export async function prestarAjudaCooperativa(userId: string): Promise<{
     novoEstado,
     moedasGanhas,
     xpGanho,
-    mensagem: `Ajuda enviada com sucesso! Você ganhou ${moedasGanhas} moedas e ${xpGanho} XP por colaborar com os colegas.`,
+    mensagem: `Ajuda enviada! Você ganhou +${moedasGanhas} IF Coins e +${xpGanho} XP.`,
   };
-}
-
-/**
- * Alterna a cidade ativa (permite qualquer cidade desbloqueada na progressão infinita).
- */
-export async function trocarCidadeAtiva(userId: string, novaCidadeId: number): Promise<EstadoCidadeUsuario> {
-  const estadoAtual = await carregarEstadoCidade(userId);
-  const novaCidade = obterCidadeDefinicao(novaCidadeId);
-
-  if (!novaCidade) return estadoAtual;
-
-  // Cidade 1 é sempre desbloqueada; cidades seguintes exigem ter completado a anterior
-  const cidadeAnterior = novaCidadeId - 1;
-  const desbloqueada = novaCidadeId === 1 || estadoAtual.cidadesCompletadas.includes(cidadeAnterior);
-
-  if (!desbloqueada) {
-    throw new Error(`A cidade ${novaCidade.nome} ainda está bloqueada. Complete a vila anterior para acessá-la.`);
-  }
-
-  const construcoes = { ...estadoAtual.construcoes };
-  for (const chave of novaCidade.chavesConstrucoes) {
-    if (!construcoes[chave]) {
-      construcoes[chave] = 1;
-    }
-  }
-
-  const novoEstado: EstadoCidadeUsuario = {
-    ...estadoAtual,
-    cidadeAtual: novaCidadeId,
-    construcoes,
-    atualizadoEm: new Date().toISOString(),
-  };
-
-  await salvarEstadoCidade(userId, novoEstado);
-  return novoEstado;
 }
