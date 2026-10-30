@@ -594,8 +594,8 @@ export const CIDADES_DATA: CidadeTema[] = [
         nome: "Porto Aéreo de Drones",
         subtitulo: "Plataforma circular com helipontos inteligentes para entrega de material didático",
         categoria: "tecnologia",
-        posicao: { x: 50, y: 18 }, // No céu superior acima das torres
-        escala: 0.9,
+        posicao: { x: 80, y: 22 }, // No céu superior à direita
+        escala: 0.92,
         materiaisPrincipais: ["Fibra de Carbono", "Leds de Pouso", "Carregadores por Indução"],
         estagios: {
           1: {

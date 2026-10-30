@@ -1,5 +1,5 @@
 import React from "react";
-import { Hammer, Lock, Star, Sparkles, CheckCircle2 } from "lucide-react";
+import { Hammer, Lock, CheckCircle2 } from "lucide-react";
 import { MonumentoDefinicao } from "../types";
 
 interface BotaoConstruirMonumentoProps {
@@ -24,46 +24,22 @@ export const BotaoConstruirMonumento: React.FC<BotaoConstruirMonumentoProps> = (
   const podeConstruir = saldoMoedas >= custoProximo && !isEvoluindo;
   const moedasFaltantes = Math.max(0, custoProximo - saldoMoedas);
 
-  const nomeEstagio = monumento.estagios[estagio]?.nome || `Estágio ${estagio}`;
-
   return (
-    <div className="flex flex-col items-center mt-1 sm:mt-1.5 pointer-events-auto select-none">
-      {/* 1. Nome da Construção & Indicador de Estrelas */}
-      <div className="flex flex-col items-center mb-1">
-        <span className="text-[11px] sm:text-xs font-black text-white px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-sm border border-slate-700/60 shadow-lg tracking-tight whitespace-nowrap drop-shadow-md">
-          {monumento.nome}
-        </span>
-
-        {/* As 5 Estrelas Douradas da Obra */}
-        <div className="flex items-center gap-0.5 mt-0.5 bg-slate-950/70 px-1.5 py-0.5 rounded-full border border-slate-800">
-          {[1, 2, 3, 4, 5].map((estrela) => {
-            const preenchida = estrela <= estagio;
-            return (
-              <Star
-                key={estrela}
-                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
-                  preenchida
-                    ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.9)]"
-                    : "fill-slate-800 text-slate-700"
-                }`}
-              />
-            );
-          })}
-          {nivelAtual > 5 && (
-            <span className="text-[9px] font-black text-cyan-300 ml-1">
-              +{nivelAtual - 5}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Botão Flutuante de Construção (Diretamente Abaixo do Monumento) */}
+    <div className="flex flex-col items-center mt-0.5 pointer-events-auto select-none">
       {isFinalizado ? (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 backdrop-blur-md border border-amber-400/60 text-amber-300 text-xs font-black shadow-xl">
-          <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-          <span>Obra Completa!</span>
+        /* Estado Concluído: Selo minimalista e discreto que não polui o cenário */
+        <div
+          title={`${monumento.nome} - Monumento Concluído (5/5 Estrelas)`}
+          className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-950/75 backdrop-blur-xs border border-amber-400/50 text-amber-300 shadow-md text-[10px] font-black tracking-tight"
+        >
+          <CheckCircle2 className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+          <span className="truncate max-w-[80px] sm:max-w-[100px] text-slate-100">
+            {monumento.nome}
+          </span>
+          <span className="text-amber-400 font-mono text-[9px] font-extrabold">5/5★</span>
         </div>
       ) : (
+        /* Botão Compacto e Discreto de Construção em Linha Única */
         <button
           type="button"
           onClick={(e) => {
@@ -73,33 +49,47 @@ export const BotaoConstruirMonumento: React.FC<BotaoConstruirMonumentoProps> = (
             }
           }}
           disabled={!podeConstruir || isEvoluindo}
+          title={`${monumento.nome} (${estagio}/5★) - Custo: ${custoProximo} IF Coins`}
           aria-label={`Construir ${monumento.nome} por ${custoProximo} IF Coins`}
-          className={`group relative flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shadow-2xl active:scale-95 ${
+          className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold transition-all duration-150 shadow-lg active:scale-95 ${
             isEvoluindo
-              ? "bg-amber-400 text-slate-950 border-2 border-white ring-4 ring-amber-400/50 animate-pulse cursor-wait"
+              ? "bg-amber-400 text-slate-950 border border-white ring-2 ring-amber-400/50 cursor-wait animate-pulse"
               : podeConstruir
-              ? "bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border border-emerald-300/60 shadow-[0_4px_16px_rgba(16,185,129,0.5)] hover:scale-105"
-              : "bg-slate-900/90 text-slate-400 border border-slate-700 cursor-not-allowed opacity-90"
+              ? "bg-slate-950/90 hover:bg-slate-900 text-white border border-emerald-400/70 hover:border-emerald-300 ring-1 ring-emerald-500/30 hover:scale-105 cursor-pointer"
+              : "bg-slate-950/80 text-slate-400 border border-slate-700/60 opacity-80 cursor-not-allowed"
           }`}
         >
           {isEvoluindo ? (
             <>
-              <Hammer className="w-3.5 h-3.5 animate-bounce" />
-              <span>Construindo...</span>
-            </>
-          ) : podeConstruir ? (
-            <>
-              <Hammer className="w-3.5 h-3.5 text-yellow-300 group-hover:rotate-12 transition-transform" />
-              <span>Construir</span>
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-950/70 text-amber-300 font-mono text-[11px] border border-emerald-400/30">
-                <span>🪙</span>
-                <span>{custoProximo}</span>
-              </span>
+              <Hammer className="w-3 h-3 text-slate-950 animate-bounce" />
+              <span className="font-black text-[10px]">Construindo...</span>
             </>
           ) : (
             <>
-              <Lock className="w-3.5 h-3.5 text-slate-500" />
-              <span className="text-[11px]">Faltam {moedasFaltantes} 🪙</span>
+              {/* Nome compacto da obra */}
+              <span className="text-slate-100 font-extrabold tracking-tight truncate max-w-[70px] sm:max-w-[95px]">
+                {monumento.nome}
+              </span>
+
+              {/* Indicador curto de estágio */}
+              <span className="text-amber-400 font-mono text-[9px] font-black">
+                {estagio}/5★
+              </span>
+
+              <span className="w-px h-2.5 bg-slate-700 shrink-0" />
+
+              {/* Ação com Custo em IF Coins ou Indicador de Moedas Faltantes */}
+              {podeConstruir ? (
+                <span className="flex items-center gap-0.5 text-emerald-300 font-black font-mono text-[10px]">
+                  <Hammer className="w-2.5 h-2.5 text-emerald-400 group-hover:rotate-12 transition-transform shrink-0" />
+                  <span>{custoProximo}🪙</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-0.5 text-slate-400 font-mono text-[9px]">
+                  <Lock className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+                  <span>-{moedasFaltantes}🪙</span>
+                </span>
+              )}
             </>
           )}
         </button>
