@@ -170,6 +170,41 @@ export const InicioTab: React.FC<InicioTabProps> = ({
         </div>
       </div>
 
+      {/* Banner de Destaque IFES Live Events & Temporada */}
+      <div
+        onClick={() => onNavigate("jogo", "eventos")}
+        className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-indigo-950/40 border border-amber-500/30 hover:border-amber-400/60 shadow-lg cursor-pointer transition-all duration-300 transform hover:-translate-y-0.5 select-none"
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 flex items-center justify-center text-2xl shadow-md shrink-0">
+              ⚡🏆
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                  AO VIVO
+                </span>
+                <span className="text-xs font-black text-amber-500 dark:text-amber-300">
+                  Expedição do Conhecimento IFES
+                </span>
+              </div>
+              <h3 className="text-base font-black text-[var(--app-text)] mt-0.5">
+                Multiplicador 2x XP Ativo • Conquiste Baús & Cartas Douradas
+              </h3>
+              <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
+                Avance na trilha de 10 marcos e no Álbum de 90 Cartas Colecionáveis.
+              </p>
+            </div>
+          </div>
+
+          <button className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md shrink-0 flex items-center gap-1.5 transition">
+            <span>Acessar Eventos</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
       {/* 2. Cartão de Destaque: Continuar de Onde Parou */}
       <Card
         variant="elevated"

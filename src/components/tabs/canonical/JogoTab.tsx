@@ -10,6 +10,13 @@ import {
   Award,
   Radio,
   Gamepad2,
+  Flame,
+  Layers,
+  ArrowRightLeft,
+  Trophy,
+  Gift,
+  Target,
+  Compass,
 } from "lucide-react";
 import { UserProfile, CustomThemeColors, UserPet } from "../../../types";
 import { CidadeDoConhecimentoTab } from "../CidadeDoConhecimentoTab";
@@ -19,10 +26,28 @@ import { Pet3DView } from "../../pet3d/Pet3DView";
 import { ExtratoMoedasView } from "../../../features/economia/components/ExtratoMoedasView";
 import { FidelidadeView } from "../../../features/economia/components/FidelidadeView";
 import { GamesHub } from "../../../features/games/components/GamesHub";
-import { Card } from "../../ui/Card";
+import { IfesLiveEventsHub } from "../../../features/events/components/IfesLiveEventsHub";
+import { CardsAlbumView } from "../../../features/cards/components/CardsAlbumView";
+import { CardTradeMarketView } from "../../../features/cards/components/CardTradeMarketView";
+import { TournamentView } from "../../../features/tournaments/components/TournamentView";
+import { SeasonPassView } from "../../../features/seasons/components/SeasonPassView";
+import { ChestsVaultView } from "../../../features/chests/components/ChestsVaultView";
+import { MissionsView } from "../../../features/missions/components/MissionsView";
+import {
+  loadUserCardInventory,
+  saveUserCardInventory,
+} from "../../../features/cards/services/cardService";
+import { UserCardInventory } from "../../../features/cards/types";
 import { Button } from "../../ui/Button";
 
 export type SubViewJogoId =
+  | "eventos"
+  | "album"
+  | "trocas"
+  | "torneios"
+  | "temporada"
+  | "baus"
+  | "missoes"
   | "games"
   | "cidade"
   | "pet"
@@ -69,9 +94,39 @@ export const JogoTab: React.FC<JogoTabProps> = ({
   onOpenOnlineUsers,
 }) => {
   const { t } = useTranslation();
+  const userUid = user.id || user.uid || user.email || "local_user";
 
   const resolveSubView = (sub?: string): SubViewJogoId => {
     switch (sub) {
+      case "eventos":
+      case "live":
+      case "events":
+        return "eventos";
+      case "album":
+      case "cards":
+      case "cartas":
+      case "colecoes":
+        return "album";
+      case "trocas":
+      case "trade":
+      case "mercado":
+        return "trocas";
+      case "torneios":
+      case "tournaments":
+      case "ligas":
+        return "torneios";
+      case "temporada":
+      case "season":
+      case "pass":
+        return "temporada";
+      case "baus":
+      case "chests":
+      case "cofres":
+        return "baus";
+      case "missoes":
+      case "missions":
+      case "desafios":
+        return "missoes";
       case "games":
       case "jogos":
       case "minigames":
@@ -95,7 +150,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
       case "fidelidade":
         return "fidelidade";
       default:
-        return "games";
+        return "eventos"; // IFES Live Events como porta de entrada primária!
     }
   };
 
@@ -109,13 +164,37 @@ export const JogoTab: React.FC<JogoTabProps> = ({
     }
   }, [initialSubView]);
 
+  // Inventário de cartas compartilhado
+  const [cardInventory, setCardInventory] = useState<UserCardInventory>({
+    cards: {},
+    starShards: 25,
+    completedCollections: [],
+    totalPacksOpened: 0,
+  });
+
+  useEffect(() => {
+    loadUserCardInventory(userUid).then(setCardInventory);
+  }, [userUid]);
+
+  const handleUpdateCardInventory = (newInv: UserCardInventory) => {
+    setCardInventory(newInv);
+    saveUserCardInventory(newInv, userUid);
+  };
+
   const subNavItems = [
-    { id: "games" as SubViewJogoId, label: "Área Games", icon: Gamepad2 },
+    { id: "eventos" as SubViewJogoId, label: "Live Events", icon: Flame, badge: "LIVE" },
+    { id: "album" as SubViewJogoId, label: "Álbum & Cartas", icon: Layers, badge: "90" },
+    { id: "trocas" as SubViewJogoId, label: "Trocas", icon: ArrowRightLeft },
+    { id: "torneios" as SubViewJogoId, label: "Torneios & Ligas", icon: Trophy },
+    { id: "temporada" as SubViewJogoId, label: "Temporada 1", icon: Compass },
+    { id: "baus" as SubViewJogoId, label: "Baús & Cofres", icon: Gift },
+    { id: "missoes" as SubViewJogoId, label: "Missões", icon: Target },
+    { id: "games" as SubViewJogoId, label: "Minigames", icon: Gamepad2 },
     { id: "cidade" as SubViewJogoId, label: "Vilas do Saber", icon: Castle },
+    { id: "teams" as SubViewJogoId, label: "Equipes", icon: Users },
     { id: "pet" as SubViewJogoId, label: "Mascote 3D", icon: Dog },
-    { id: "teams" as SubViewJogoId, label: "Equipes & Ligas", icon: Users },
     { id: "loja" as SubViewJogoId, label: "Loja", icon: ShoppingBag },
-    { id: "carteira" as SubViewJogoId, label: "Carteira & Extrato", icon: Coins },
+    { id: "carteira" as SubViewJogoId, label: "Carteira", icon: Coins },
     { id: "fidelidade" as SubViewJogoId, label: "Fidelidade", icon: Award },
   ];
 
@@ -131,7 +210,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveSubView(item.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] ${
                   isSelected
                     ? "bg-[var(--app-primary)] text-white shadow-xs"
                     : "bg-[var(--app-card)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] border border-[var(--app-border)]"
@@ -139,12 +218,23 @@ export const JogoTab: React.FC<JogoTabProps> = ({
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
+                {item.badge && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-amber-400/20 text-amber-500 dark:text-amber-300"
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Indicador de Colegas Online (migrado do cabeçalho) */}
+        {/* Indicador de Colegas Online */}
         {activeSubView === "teams" && (
           <button
             onClick={onOpenOnlineUsers}
@@ -159,7 +249,106 @@ export const JogoTab: React.FC<JogoTabProps> = ({
       </div>
 
       {/* Conteúdo da Área Selecionada */}
-      <div className="flex-1">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        {/* 1. CENTRAL DE EVENTOS (IFES LIVE EVENTS) */}
+        {activeSubView === "eventos" && (
+          <IfesLiveEventsHub
+            onRewardCoins={onRewardCoins || (() => {})}
+            onRewardXp={onRewardXp || (() => {})}
+            onRewardShards={(amount) => {
+              handleUpdateCardInventory({
+                ...cardInventory,
+                starShards: cardInventory.starShards + amount,
+              });
+            }}
+            onNavigateToGames={() => setActiveSubView("games")}
+            onNavigateToCity={() => setActiveSubView("cidade")}
+            onOpenAlbum={() => setActiveSubView("album")}
+          />
+        )}
+
+        {/* 2. ÁLBUM DE CARTAS E COLEÇÕES */}
+        {activeSubView === "album" && (
+          <CardsAlbumView
+            userCoins={user.coins ?? 250}
+            userLevel={user.level || 1}
+            inventory={cardInventory}
+            onUpdateInventory={handleUpdateCardInventory}
+            onConsumeCoins={onConsumeCoins || (() => {})}
+            onRewardCoins={onRewardCoins || (() => {})}
+            onRewardXp={onRewardXp || (() => {})}
+            onOpenTradingMarket={() => setActiveSubView("trocas")}
+          />
+        )}
+
+        {/* 3. MERCADO DE TROCAS ENTRE ALUNOS */}
+        {activeSubView === "trocas" && (
+          <CardTradeMarketView
+            userUid={userUid}
+            userName={user.name || "Estudante IFES"}
+            userCampus={user.ifesAccount?.campusName || "Campus Vitória"}
+            inventory={cardInventory}
+            onUpdateInventory={handleUpdateCardInventory}
+            onBackToAlbum={() => setActiveSubView("album")}
+          />
+        )}
+
+        {/* 4. TORNEIOS COMPETITIVOS & LIGAS */}
+        {activeSubView === "torneios" && (
+          <TournamentView
+            userCoins={user.coins ?? 250}
+            userPoints={user.xp || 1200}
+            onNavigateToActivity={(type) => {
+              if (type === "conhecimento" || type === "minigames") {
+                setActiveSubView("games");
+              } else if (type === "construcao") {
+                setActiveSubView("cidade");
+              } else if (type === "colecionadores") {
+                setActiveSubView("album");
+              }
+            }}
+          />
+        )}
+
+        {/* 5. PASSE DE TEMPORADA */}
+        {activeSubView === "temporada" && (
+          <SeasonPassView
+            onRewardCoins={onRewardCoins || (() => {})}
+            onRewardXp={onRewardXp || (() => {})}
+            onRewardShards={(amount) => {
+              handleUpdateCardInventory({
+                ...cardInventory,
+                starShards: cardInventory.starShards + amount,
+              });
+            }}
+          />
+        )}
+
+        {/* 6. COFRE DE BAÚS & RECOMPENSAS */}
+        {activeSubView === "baus" && (
+          <ChestsVaultView
+            onRewardCoins={onRewardCoins || (() => {})}
+            onRewardXp={onRewardXp || (() => {})}
+            onRewardShards={(amount) => {
+              handleUpdateCardInventory({
+                ...cardInventory,
+                starShards: cardInventory.starShards + amount,
+              });
+            }}
+            onOpenCardPackDirectly={() => setActiveSubView("album")}
+            onEquipBadge={onEquipBadge}
+          />
+        )}
+
+        {/* 7. MISSÕES & DESAFIOS */}
+        {activeSubView === "missoes" && (
+          <MissionsView
+            onRewardCoins={onRewardCoins || (() => {})}
+            onRewardXp={onRewardXp || (() => {})}
+          />
+        )}
+
+        {/* 8. MINIGAMES (OS 8 JOGOS DA ARENA) */}
         {activeSubView === "games" && (
           <GamesHub
             user={user}
@@ -169,6 +358,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
           />
         )}
 
+        {/* 9. VILAS DO CONHECIMENTO & CONSTRUÇÃO */}
         {activeSubView === "cidade" && (
           <CidadeDoConhecimentoTab
             user={user}
@@ -178,8 +368,9 @@ export const JogoTab: React.FC<JogoTabProps> = ({
           />
         )}
 
+        {/* 10. MASCOTE 3D */}
         {activeSubView === "pet" && (
-          <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between pb-2 border-b border-[var(--app-border)]">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black text-[var(--app-text)]">
@@ -197,7 +388,6 @@ export const JogoTab: React.FC<JogoTabProps> = ({
               </div>
             </div>
 
-            {/* Visualizador 3D do Pet */}
             <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-xs flex flex-col items-center">
               <div className="w-full max-w-md h-72">
                 <Pet3DView
@@ -213,7 +403,6 @@ export const JogoTab: React.FC<JogoTabProps> = ({
                 />
               </div>
 
-              {/* Controles de Cuidado */}
               <div className="w-full max-w-md grid grid-cols-2 gap-3 mt-4">
                 <Button
                   variant="primary"
@@ -247,6 +436,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
           </div>
         )}
 
+        {/* 11. EQUIPES & BATALHAS */}
         {activeSubView === "teams" && (
           <GuildsBattlesTab
             user={user}
@@ -258,6 +448,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
           />
         )}
 
+        {/* 12. LOJA */}
         {activeSubView === "loja" && (
           <StoreTab
             user={user}
@@ -271,19 +462,21 @@ export const JogoTab: React.FC<JogoTabProps> = ({
           />
         )}
 
+        {/* 13. CARTEIRA & EXTRATO */}
         {activeSubView === "carteira" && (
-          <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             <ExtratoMoedasView
-              uid={user.id || user.uid || "local_user"}
+              uid={userUid}
               saldoAtual={user.coins ?? 250}
             />
           </div>
         )}
 
+        {/* 14. FIDELIDADE */}
         {activeSubView === "fidelidade" && (
-          <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             <FidelidadeView
-              uid={user.id || user.uid || "local_user"}
+              uid={userUid}
               saldoAtualMoedas={user.coins ?? 250}
               missaoDiariaConcluidaHoje={true}
               onMoedasResgatadas={(novas) => {

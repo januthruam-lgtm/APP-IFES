@@ -134,5 +134,33 @@ service cloud.firestore {
     match /jogosEstatisticas/{uid} {
       allow read, write: if true;
     }
+
+    // 14. Coleções de Cartas Colecionáveis e Álbuns
+    match /colecoesUsuario/{uid} {
+      allow read, write: if isOwner(uid) || !isAuthenticated();
+    }
+
+    // 15. Participações na Central IFES Live Events
+    match /participacoesEventos/{docId} {
+      allow read, write: if true;
+    }
+
+    // 16. Mural de Trocas de Cartas da Comunidade
+    match /propostasTroca/{trocaId} {
+      allow read, write: if true;
+    }
+
+    // 17. Torneios Competitivos e Rankings
+    match /torneios/{torneioId} {
+      allow read, write: if true;
+      match /participantes/{uid} {
+        allow read, write: if true;
+      }
+    }
+
+    // 18. Progresso na Temporada e Passe
+    match /temporadaUsuario/{uid} {
+      allow read, write: if isOwner(uid) || !isAuthenticated();
+    }
   }
 }

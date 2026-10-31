@@ -21,6 +21,7 @@ import { CenarioMundoCidade } from "../../features/cidade/components/CenarioMund
 import { HudCidade } from "../../features/cidade/components/HudCidade";
 import { CelebracaoConclusaoModal } from "../../features/cidade/components/CelebracaoConclusaoModal";
 import { CidadeInfoModal } from "../../features/cidade/components/CidadeInfoModal";
+import { addEventPoints } from "../../features/events/services/eventService";
 
 interface CidadeDoConhecimentoTabProps {
   user: UserProfile;
@@ -107,6 +108,10 @@ export const CidadeDoConhecimentoTab: React.FC<CidadeDoConhecimentoTabProps> = (
         setEstado(res.novoEstado);
         if (onConsumeCoins) onConsumeCoins(res.custoMoedas);
         if (onRewardXp) onRewardXp(res.xpGanho);
+
+        try {
+          addEventPoints(50, "Construção de Monumento no Saber");
+        } catch {}
 
         confetti({
           particleCount: res.cidadeCompletou ? 120 : 45,

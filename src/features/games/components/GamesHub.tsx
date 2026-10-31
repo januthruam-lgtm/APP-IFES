@@ -44,6 +44,7 @@ import {
   getNextGameToUnlock,
   isGameUnlocked,
 } from "../services/gamesService";
+import { addEventPoints } from "../../events/services/eventService";
 import { gameAudio } from "../audio";
 import { UserProfile } from "../../../types";
 
@@ -149,6 +150,10 @@ export const GamesHub: React.FC<GamesHubProps> = ({
   };
 
   const handleFinishMatch = async (payload: any) => {
+    try {
+      addEventPoints(25, `Vitória no jogo ${activeMinigame?.title || "Minigame"}`);
+    } catch {}
+
     const res = await completeGameSession(
       userUid,
       user.name || "Estudante IFES",

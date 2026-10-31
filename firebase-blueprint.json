@@ -219,6 +219,71 @@
         "atualizadoEm": { "type": "number" }
       },
       "required": ["uid", "totalPartidas", "atualizadoEm"]
+    },
+    "ColecaoUsuario": {
+      "title": "ColecaoUsuario",
+      "description": "Inventário de cartas, repetidas e fragmentos estelares do aluno",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "cards": { "type": "object" },
+        "starShards": { "type": "number" },
+        "completedCollections": { "type": "array" },
+        "totalPacksOpened": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      }
+    },
+    "EventoParticipacao": {
+      "title": "EventoParticipacao",
+      "description": "Participação e marcos conquistados na Central de Eventos",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string" },
+        "uid": { "type": "string" },
+        "points": { "type": "number" },
+        "claimedMilestones": { "type": "array" },
+        "lastUpdatedAt": { "type": "number" }
+      }
+    },
+    "PropostaTroca": {
+      "title": "PropostaTroca",
+      "description": "Ofertas de trocas de cartas entre alunos do IFES",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderCampus": { "type": "string" },
+        "offeredCardId": { "type": "string" },
+        "requestedCardId": { "type": "string" },
+        "isGoldenTrade": { "type": "boolean" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" }
+      }
+    },
+    "TorneioParticipante": {
+      "title": "TorneioParticipante",
+      "description": "Ranking e pontuação do estudante nos torneios competitivos",
+      "type": "object",
+      "properties": {
+        "rank": { "type": "number" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "campus": { "type": "string" },
+        "points": { "type": "number" },
+        "league": { "type": "string" }
+      }
+    },
+    "TemporadaUsuario": {
+      "title": "TemporadaUsuario",
+      "description": "Progresso do estudante na temporada e passe educacional",
+      "type": "object",
+      "properties": {
+        "seasonId": { "type": "string" },
+        "currentTier": { "type": "number" },
+        "seasonXp": { "type": "number" },
+        "claimedTiers": { "type": "array" }
+      }
     }
   },
   "firestore": {
@@ -293,6 +358,26 @@
     "/jogosEstatisticas/{uid}": {
       "schema": "JogoEstatistica",
       "description": "Estatísticas agregadas de minigames do usuário"
+    },
+    "/colecoesUsuario/{uid}": {
+      "schema": "ColecaoUsuario",
+      "description": "Inventário de cartas, repetidas e fragmentos estelares do aluno"
+    },
+    "/participacoesEventos/{docId}": {
+      "schema": "EventoParticipacao",
+      "description": "Participação e marcos conquistados na Central IFES Live Events"
+    },
+    "/propostasTroca/{trocaId}": {
+      "schema": "PropostaTroca",
+      "description": "Mural comunitário de propostas de trocas de cartas entre alunos"
+    },
+    "/torneios/{torneioId}/participantes/{uid}": {
+      "schema": "TorneioParticipante",
+      "description": "Ranking e pontuação dos alunos no torneio competitivo"
+    },
+    "/temporadaUsuario/{uid}": {
+      "schema": "TemporadaUsuario",
+      "description": "Progresso e recompensas resgatadas do aluno no Passe de Temporada"
     }
   }
 }

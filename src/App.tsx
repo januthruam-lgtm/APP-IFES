@@ -80,6 +80,8 @@ import { CardConfirmacaoIfes } from "./features/instituicao/components/CardConfi
 import { precisaConfirmarInstituicao } from "./features/instituicao/services/migracaoIfes";
 import { OnboardingInstituicaoFlow } from "./features/instituicao/components/OnboardingInstituicaoFlow";
 import { FEATURES } from "./config/features";
+import { calculateLevelFromXp } from "./features/progression/levelSystem";
+import { addEventPoints } from "./features/events/services/eventService";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -633,18 +635,30 @@ export default function App() {
   };
 
   const handleRewardXp = (amount: number) => {
+    try {
+      addEventPoints(Math.max(5, Math.round(amount * 0.5)), "Atividade Acadêmica");
+    } catch {}
+
     setUser((prev) => {
       const newXp = Math.max(0, prev.xp + amount);
-      const newLevel = Math.floor(newXp / 500) + 1;
+      const { level: newLevel, currentMilestone } = calculateLevelFromXp(newXp);
+      const leveledUp = newLevel > (prev.level || 1);
+      const bonusCoins = leveledUp ? currentMilestone.coinsReward : 0;
+
       return {
         ...prev,
         xp: newXp,
         level: newLevel,
+        coins: (prev.coins ?? 250) + bonusCoins,
       };
     });
   };
 
   const handleRewardCoins = (amount: number) => {
+    try {
+      addEventPoints(Math.max(3, Math.round(amount * 0.3)), "Economia de Moedas");
+    } catch {}
+
     setUser((prev) => ({
       ...prev,
       coins: Math.max(0, (prev.coins ?? 250) + amount),
