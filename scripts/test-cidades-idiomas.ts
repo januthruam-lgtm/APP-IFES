@@ -88,20 +88,20 @@ async function runTests() {
   // Estado padrão
   const estadoPadrao = obterEstadoCidadePadrao(1);
   assert(estadoPadrao.cidadeAtual === 1, "Cidade inicial ativa é 1 (Aldeia do Saber)");
-  assert(Object.keys(estadoPadrao.construcoes).length === 4, "Cidade 1 inicia com 4 construções no terreno");
+  assert(Object.keys(estadoPadrao.construcoes).length === 5, "Cidade 1 inicia com 5 construções no terreno");
   assert(estadoPadrao.ajudasHoje === 0, "Ajudas diárias iniciam zeradas");
 
   // Cálculo de progresso
   const progressoInicial = calcularProgressoCidade(estadoPadrao, 1);
-  assert(progressoInicial.concluidos === 4, "Progresso inicial: 4 estágios construídos");
-  assert(progressoInicial.total === 20, "Total de estágios da Cidade 1 é 20 (4 x 5)");
+  assert(progressoInicial.concluidos === 5, "Progresso inicial: 5 estágios construídos");
+  assert(progressoInicial.total === 25, "Total de estágios da Cidade 1 é 25 (5 x 5)");
   assert(progressoInicial.porcentagem === 20, "Porcentagem inicial é 20%");
   assert(!progressoInicial.todasNoMaximo, "Cidade não está completa no início");
 
   // Normalização de estado
-  const normalizado = normalizarEstadoCidade({ cidadeAtual: 1, construcoes: { biblioteca: 3 } });
-  assert(normalizado.construcoes.biblioteca === 3, "Preserva nível de construção existente");
-  assert(normalizado.construcoes.laboratorio === 1, "Preenche construção ausente com nível 1");
+  const normalizado = normalizarEstadoCidade({ cidadeAtual: 1, construcoes: { litoranea_farol: 3 } });
+  assert(normalizado.construcoes.litoranea_farol === 3, "Preserva nível de construção existente");
+  assert(normalizado.construcoes.litoranea_aquario === 1, "Preenche construção ausente com nível 1");
 
   // Progressão Ilimitada de Cidades (Níveis Infinitos)
   const cidade11 = obterCidadeDefinicao(11);

@@ -82,6 +82,7 @@ import { OnboardingInstituicaoFlow } from "./features/instituicao/components/Onb
 import { FEATURES } from "./config/features";
 import { calculateLevelFromXp } from "./features/progression/levelSystem";
 import { addEventPoints } from "./features/events/services/eventService";
+import { movimentarMoedas, OrigemLancamento } from "./features/economia/services/extratoService";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -654,15 +655,94 @@ export default function App() {
     });
   };
 
-  const handleRewardCoins = (amount: number) => {
+  const handleConsumeCoins = async (
+    amount: number,
+    origem: OrigemLancamento = "loja",
+    descricao?: string,
+    refId?: string,
+    skipLedger: boolean = false
+  ): Promise<boolean> => {
+    const cost = Math.max(0, amount);
+    const saldoAtual = user.coins ?? 250;
+
+    if (saldoAtual < cost) {
+      console.warn("Saldo insuficiente de moedas.");
+      return false;
+    }
+
+    const novoSaldo = Math.max(0, saldoAtual - cost);
+
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        coins: novoSaldo,
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("brain_studio_user_updated", { detail: updated }));
+      } catch {}
+      return updated;
+    });
+
+    const userUid = user.id || user.uid || user.email || "local_user";
+
+    if (!skipLedger) {
+      try {
+        await movimentarMoedas(
+          userUid,
+          -cost,
+          origem,
+          refId,
+          undefined,
+          descricao || `Saída: -${cost} moedas (${origem})`
+        );
+      } catch (err) {
+        console.warn("Aviso ao registrar saída no extrato:", err);
+      }
+    }
+
+    return true;
+  };
+
+  const handleRewardCoins = (
+    amount: number,
+    origem: OrigemLancamento = "ajuste",
+    descricao?: string,
+    skipLedger: boolean = false
+  ) => {
+    if (amount < 0) {
+      handleConsumeCoins(Math.abs(amount), origem, descricao || `Gasto de ${Math.abs(amount)} moedas`, undefined, skipLedger);
+      return;
+    }
+
     try {
       addEventPoints(Math.max(3, Math.round(amount * 0.3)), "Economia de Moedas");
     } catch {}
 
-    setUser((prev) => ({
-      ...prev,
-      coins: Math.max(0, (prev.coins ?? 250) + amount),
-    }));
+    const userUid = user.id || user.uid || user.email || "local_user";
+    setUser((prev) => {
+      const novoSaldo = Math.max(0, (prev.coins ?? 250) + amount);
+      const updated = {
+        ...prev,
+        coins: novoSaldo,
+      };
+      try {
+        localStorage.setItem("brain_studio_user_v3", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("brain_studio_user_updated", { detail: updated }));
+      } catch {}
+      return updated;
+    });
+
+    if (!skipLedger) {
+      movimentarMoedas(
+        userUid,
+        amount,
+        origem,
+        undefined,
+        undefined,
+        descricao || `Recompensa de +${amount} moedas`
+      ).catch(() => {});
+    }
   };
 
   const handleStudyOnAva = () => {
@@ -715,12 +795,17 @@ export default function App() {
   };
 
   const handlePermanentEnergyUpgrade = (amount: number, cost: number) => {
+    const preco = Math.max(0, cost);
+    if ((user.coins ?? 250) < preco) {
+      console.warn("Moedas insuficientes para expansão permanente de bateria!");
+      return;
+    }
+    handleConsumeCoins(preco, "loja", "Upgrade permanente de bateria (+5)", "bateria_max");
     setUser((prev) => {
       const currentMax = prev.maxEnergy || 50;
       const newMax = currentMax + amount;
       return {
         ...prev,
-        xp: prev.xp - cost,
         maxEnergy: newMax,
         energy: newMax, // Instant full refill
       };
@@ -769,14 +854,15 @@ export default function App() {
   };
 
   const handleBuyBadge = (badgeId: string, price: number) => {
-    if (user.xp < price) {
-      console.warn("XP insuficiente para desbloquear este distintivo!");
+    const preco = Math.max(0, price);
+    if ((user.coins ?? 250) < preco) {
+      console.warn("Moedas insuficientes para desbloquear este distintivo!");
       return;
     }
+    handleConsumeCoins(preco, "cosmetico", `Distintivo da Loja: ${badgeId}`, badgeId);
     setUser((prev) => ({
       ...prev,
-      xp: prev.xp - price,
-      unlockedBadges: [...prev.unlockedBadges, badgeId],
+      unlockedBadges: [...(prev.unlockedBadges || []), badgeId],
       equippedBadge: badgeId,
     }));
   };
@@ -1343,12 +1429,7 @@ export default function App() {
             currentTheme={currentTheme}
             onRewardCoins={handleRewardCoins}
             onRewardXp={handleRewardXp}
-            onConsumeCoins={(amount) => {
-              setUser((prev) => ({
-                ...prev,
-                coins: Math.max(0, (prev.coins ?? 250) - amount),
-              }));
-            }}
+            onConsumeCoins={handleConsumeCoins}
             onConsumeEnergy={handleConsumeEnergy}
             onAddEnergy={handleAddEnergy}
             onUpdateUserTeam={handleUpdateUserTeam}

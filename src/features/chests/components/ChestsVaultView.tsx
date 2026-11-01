@@ -3,6 +3,7 @@ import { Gift, Sparkles, Key, Lock, ChevronRight, Award } from "lucide-react";
 import { ChestDropResult, ChestType } from "../types";
 import { CHESTS_CONFIG, loadUserChests, openChest, UserChestsVault } from "../services/chestService";
 import { ChestOpeningModal } from "./ChestOpeningModal";
+import { UserCardInventory } from "../../cards/types";
 
 interface ChestsVaultViewProps {
   onRewardCoins: (amount: number) => void;
@@ -10,6 +11,9 @@ interface ChestsVaultViewProps {
   onRewardShards: (amount: number) => void;
   onOpenCardPackDirectly?: (packType: any) => void;
   onEquipBadge?: (badgeName: string) => void;
+  cardInventory?: UserCardInventory;
+  onUpdateCardInventory?: (inv: UserCardInventory) => void;
+  userUid?: string;
 }
 
 export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
@@ -18,14 +22,20 @@ export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
   onRewardShards,
   onOpenCardPackDirectly,
   onEquipBadge,
+  cardInventory,
+  onUpdateCardInventory,
+  userUid,
 }) => {
   const [vault, setVault] = useState<UserChestsVault>(() => loadUserChests());
   const [activeDropResult, setActiveDropResult] = useState<ChestDropResult | null>(null);
 
   const handleOpenChest = (chestType: ChestType) => {
-    const res = openChest(chestType, vault);
+    const res = openChest(chestType, vault, cardInventory, userUid);
     if (res.success && res.dropResult) {
       setVault(res.updatedVault);
+      if (onUpdateCardInventory && res.updatedCardInventory) {
+        onUpdateCardInventory(res.updatedCardInventory);
+      }
       setActiveDropResult(res.dropResult);
     }
   };
@@ -36,10 +46,6 @@ export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
     onRewardShards(drops.starShards);
     if (drops.badgeAwarded && onEquipBadge) {
       onEquipBadge(drops.badgeAwarded);
-    }
-    // Se o baú conferiu pacotes de cartas, abre o primeiro se disponível
-    if (drops.packs.length > 0 && onOpenCardPackDirectly) {
-      onOpenCardPackDirectly(drops.packs[0]);
     }
     setActiveDropResult(null);
   };
@@ -62,7 +68,7 @@ export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Baús conquistados através de torneios, marcos de eventos, temporadas e conquistas de cidades.
+              Baús conquistados através de torneios, marcos de eventos, temporadas e vilas do conhecimento.
             </p>
           </div>
         </div>
@@ -116,7 +122,7 @@ export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Pacotes:</span>
+                    <span className="text-slate-400">Pacotes Garantidos:</span>
                     <span className="font-bold text-emerald-400">
                       {def.guaranteedPacks.map((p) => p.toUpperCase()).join(" + ")}
                     </span>
@@ -128,21 +134,21 @@ export const ChestsVaultView: React.FC<ChestsVaultViewProps> = ({
               <button
                 disabled={!hasAvailable}
                 onClick={() => handleOpenChest(def.id)}
-                className={`mt-5 w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition ${
+                className={`mt-5 w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   hasAvailable
                     ? "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 shadow-md active:scale-95"
                     : "bg-slate-800 text-slate-500 cursor-not-allowed"
                 }`}
               >
                 <Key className="w-4 h-4" />
-                <span>{hasAvailable ? "Abrir Baú Agora" : "Bloqueado"}</span>
+                <span>{hasAvailable ? "Abrir Baú Agora" : "Sem Baús em Estoque"}</span>
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Modal de Abertura */}
+      {/* Modal de Abertura Interativa */}
       <ChestOpeningModal
         isOpen={Boolean(activeDropResult)}
         onClose={() => setActiveDropResult(null)}

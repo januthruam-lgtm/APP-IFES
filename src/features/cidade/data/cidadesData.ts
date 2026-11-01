@@ -1,10 +1,10 @@
 import { CidadeTema } from "../types";
 
-// Importações dos cenários de alta resolução gerados exclusivamente para o APP-IFES
-import imgLitoranea from "../../../assets/images/cidade_litoranea_cenario_1793377133509.jpg";
-import imgHistorica from "../../../assets/images/cidade_historica_cenario_1793377146781.jpg";
-import imgFuturista from "../../../assets/images/cidade_futurista_cenario_1793377159007.jpg";
-import imgMontanha from "../../../assets/images/cidade_montanha_cenario_1793377171723.jpg";
+// Resolução dos cenários de alta resolução gerados exclusivamente para o APP-IFES
+const imgLitoranea = new URL("../../../assets/images/cidade_litoranea_cenario_1793377133509.jpg", import.meta.url).href;
+const imgHistorica = new URL("../../../assets/images/cidade_historica_cenario_1793377146781.jpg", import.meta.url).href;
+const imgFuturista = new URL("../../../assets/images/cidade_futurista_cenario_1793377159007.jpg", import.meta.url).href;
+const imgMontanha = new URL("../../../assets/images/cidade_montanha_cenario_1793377171723.jpg", import.meta.url).href;
 
 export const CIDADES_DATA: CidadeTema[] = [
   {

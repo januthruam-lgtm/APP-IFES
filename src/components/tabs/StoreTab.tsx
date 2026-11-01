@@ -28,6 +28,7 @@ interface StoreTabProps {
   onPermanentEnergyUpgrade?: (additionalMax: number, cost: number) => void;
   onRewardXp?: (xp: number) => void;
   onRewardCoins?: (coins: number) => void;
+  onConsumeCoins?: (amount: number, origem?: any, descricao?: string, refId?: string) => void;
   onStudyOnAva?: () => void;
   onUnlockCard?: (cardId: string) => void;
   onUpdatePet?: (pet: UserPet) => void;
@@ -41,6 +42,7 @@ export const StoreTab: React.FC<StoreTabProps> = ({
   onAddEnergy,
   onPermanentEnergyUpgrade,
   onRewardCoins,
+  onConsumeCoins,
   onUpdatePet,
 }) => {
   const { t } = useTranslation();
@@ -113,10 +115,12 @@ export const StoreTab: React.FC<StoreTabProps> = ({
       showToast("Moedas insuficientes para adotar este mascote! 🪙");
       return;
     }
-    if (onRewardCoins) {
+    const petDef = getPetDefinition(petId);
+    if (onConsumeCoins) {
+      onConsumeCoins(cost, "cosmetico", `Adoção de Mascote: ${petDef.nome}`, petId);
+    } else if (onRewardCoins) {
       onRewardCoins(-cost);
     }
-    const petDef = getPetDefinition(petId);
     const unlocked = Array.isArray(user.pet?.unlockedPets) ? [...user.pet.unlockedPets] : [];
     if (!unlocked.includes(petId as any)) {
       unlocked.push(petId as any);
@@ -149,7 +153,11 @@ export const StoreTab: React.FC<StoreTabProps> = ({
       showToast("Moedas insuficientes! Estude e complete módulos para ganhar mais moedas.");
       return;
     }
-    if (onRewardCoins) onRewardCoins(-cost);
+    if (onConsumeCoins) {
+      onConsumeCoins(cost, "loja", `Recarga de +${amount} Energias`, "energia");
+    } else if (onRewardCoins) {
+      onRewardCoins(-cost);
+    }
     if (onAddEnergy) onAddEnergy(amount);
     confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
     showToast(`+${amount} Energias recarregadas com sucesso!`);
@@ -160,7 +168,11 @@ export const StoreTab: React.FC<StoreTabProps> = ({
       showToast("Moedas insuficientes para expansão permanente de bateria.");
       return;
     }
-    if (onPermanentEnergyUpgrade) onPermanentEnergyUpgrade(5, cost);
+    if (onPermanentEnergyUpgrade) {
+      onPermanentEnergyUpgrade(5, cost);
+    } else if (onConsumeCoins) {
+      onConsumeCoins(cost, "loja", "Upgrade permanente de bateria (+5)", "bateria_max");
+    }
     confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
     showToast("Capacidade máxima de energia permanentemente expandida em +5!");
   };
@@ -172,7 +184,11 @@ export const StoreTab: React.FC<StoreTabProps> = ({
     }
     if (!user.pet) return;
 
-    if (onRewardCoins) onRewardCoins(-cost);
+    if (onConsumeCoins) {
+      onConsumeCoins(cost, "cosmetico", `Alimento para Mascote: ${foodName}`, "pet_food");
+    } else if (onRewardCoins) {
+      onRewardCoins(-cost);
+    }
     const currentExp = (user.pet.exp || 0) + expGain;
     let level = user.pet.level || 1;
     let maxExp = user.pet.maxExp || 100;

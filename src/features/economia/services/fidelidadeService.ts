@@ -93,12 +93,35 @@ export function criarEstadoFidelidadePadrao(uid: string): EstadoFidelidadeUsuari
   };
 }
 
+import { getEffectiveUserId } from "../../../utils/userUtils";
+
+/**
+ * Normaliza rótulos de origem e categoria para as categorias canônicas do programa de fidelidade.
+ */
+export function normalizarCategoriaFidelidade(categoria: string): string {
+  const c = categoria?.toLowerCase()?.trim() || "";
+  if (c === "cidade" || c === "obras_cidade" || c.includes("cidade") || c.includes("construcao")) {
+    return "obras_cidade";
+  }
+  if (c === "loja" || c === "loja_pets" || c === "pet" || c === "pets") {
+    return "loja_pets";
+  }
+  if (c === "cartas" || c === "album" || c === "pacote" || c === "pacotes" || c === "cosmetico" || c === "cosmeticos") {
+    return "cosmeticos";
+  }
+  if (c === "evolucao_pet" || c.includes("petisco") || c.includes("racao")) {
+    return "evolucao_pet";
+  }
+  return categoria;
+}
+
 /**
  * Carrega estado de fidelidade (Firestore com fallback no localStorage)
  */
 export async function carregarEstadoFidelidade(uid: string): Promise<EstadoFidelidadeUsuario> {
+  const canonicalUid = getEffectiveUserId(uid);
   const chaveSemana = obterChaveSemanaSaoPaulo();
-  const storageKey = `${STORAGE_KEY_FIDELIDADE_PREFIX}_${uid}`;
+  const storageKey = `${STORAGE_KEY_FIDELIDADE_PREFIX}_${canonicalUid}`;
 
   let estado: EstadoFidelidadeUsuario | null = null;
 
@@ -106,13 +129,24 @@ export async function carregarEstadoFidelidade(uid: string): Promise<EstadoFidel
     const rawLocal = localStorage.getItem(storageKey);
     if (rawLocal) {
       estado = JSON.parse(rawLocal);
+    } else if (canonicalUid === "local_user") {
+      // Tenta recuperar de chaves legadas
+      for (const legacy of ["local-user", "local-student", "local_student"]) {
+        const rawLeg = localStorage.getItem(`${STORAGE_KEY_FIDELIDADE_PREFIX}_${legacy}`);
+        if (rawLeg) {
+          try {
+            estado = JSON.parse(rawLeg);
+            break;
+          } catch {}
+        }
+      }
     }
   } catch (e) {
     console.warn("Erro ao ler fidelidade local:", e);
   }
 
   try {
-    const docRef = doc(db, "users", uid, "fidelidade", "perfil");
+    const docRef = doc(db, "users", canonicalUid, "fidelidade", "perfil");
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       estado = { ...(estado || {}), ...snap.data() } as EstadoFidelidadeUsuario;
@@ -122,7 +156,7 @@ export async function carregarEstadoFidelidade(uid: string): Promise<EstadoFidel
   }
 
   if (!estado) {
-    estado = criarEstadoFidelidadePadrao(uid);
+    estado = criarEstadoFidelidadePadrao(canonicalUid);
   }
 
   // Verifica se a semana virou para renovar cotas de resgate do cofre e metas semanais
@@ -131,7 +165,7 @@ export async function carregarEstadoFidelidade(uid: string): Promise<EstadoFidel
     estado.gastoSemanaAtual = 0;
     estado.resgateSemanaAtual = { valor: 0, resgatesCount: 0 };
     estado.metasSemanaisConcluidas = [];
-    salvarEstadoFidelidade(uid, estado);
+    salvarEstadoFidelidade(canonicalUid, estado);
   }
 
   // Recalcula o nível atual
@@ -145,15 +179,19 @@ export async function carregarEstadoFidelidade(uid: string): Promise<EstadoFidel
  * Salva estado de fidelidade local e remotamente
  */
 export async function salvarEstadoFidelidade(uid: string, estado: EstadoFidelidadeUsuario): Promise<void> {
-  const storageKey = `${STORAGE_KEY_FIDELIDADE_PREFIX}_${uid}`;
+  const canonicalUid = getEffectiveUserId(uid);
+  const storageKey = `${STORAGE_KEY_FIDELIDADE_PREFIX}_${canonicalUid}`;
   try {
     localStorage.setItem(storageKey, JSON.stringify(estado));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("brain_studio_fidelidade_updated", { detail: estado }));
+    }
   } catch (err) {
     console.warn("Aviso ao salvar fidelidade local:", err);
   }
 
   try {
-    const docRef = doc(db, "users", uid, "fidelidade", "perfil");
+    const docRef = doc(db, "users", canonicalUid, "fidelidade", "perfil");
     await setDoc(docRef, estado, { merge: true });
   } catch (err) {
     // Offline tolerante
@@ -167,7 +205,11 @@ export function isCategoriaElegivel(categoria: string): boolean {
   if (FIDELIDADE_CONFIG.GASTO_ELEGIVEL.ITENS_EXCLUIDOS.includes(categoria as any)) {
     return false;
   }
-  return FIDELIDADE_CONFIG.GASTO_ELEGIVEL.CATEGORIAS_PERMITIDAS.includes(categoria as any);
+  const normalizada = normalizarCategoriaFidelidade(categoria);
+  return (
+    FIDELIDADE_CONFIG.GASTO_ELEGIVEL.CATEGORIAS_PERMITIDAS.includes(normalizada as any) ||
+    FIDELIDADE_CONFIG.GASTO_ELEGIVEL.CATEGORIAS_PERMITIDAS.includes(categoria as any)
+  );
 }
 
 /**
@@ -184,9 +226,11 @@ export async function registrarGastoElegivel(
   novosSelos: number;
   metaSemanalAlcancada?: { id: string; retornoCofre: number };
 }> {
-  const estado = await carregarEstadoFidelidade(uid);
+  const canonicalUid = getEffectiveUserId(uid);
+  const estado = await carregarEstadoFidelidade(canonicalUid);
+  const categoriaNormalizada = normalizarCategoriaFidelidade(categoria);
 
-  if (valorGasto <= 0 || !isCategoriaElegivel(categoria)) {
+  if (valorGasto <= 0 || !isCategoriaElegivel(categoriaNormalizada)) {
     return { estado, cashbackNoCofre: 0, novosSelos: 0 };
   }
 
@@ -198,16 +242,20 @@ export async function registrarGastoElegivel(
   // 2. Calcula percentual de cashback (Base + Semana Temática se aplicável)
   let percentualRetorno = nivel.porcentagemRetorno;
   const semanaTematicaAtiva = FIDELIDADE_CONFIG.SEMANAS_TEMATICAS.find(
-    (st) => st.categoria === categoria
+    (st) => st.categoria === categoriaNormalizada
   );
   if (semanaTematicaAtiva) {
     percentualRetorno += semanaTematicaAtiva.bonusPercentualCofre;
   }
 
-  const cashbackCalculado = Math.floor(valorGasto * percentualRetorno);
+  // Garante que compras elegíveis de pelo menos 10 moedas geram retorno tangível no cofre
+  const cashbackCalculado = Math.max(
+    valorGasto >= 10 ? 1 : 0,
+    Math.floor(valorGasto * percentualRetorno)
+  );
   let cashbackReal = 0;
 
-  // 3. Aplica teto do cofre (Capacidade máxima de 500)
+  // 3. Aplica teto do cofre (Capacidade máxima de 500 moedas)
   if (cashbackCalculado > 0) {
     const espacoNoCofre = Math.max(0, FIDELIDADE_CONFIG.COFRE.CAPACIDADE_MAXIMA - estado.saldoCofre);
     cashbackReal = Math.min(cashbackCalculado, espacoNoCofre);
@@ -215,7 +263,9 @@ export async function registrarGastoElegivel(
   }
 
   // 4. Concessão de Selos (1 selo a cada 100 moedas gastas acumuladas)
-  const selosAnterioresTotal = Math.floor((estado.gastoElegivel30d - valorGasto) / FIDELIDADE_CONFIG.SELOS.MOEDAS_POR_SELO);
+  const selosAnterioresTotal = Math.floor(
+    Math.max(0, estado.gastoElegivel30d - valorGasto) / FIDELIDADE_CONFIG.SELOS.MOEDAS_POR_SELO
+  );
   const selosNovosTotal = Math.floor(estado.gastoElegivel30d / FIDELIDADE_CONFIG.SELOS.MOEDAS_POR_SELO);
   const novosSelos = Math.max(0, selosNovosTotal - selosAnterioresTotal);
 
@@ -242,7 +292,7 @@ export async function registrarGastoElegivel(
     }
   }
 
-  await salvarEstadoFidelidade(uid, estado);
+  await salvarEstadoFidelidade(canonicalUid, estado);
 
   return {
     estado,
@@ -268,7 +318,8 @@ export async function resgatarCofreFidelidade(
   novoSaldoCofre: number;
   mensagem: string;
 }> {
-  const estado = await carregarEstadoFidelidade(uid);
+  const canonicalUid = getEffectiveUserId(uid);
+  const estado = await carregarEstadoFidelidade(canonicalUid);
 
   if (estado.saldoCofre <= 0) {
     return {
@@ -315,7 +366,7 @@ export async function resgatarCofreFidelidade(
 
   // Executa lançamento atômico de ganho no livro-razão (extrato)
   const tx = await movimentarMoedas(
-    uid,
+    canonicalUid,
     valorParaResgatar,
     "fidelidade",
     "resgate_cofre",
@@ -338,7 +389,7 @@ export async function resgatarCofreFidelidade(
   estado.resgateSemanaAtual.resgatesCount += 1;
   estado.resgateSemanaAtual.ultimaDataIso = new Date().toISOString();
 
-  await salvarEstadoFidelidade(uid, estado);
+  await salvarEstadoFidelidade(canonicalUid, estado);
 
   return {
     sucesso: true,
@@ -355,12 +406,13 @@ export async function resgatarItemSelos(
   uid: string,
   itemId: string
 ): Promise<{ sucesso: boolean; mensagem: string; estadoAtual?: EstadoFidelidadeUsuario }> {
+  const canonicalUid = getEffectiveUserId(uid);
   const item = FIDELIDADE_CONFIG.SELOS.CATALOGO.find((i) => i.id === itemId);
   if (!item) {
     return { sucesso: false, mensagem: "Item do catálogo não encontrado." };
   }
 
-  const estado = await carregarEstadoFidelidade(uid);
+  const estado = await carregarEstadoFidelidade(canonicalUid);
 
   if (estado.itensSelosDesbloqueados.includes(itemId)) {
     return { sucesso: false, mensagem: "Você já possui este item exclusivo!" };
@@ -376,7 +428,7 @@ export async function resgatarItemSelos(
   estado.selosDisponiveis -= item.selos;
   estado.itensSelosDesbloqueados.push(itemId);
 
-  await salvarEstadoFidelidade(uid, estado);
+  await salvarEstadoFidelidade(canonicalUid, estado);
 
   return {
     sucesso: true,

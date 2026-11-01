@@ -3,16 +3,16 @@
  * Imagens temáticas de alta fidelidade no estilo artístico casual game e vilas ilustradas.
  */
 
-import cidade1 from "../../../assets/images/cidades/cidade_1.jpg";
-import cidade2 from "../../../assets/images/cidades/cidade_2.jpg";
-import cidade3 from "../../../assets/images/cidades/cidade_3.jpg";
-import cidade4 from "../../../assets/images/cidades/cidade_4.jpg";
-import cidade5 from "../../../assets/images/cidades/cidade_5.jpg";
-import cidade6 from "../../../assets/images/cidades/cidade_6.jpg";
-import cidade7 from "../../../assets/images/cidades/cidade_7.jpg";
-import cidade8 from "../../../assets/images/cidades/cidade_8.jpg";
-import cidade9 from "../../../assets/images/cidades/cidade_9.jpg";
-import cidade10 from "../../../assets/images/cidades/cidade_10.jpg";
+const cidade1 = new URL("../../../assets/images/cidades/cidade_1.jpg", import.meta.url).href;
+const cidade2 = new URL("../../../assets/images/cidades/cidade_2.jpg", import.meta.url).href;
+const cidade3 = new URL("../../../assets/images/cidades/cidade_3.jpg", import.meta.url).href;
+const cidade4 = new URL("../../../assets/images/cidades/cidade_4.jpg", import.meta.url).href;
+const cidade5 = new URL("../../../assets/images/cidades/cidade_5.jpg", import.meta.url).href;
+const cidade6 = new URL("../../../assets/images/cidades/cidade_6.jpg", import.meta.url).href;
+const cidade7 = new URL("../../../assets/images/cidades/cidade_7.jpg", import.meta.url).href;
+const cidade8 = new URL("../../../assets/images/cidades/cidade_8.jpg", import.meta.url).href;
+const cidade9 = new URL("../../../assets/images/cidades/cidade_9.jpg", import.meta.url).href;
+const cidade10 = new URL("../../../assets/images/cidades/cidade_10.jpg", import.meta.url).href;
 
 export const IMAGENS_CIDADES: Record<number, string> = {
   1: cidade1,

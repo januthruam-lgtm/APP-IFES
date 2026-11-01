@@ -8,6 +8,7 @@ import { ECONOMIA_CONFIG, calcularRecompensaBau, RecompensaBauResultado } from "
 import { UserProfile } from "../types";
 import { FirestoreService } from "../lib/firestoreService";
 import { getSaoPauloDateString } from "./streakCalculator";
+import { movimentarMoedas } from "../features/economia/services/extratoService";
 
 export interface DadosEconomiaDiaria {
   data: string; // YYYY-MM-DD (America/Sao_Paulo)
@@ -80,7 +81,7 @@ export async function abrirProximoBauEquipe(
   recompensa?: RecompensaBauResultado;
   updatedUser?: UserProfile;
 }> {
-  const userId = user.id || user.uid || "local-student";
+  const userId = user.id || user.uid || (user as any).email || "local_user";
   const dia = getDiaEconomiaAtual();
   const econ = getEconomiaDiariaLocal(userId, dia);
 
@@ -116,6 +117,20 @@ export async function abrirProximoBauEquipe(
   econ.moedasGanhasHoje += moedasGanhas;
   econ.chavesBausAbertos.push(chaveIdempotencia);
   salvarEconomiaDiariaLocal(userId, econ);
+
+  // Registra no extrato financeiro
+  if (moedasGanhas > 0) {
+    try {
+      await movimentarMoedas(
+        userId,
+        moedasGanhas,
+        "bau",
+        `bau_${proximoNumero}`,
+        chaveIdempotencia,
+        `Baú da Equipe #${proximoNumero}`
+      );
+    } catch {}
+  }
 
   // Atualiza perfil do usuário
   const novoInventario = { ...(user.itensInventario || {}) };
@@ -253,7 +268,7 @@ export async function resgatarRecompensaMissao(
   moedasGanhas: number;
   updatedUser?: UserProfile;
 }> {
-  const userId = user.id || user.uid || "local-student";
+  const userId = user.id || user.uid || (user as any).email || "local_user";
   const dia = getDiaEconomiaAtual();
   const econ = getEconomiaDiariaLocal(userId, dia);
 
@@ -276,6 +291,19 @@ export async function resgatarRecompensaMissao(
   econ.missoesResgatadasHoje.push(missaoId);
   econ.moedasGanhasHoje += moedasGanhas;
   salvarEconomiaDiariaLocal(userId, econ);
+
+  if (moedasGanhas > 0) {
+    try {
+      await movimentarMoedas(
+        userId,
+        moedasGanhas,
+        "missao",
+        missaoId,
+        `missao_${dia}_${missaoId}`,
+        `Missão Diária: ${missaoId}`
+      );
+    } catch {}
+  }
 
   const updatedUser: UserProfile = {
     ...user,
@@ -325,13 +353,25 @@ export async function comprarCongelamentoOfensiva(
     };
   }
 
+  const userId = user.id || user.uid || (user as any).email || "local_user";
+
+  try {
+    await movimentarMoedas(
+      userId,
+      -CUSTO,
+      "loja",
+      "congelamento_ofensiva",
+      `freeze_${Date.now()}`,
+      "Compra: Congelamento de Ofensiva (Streak Freeze)"
+    );
+  } catch {}
+
   const updatedUser: UserProfile = {
     ...user,
     coins: user.coins - CUSTO,
     congelamentosOfensiva: atual + 1,
   };
 
-  const userId = user.id || user.uid || "local-student";
   if (user.id || user.uid) {
     FirestoreService.updateDocument("users", userId, {
       coins: updatedUser.coins,
@@ -396,7 +436,21 @@ export async function resgatarMarcoOfensiva(
     marcosOfensivaResgatados: resgatados,
   };
 
-  const userId = user.id || user.uid || "local-student";
+  const userId = user.id || user.uid || (user as any).email || "local_user";
+
+  if (moedas > 0) {
+    try {
+      await movimentarMoedas(
+        userId,
+        moedas,
+        "ofensiva",
+        `marco_${dias}`,
+        `marco_streak_${dias}_${userId}`,
+        `Marco de Ofensiva: ${dias} dias`
+      );
+    } catch {}
+  }
+
   if (user.id || user.uid) {
     FirestoreService.updateDocument("users", userId, {
       coins: updatedUser.coins,
@@ -434,6 +488,19 @@ export async function comprarItemLojaAcademica(
     };
   }
 
+  const userId = user.id || user.uid || (user as any).email || "local_user";
+
+  try {
+    await movimentarMoedas(
+      userId,
+      -preco,
+      "loja",
+      itemId,
+      `loja_${itemId}_${Date.now()}`,
+      `Compra na Loja Acadêmica: ${itemId}`
+    );
+  } catch {}
+
   const novoInventario = { ...(user.itensInventario || {}) };
   let novoXpBoost = user.xpBoostAte || null;
   let novaEnergia = user.energy;
@@ -457,7 +524,6 @@ export async function comprarItemLojaAcademica(
     xpBoostAte: novoXpBoost,
   };
 
-  const userId = user.id || user.uid || "local-student";
   if (user.id || user.uid) {
     FirestoreService.updateDocument("users", userId, {
       coins: updatedUser.coins,

@@ -63,7 +63,7 @@ export interface JogoTabProps {
   currentTheme?: CustomThemeColors;
   onRewardCoins?: (coins: number) => void;
   onRewardXp?: (xp: number) => void;
-  onConsumeCoins?: (amount: number) => void;
+  onConsumeCoins?: (amount: number, origem?: any, descricao?: string, refId?: string, skipLedger?: boolean) => void;
   onConsumeEnergy?: (amount: number) => boolean;
   onAddEnergy?: (amount: number) => void;
   onUpdateUserTeam?: (teamId: string | null) => void;
@@ -337,6 +337,9 @@ export const JogoTab: React.FC<JogoTabProps> = ({
             }}
             onOpenCardPackDirectly={() => setActiveSubView("album")}
             onEquipBadge={onEquipBadge}
+            cardInventory={cardInventory}
+            onUpdateCardInventory={handleUpdateCardInventory}
+            userUid={userUid}
           />
         )}
 
@@ -457,6 +460,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
             onAddEnergy={onAddEnergy}
             onPermanentEnergyUpgrade={onPermanentEnergyUpgrade}
             onRewardCoins={onRewardCoins}
+            onConsumeCoins={onConsumeCoins}
             onUpdatePet={onUpdatePet}
             currentTheme={currentTheme}
           />
@@ -480,7 +484,7 @@ export const JogoTab: React.FC<JogoTabProps> = ({
               saldoAtualMoedas={user.coins ?? 250}
               missaoDiariaConcluidaHoje={true}
               onMoedasResgatadas={(novas) => {
-                if (onRewardCoins) onRewardCoins(novas);
+                if (onRewardCoins) (onRewardCoins as any)(novas, "fidelidade", "Resgate do Cofre de Fidelidade", true);
               }}
               onNavigateToCidade={() => setActiveSubView("cidade")}
               onNavigateToStore={() => setActiveSubView("loja")}

@@ -27,7 +27,7 @@ interface CidadeDoConhecimentoTabProps {
   user: UserProfile;
   onRewardCoins?: (amount: number) => void;
   onRewardXp?: (amount: number) => void;
-  onConsumeCoins?: (amount: number) => void;
+  onConsumeCoins?: (amount: number, origem?: any, descricao?: string, refId?: string, skipLedger?: boolean) => void;
 }
 
 export const CidadeDoConhecimentoTab: React.FC<CidadeDoConhecimentoTabProps> = ({
@@ -36,7 +36,7 @@ export const CidadeDoConhecimentoTab: React.FC<CidadeDoConhecimentoTabProps> = (
   onRewardXp,
   onConsumeCoins,
 }) => {
-  const userId = user.id || user.uid || "local-user";
+  const userId = user.id || user.uid || (user as any).email || "local_user";
 
   const [estado, setEstado] = useState<EstadoCidadeUsuario | null>(null);
   const [cidadeIdAtiva, setCidadeIdAtiva] = useState<number>(1);
@@ -106,7 +106,7 @@ export const CidadeDoConhecimentoTab: React.FC<CidadeDoConhecimentoTabProps> = (
 
       if (res.sucesso) {
         setEstado(res.novoEstado);
-        if (onConsumeCoins) onConsumeCoins(res.custoMoedas);
+        if (onConsumeCoins) onConsumeCoins(res.custoMoedas, "cidade", undefined, undefined, true);
         if (onRewardXp) onRewardXp(res.xpGanho);
 
         try {

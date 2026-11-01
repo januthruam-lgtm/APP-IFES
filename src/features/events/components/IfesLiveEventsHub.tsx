@@ -22,6 +22,7 @@ import {
   loadEventParticipation,
 } from "../services/eventService";
 import { MilestoneTrackBar } from "./MilestoneTrackBar";
+import { addChestToVault, loadUserChests } from "../../chests/services/chestService";
 
 interface IfesLiveEventsHubProps {
   onRewardCoins: (amount: number) => void;
@@ -80,6 +81,8 @@ export const IfesLiveEventsHub: React.FC<IfesLiveEventsHubProps> = ({
         onRewardXp(res.milestone.rewardAmount);
       } else if (res.milestone.rewardType === "shards" && onRewardShards) {
         onRewardShards(res.milestone.rewardAmount);
+      } else if (res.milestone.rewardType === "chest" && res.milestone.chestType) {
+        addChestToVault(res.milestone.chestType, loadUserChests());
       }
 
       try {

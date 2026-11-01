@@ -1,4 +1,4 @@
-import { CardPackType } from "../cards/types";
+import { CardDefinition, CardPackType } from "../cards/types";
 
 export type ChestType = "madeira" | "prata" | "ouro" | "epico" | "lendario" | "mitico";
 
@@ -18,11 +18,18 @@ export interface ChestDefinition {
   description: string;
 }
 
+export interface ChestAwardedCard {
+  card: CardDefinition;
+  isNew: boolean;
+  copiesAfter: number;
+}
+
 export interface ChestDropResult {
   chestType: ChestType;
   coins: number;
   xp: number;
   packs: CardPackType[];
+  cardsAwarded: ChestAwardedCard[];
   starShards: number;
   badgeAwarded?: string;
 }

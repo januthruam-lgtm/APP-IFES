@@ -4,6 +4,7 @@ import confetti from "canvas-confetti";
 import { CURRENT_SEASON } from "../data/seasonsData";
 import { claimSeasonTier, loadUserSeasonProgress } from "../services/seasonService";
 import { UserSeasonProgress } from "../types";
+import { addChestToVault, loadUserChests } from "../../chests/services/chestService";
 
 interface SeasonPassViewProps {
   onRewardCoins: (amount: number) => void;
@@ -45,6 +46,8 @@ export const SeasonPassView: React.FC<SeasonPassViewProps> = ({
         onRewardXp(res.reward.amount);
       } else if (res.reward.type === "shards" && onRewardShards) {
         onRewardShards(res.reward.amount);
+      } else if (res.reward.type === "chest" && res.reward.chestType) {
+        addChestToVault(res.reward.chestType, loadUserChests());
       }
 
       try {

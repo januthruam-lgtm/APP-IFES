@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, X, ChevronRight, CheckCircle2, RotateCcw } from "lucide-react";
 import confetti from "canvas-confetti";
 import { CardDropResult, CardPackDefinition } from "../types";
@@ -19,11 +19,19 @@ export const CardPackOpenerModal: React.FC<CardPackOpenerModalProps> = ({
   drops,
   onCollectAll,
 }) => {
-  if (!isOpen || !packDef || drops.length === 0) return null;
-
   // Estados da sequência de abertura: 'sealed' -> 'revealing' -> 'summary'
   const [phase, setPhase] = useState<"sealed" | "revealing" | "summary">("sealed");
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
+
+  // Reinicia os estados sempre que o modal é aberto
+  useEffect(() => {
+    if (isOpen) {
+      setPhase("sealed");
+      setRevealedIndices([]);
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !packDef || drops.length === 0) return null;
 
   const handleStartTear = () => {
     setPhase("revealing");

@@ -1,4 +1,10 @@
-import { ChestDefinition, ChestDropResult, ChestType } from "../types";
+import { ChestAwardedCard, ChestDefinition, ChestDropResult, ChestType } from "../types";
+import {
+  openCardPack,
+  saveUserCardInventory,
+  INITIAL_CARD_INVENTORY,
+} from "../../cards/services/cardService";
+import { UserCardInventory } from "../../cards/types";
 
 export const CHESTS_CONFIG: Record<ChestType, ChestDefinition> = {
   madeira: {
@@ -92,6 +98,7 @@ export const CHESTS_CONFIG: Record<ChestType, ChestDefinition> = {
 };
 
 const CHESTS_STORAGE_KEY = "brain_studio_chests_vault_v3";
+const CARDS_STORAGE_KEY = "brain_studio_cards_v3";
 
 export interface UserChestsVault {
   chests: Record<ChestType, number>;
@@ -137,17 +144,32 @@ export function addChestToVault(chestType: ChestType, vault: UserChestsVault): U
   return updated;
 }
 
+function getLocalCardInventory(): UserCardInventory {
+  try {
+    const raw = localStorage.getItem(CARDS_STORAGE_KEY);
+    if (raw) return { ...INITIAL_CARD_INVENTORY, ...JSON.parse(raw) };
+  } catch {}
+  return INITIAL_CARD_INVENTORY;
+}
+
 export function openChest(
   chestType: ChestType,
-  vault: UserChestsVault
+  vault: UserChestsVault,
+  cardInventory?: UserCardInventory,
+  uid?: string
 ): {
   success: boolean;
   dropResult?: ChestDropResult;
   updatedVault: UserChestsVault;
+  updatedCardInventory: UserCardInventory;
 } {
   const count = vault.chests[chestType] || 0;
+  let activeInv: UserCardInventory = cardInventory
+    ? { ...cardInventory, cards: { ...cardInventory.cards } }
+    : getLocalCardInventory();
+
   if (count <= 0) {
-    return { success: false, updatedVault: vault };
+    return { success: false, updatedVault: vault, updatedCardInventory: activeInv };
   }
 
   const def = CHESTS_CONFIG[chestType] || CHESTS_CONFIG.madeira;
@@ -160,11 +182,38 @@ export function openChest(
     Math.floor(Math.random() * (def.bonusShardsRange[1] - def.bonusShardsRange[0] + 1)) +
     def.bonusShardsRange[0];
 
+  // Rola todas as cartas dos pacotes garantidos no baú
+  const cardsAwarded: ChestAwardedCard[] = [];
+  const guaranteedPacks = def.guaranteedPacks.length > 0 ? def.guaranteedPacks : ["comum" as const];
+
+  for (const packType of guaranteedPacks) {
+    const packResult = openCardPack(packType, activeInv);
+    activeInv = packResult.updatedInventory;
+
+    for (const drop of packResult.drops) {
+      cardsAwarded.push({
+        card: drop.card,
+        isNew: drop.isNew,
+        copiesAfter: drop.duplicateCount,
+      });
+    }
+  }
+
+  // Bonificação de fragmentos estelares do baú
+  activeInv = {
+    ...activeInv,
+    starShards: activeInv.starShards + starShards,
+  };
+
+  // Salva no armazenamento persistente (localStorage e Firestore)
+  saveUserCardInventory(activeInv, uid);
+
   const dropResult: ChestDropResult = {
     chestType,
     coins,
     xp,
     packs: [...def.guaranteedPacks],
+    cardsAwarded,
     starShards,
     badgeAwarded: def.specialBadgeTitle,
   };
@@ -184,5 +233,6 @@ export function openChest(
     success: true,
     dropResult,
     updatedVault,
+    updatedCardInventory: activeInv,
   };
 }

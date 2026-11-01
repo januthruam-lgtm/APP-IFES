@@ -87,7 +87,11 @@ export async function carregarEstadoCidade(userId: string): Promise<EstadoCidade
   let estadoLocal: EstadoCidadeUsuario | null = null;
   if (typeof window !== "undefined") {
     try {
-      const raw = localStorage.getItem(localKey);
+      let raw = localStorage.getItem(localKey);
+      if (!raw && (userId === "local-user" || userId === "local_user")) {
+        const altKey = userId === "local-user" ? `${LOCAL_STORAGE_KEY_PREFIX}local_user` : `${LOCAL_STORAGE_KEY_PREFIX}local-user`;
+        raw = localStorage.getItem(altKey);
+      }
       if (raw) {
         estadoLocal = normalizarEstadoCidade(JSON.parse(raw));
       }
@@ -95,7 +99,7 @@ export async function carregarEstadoCidade(userId: string): Promise<EstadoCidade
   }
 
   // 2. Se houver conexão com Firestore, sincroniza
-  if (db && userId && userId !== "local-user") {
+  if (db && userId && userId !== "local-user" && userId !== "local_user") {
     try {
       const cidadeRef = doc(db, "users", userId, "cidade", "progresso");
       const snap = await getDoc(cidadeRef);
@@ -134,7 +138,7 @@ export async function salvarEstadoCidade(userId: string, estado: EstadoCidadeUsu
     } catch {}
   }
 
-  if (db && userId && userId !== "local-user") {
+  if (db && userId && userId !== "local-user" && userId !== "local_user") {
     try {
       const cidadeRef = doc(db, "users", userId, "cidade", "progresso");
       await setDoc(cidadeRef, estado, { merge: true });

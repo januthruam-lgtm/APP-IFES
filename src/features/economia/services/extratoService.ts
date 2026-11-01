@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 
-export type TipoLancamento = "ganho" | "gasto" | "cashback" | "ajuste";
+export type TipoLancamento = "ganho" | "gasto" | "saida" | "cashback" | "ajuste";
 
 export type OrigemLancamento =
   | "bau"
@@ -31,7 +31,9 @@ export type OrigemLancamento =
   | "meta_semanal"
   | "games"
   | "admin"
-  | "historico";
+  | "historico"
+  | "ajuste"
+  | "recompensa";
 
 export interface LancamentoExtrato {
   id: string;
@@ -46,16 +48,85 @@ export interface LancamentoExtrato {
 }
 
 const STORAGE_KEY_EXTRATO_LOCAL = "brain_studio_extrato_ledger_v1";
+const memoryLedgerCache: Record<string, string> = {};
+
+function getSafeStorage(key: string): string | null {
+  if (typeof localStorage !== "undefined") {
+    try {
+      return localStorage.getItem(key);
+    } catch {}
+  }
+  return memoryLedgerCache[key] || null;
+}
+
+function setSafeStorage(key: string, val: string): void {
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(key, val);
+    } catch {}
+  }
+  memoryLedgerCache[key] = val;
+}
 
 /**
- * Carrega o extrato salvo localmente no navegador (fallback offline)
+ * Lê o saldo atual salvo em localStorage em conformidade com o formato v3 do APP-IFES.
+ */
+export function carregarSaldoLocal(): number {
+  try {
+    const raw =
+      getSafeStorage("brain_studio_user_v3") ||
+      getSafeStorage("brain_studio_user_profile");
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (typeof u.coins === "number") return u.coins;
+    }
+  } catch {}
+  return 250;
+}
+
+/**
+ * Atualiza o saldo localmente em conformidade com o formato v3 do APP-IFES.
+ */
+function atualizarSaldoLocal(novoSaldo: number): void {
+  try {
+    const raw =
+      getSafeStorage("brain_studio_user_v3") ||
+      getSafeStorage("brain_studio_user_profile");
+    if (raw) {
+      const u = JSON.parse(raw);
+      u.coins = novoSaldo;
+      setSafeStorage("brain_studio_user_v3", JSON.stringify(u));
+      setSafeStorage("brain_studio_user_profile", JSON.stringify(u));
+    }
+  } catch {}
+}
+
+/**
+ * Carrega o extrato salvo localmente no navegador (fallback offline).
+ * Suporta interoperabilidade entre UIDs com hífen ou sublinhado ("local_user" e "local-user").
  */
 export function carregarExtratoLocal(uid: string): LancamentoExtrato[] {
   try {
-    const raw = localStorage.getItem(`${STORAGE_KEY_EXTRATO_LOCAL}_${uid}`);
-    if (raw) {
-      return JSON.parse(raw);
+    const raw = getSafeStorage(`${STORAGE_KEY_EXTRATO_LOCAL}_${uid}`);
+    let lista: LancamentoExtrato[] = raw ? JSON.parse(raw) : [];
+
+    if (uid === "local_user" || uid === "local-user") {
+      const altUid = uid === "local_user" ? "local-user" : "local_user";
+      const altRaw = getSafeStorage(`${STORAGE_KEY_EXTRATO_LOCAL}_${altUid}`);
+      if (altRaw) {
+        const altLista: LancamentoExtrato[] = JSON.parse(altRaw);
+        const existentes = new Set(lista.map((l) => l.idempotencyKey));
+        for (const item of altLista) {
+          if (!existentes.has(item.idempotencyKey)) {
+            lista.push(item);
+            existentes.add(item.idempotencyKey);
+          }
+        }
+      }
     }
+    return lista.sort(
+      (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime()
+    );
   } catch (err) {
     console.warn("Aviso ao ler extrato local:", err);
   }
@@ -63,28 +134,36 @@ export function carregarExtratoLocal(uid: string): LancamentoExtrato[] {
 }
 
 /**
- * Salva lançamentos do extrato localmente para suporte offline
+ * Salva lançamentos do extrato localmente para suporte offline e notifica ouvintes da UI.
  */
 function salvarExtratoLocal(uid: string, lancamento: LancamentoExtrato) {
   try {
     const lista = carregarExtratoLocal(uid);
-    // Garante idempotência local por idempotencyKey
     if (lista.some((l) => l.idempotencyKey === lancamento.idempotencyKey)) {
       return;
     }
     const atualizado = [lancamento, ...lista];
-    localStorage.setItem(`${STORAGE_KEY_EXTRATO_LOCAL}_${uid}`, JSON.stringify(atualizado));
+    setSafeStorage(`${STORAGE_KEY_EXTRATO_LOCAL}_${uid}`, JSON.stringify(atualizado));
+
+    if (uid === "local_user" || uid === "local-user") {
+      setSafeStorage(`${STORAGE_KEY_EXTRATO_LOCAL}_local_user`, JSON.stringify(atualizado));
+      setSafeStorage(`${STORAGE_KEY_EXTRATO_LOCAL}_local-user`, JSON.stringify(atualizado));
+    }
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("brain_studio_extrato_updated", { detail: lancamento }));
+    }
   } catch (err) {
     console.warn("Aviso ao salvar extrato local:", err);
   }
 }
 
 /**
- * Executa movimentação atômica e idempotente no livro-razão de moedas.
+ * Executa movimentação atômica e idempotente no livro-razão de moedas (entradas e saídas).
  * @param uid Identificador do estudante
- * @param delta Quantidade de moedas (+ para entrada, - para saída)
+ * @param delta Quantidade de moedas (+ para entrada, - para saída/gasto)
  * @param origem Motivo do lançamento
- * @param refId Identificador de referência externa (ex: id da obra, id do item da loja)
+ * @param refId Identificador de referência externa (ex: id da obra, id do pacote)
  * @param idempotencyKey Chave única para prevenir duplicidades
  * @param descricao Rótulo legível opcional
  */
@@ -99,6 +178,8 @@ export async function movimentarMoedas(
   const chaveFinal = idempotencyKey || `tx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const agoraIso = new Date().toISOString();
   const valorAbsoluto = Math.abs(delta);
+
+  // Padronização: no Firestore 'gasto' é a chave canônica das regras de segurança
   const tipo: TipoLancamento =
     origem === "fidelidade"
       ? "cashback"
@@ -107,6 +188,8 @@ export async function movimentarMoedas(
       : delta < 0
       ? "gasto"
       : "ajuste";
+
+  const saldoLocalAtual = carregarSaldoLocal();
 
   // Se o Firestore estiver disponível, executa a transação atômica
   if (db) {
@@ -128,12 +211,14 @@ export async function movimentarMoedas(
           };
         }
 
-        // 2. Lê o saldo atual do estudante
+        // 2. Lê o saldo atual do estudante (com fallback no saldo local caso o documento ainda não exista)
         const userDoc = await transaction.get(userRef);
-        let saldoAtual = 100;
+        let saldoAtual = saldoLocalAtual;
         if (userDoc.exists()) {
           const uData = userDoc.data();
-          saldoAtual = typeof uData.coins === "number" ? uData.coins : 100;
+          if (typeof uData.coins === "number") {
+            saldoAtual = uData.coins;
+          }
         }
 
         // 3. Valida débito (saldo não pode ficar negativo)
@@ -141,7 +226,7 @@ export async function movimentarMoedas(
           throw new Error("Saldo insuficiente de moedas para esta transação.");
         }
 
-        const novoSaldo = saldoAtual + delta;
+        const novoSaldo = Math.max(0, saldoAtual + delta);
 
         // 4. Cria o lançamento contábil
         const novoLancamento: LancamentoExtrato = {
@@ -172,10 +257,11 @@ export async function movimentarMoedas(
 
       if (resultado.lancamento) {
         salvarExtratoLocal(uid, resultado.lancamento);
+        atualizarSaldoLocal(resultado.novoSaldo);
       }
       return resultado;
     } catch (err: any) {
-      console.warn("Aviso na transação Firestore do extrato, aplicando fallback:", err.message);
+      console.warn("Aviso na transação Firestore do extrato, aplicando fallback:", err?.message || err);
     }
   }
 
@@ -191,14 +277,7 @@ export async function movimentarMoedas(
     };
   }
 
-  let saldoAtual = 100;
-  try {
-    const userRaw = localStorage.getItem("brain_studio_user_profile");
-    if (userRaw) {
-      const u = JSON.parse(userRaw);
-      if (typeof u.coins === "number") saldoAtual = u.coins;
-    }
-  } catch {}
+  const saldoAtual = saldoLocalAtual;
 
   if (delta < 0 && saldoAtual < valorAbsoluto) {
     return {
@@ -222,15 +301,7 @@ export async function movimentarMoedas(
   };
 
   salvarExtratoLocal(uid, novoLancamento);
-
-  try {
-    const userRaw = localStorage.getItem("brain_studio_user_profile");
-    if (userRaw) {
-      const u = JSON.parse(userRaw);
-      u.coins = novoSaldo;
-      localStorage.setItem("brain_studio_user_profile", JSON.stringify(u));
-    }
-  } catch {}
+  atualizarSaldoLocal(novoSaldo);
 
   return {
     sucesso: true,
@@ -245,18 +316,24 @@ export async function movimentarMoedas(
  */
 export async function garantirSaldoInicialExtrato(uid: string, saldoAtual: number): Promise<void> {
   const chaveMigracao = `migracao_saldo_inicial_${uid}`;
-  const extrato = carregarExtratoLocal(uid);
+  const extrato = await listarExtrato(uid, "todos", 500);
   if (extrato.some((l) => l.idempotencyKey === chaveMigracao || l.origem === "historico")) {
     return;
   }
 
-  const agoraIso = new Date().toISOString();
+  // Define timestamp anterior à transação mais antiga para preservar a ordem cronológica
+  const timestampBase =
+    extrato.length > 0
+      ? Math.min(...extrato.map((e) => new Date(e.criadoEm).getTime())) - 1000
+      : Date.now() - 3600000;
+  const agoraIso = new Date(timestampBase).toISOString();
+
   const lancamentoInicial: LancamentoExtrato = {
     id: chaveMigracao,
     tipo: "ajuste",
     origem: "historico",
-    valor: saldoAtual,
-    saldoApos: saldoAtual,
+    valor: Math.max(0, saldoAtual),
+    saldoApos: Math.max(0, saldoAtual),
     descricao: "Saldo inicial registrado para auditoria contábil",
     refId: "migracao_inicial",
     idempotencyKey: chaveMigracao,
@@ -289,7 +366,7 @@ export async function garantirSaldoInicialExtrato(uid: string, saldoAtual: numbe
 export async function listarExtrato(
   uid: string,
   filtroOrigem?: OrigemLancamento | "todos",
-  limiteRegistros = 50
+  limiteRegistros = 60
 ): Promise<LancamentoExtrato[]> {
   if (db) {
     try {
@@ -321,24 +398,29 @@ export async function listarExtrato(
 
 /**
  * Função de auditoria: Recalcula o saldo a partir dos lançamentos e aponta divergências.
+ * Trata tanto 'gasto', 'saida' e 'debito' como deduções estritas de moedas.
+ * O saldo inicial de origem 'historico' sempre estabelece a linha de base.
  */
 export function auditarSaldoContabil(saldoInformado: number, extrato: LancamentoExtrato[]): {
   saldoRecalculado: number;
   divergencia: number;
   consistente: boolean;
 } {
-  const ordenado = [...extrato].sort(
-    (a, b) => new Date(a.criadoEm).getTime() - new Date(b.criadoEm).getTime()
-  );
+  const ordenado = [...extrato].sort((a, b) => {
+    if (a.origem === "historico" && b.origem !== "historico") return -1;
+    if (b.origem === "historico" && a.origem !== "historico") return 1;
+    return new Date(a.criadoEm).getTime() - new Date(b.criadoEm).getTime();
+  });
 
   let saldo = 0;
   for (const l of ordenado) {
+    const valor = Math.abs(l.valor);
     if (l.origem === "historico") {
-      saldo = l.valor;
+      saldo = valor;
     } else if (l.tipo === "ganho" || l.tipo === "cashback") {
-      saldo += l.valor;
-    } else if (l.tipo === "gasto") {
-      saldo = Math.max(0, saldo - l.valor);
+      saldo += valor;
+    } else if (l.tipo === "gasto" || l.tipo === "saida" || (l.tipo as string) === "debito") {
+      saldo = Math.max(0, saldo - valor);
     }
   }
 
@@ -355,7 +437,7 @@ export function auditarSaldoContabil(saldoInformado: number, extrato: Lancamento
  */
 export async function carregarExtrato(
   uid: string,
-  limiteRegistros = 50
+  limiteRegistros = 60
 ): Promise<LancamentoExtrato[]> {
   return listarExtrato(uid, "todos", limiteRegistros);
 }
@@ -366,13 +448,11 @@ export async function carregarExtrato(
 export async function auditarExtrato(
   uid: string,
   saldoAtual: number
-): Promise<{ valido: boolean; diferenca: number; saldoRecalculado: number }> {
+): Promise<{ valido: boolean; diferenca: number }> {
   const extrato = await listarExtrato(uid, "todos", 200);
   const audit = auditarSaldoContabil(saldoAtual, extrato);
   return {
     valido: audit.consistente,
     diferenca: audit.divergencia,
-    saldoRecalculado: audit.saldoRecalculado,
   };
 }
-

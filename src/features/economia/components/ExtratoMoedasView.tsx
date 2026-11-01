@@ -13,6 +13,7 @@ import {
 import {
   carregarExtrato,
   auditarExtrato,
+  garantirSaldoInicialExtrato,
   LancamentoExtrato,
   TipoLancamento,
 } from "../services/extratoService";
@@ -45,6 +46,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
   const carregarDados = async () => {
     setLoading(true);
     try {
+      await garantirSaldoInicialExtrato(uid, saldoAtual);
       const lista = await carregarExtrato(uid, 60);
       setLancamentos(lista);
     } catch (err) {
@@ -56,7 +58,16 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
 
   useEffect(() => {
     carregarDados();
-  }, [uid]);
+
+    const handleUpdate = () => {
+      carregarDados();
+    };
+
+    window.addEventListener("brain_studio_extrato_updated", handleUpdate);
+    return () => {
+      window.removeEventListener("brain_studio_extrato_updated", handleUpdate);
+    };
+  }, [uid, saldoAtual]);
 
   const handleAuditar = async () => {
     const res = await auditarExtrato(uid, saldoAtual);
@@ -69,24 +80,29 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
     });
   };
 
+  const isSaida = (t: string) => t === "gasto" || t === "saida";
+  const isEntrada = (t: string) => t === "ganho";
+
   // Filtragem da lista
   const lancamentosFiltrados = lancamentos.filter((item) => {
     if (filtroTipo === "todos") return true;
+    if (filtroTipo === "gasto" || filtroTipo === "saida") return isSaida(item.tipo);
+    if (filtroTipo === "ganho") return isEntrada(item.tipo);
     return item.tipo === filtroTipo;
   });
 
-  // Métricas do período
+  // Métricas do período (computando com segurança valores absolutos)
   const totalGanhos = lancamentos
-    .filter((l) => l.tipo === "ganho")
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .filter((l) => isEntrada(l.tipo))
+    .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
 
   const totalGastos = lancamentos
-    .filter((l) => l.tipo === "gasto")
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .filter((l) => isSaida(l.tipo))
+    .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
 
   const totalCashback = lancamentos
     .filter((l) => l.tipo === "cashback")
-    .reduce((acc, curr) => acc + curr.valor, 0);
+    .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
 
   const formatarData = (isoStr: string) => {
     try {
@@ -112,7 +128,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
             Extrato Contábil de Moedas
           </h2>
           <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-            Transparência contábil total: histórico de ganhos, gastos, cofre e auditoria.
+            Transparência contábil total: histórico de entradas, saídas, cofre e auditoria.
           </p>
         </div>
 
@@ -171,7 +187,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
 
         <Card variant="default" padding="sm" className="flex flex-col">
-          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Saídas</span>
+          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Saídas Monetárias</span>
           <div className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-1">
             <ArrowDownLeft className="w-5 h-5" />
             -{totalGastos}
@@ -196,14 +212,14 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
           size="sm"
         />
         <Chip
-          label="Ganhos (+)"
+          label="Entradas (+)"
           selected={filtroTipo === "ganho"}
           onClick={() => setFiltroTipo("ganho")}
           size="sm"
         />
         <Chip
-          label="Gastos (-)"
-          selected={filtroTipo === "gasto"}
+          label="Saídas (-)"
+          selected={filtroTipo === "gasto" || filtroTipo === "saida"}
           onClick={() => setFiltroTipo("gasto")}
           size="sm"
         />
@@ -227,7 +243,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         <EmptyState
           icon={Coins}
           title="Nenhuma movimentação registrada"
-          description="Seus ganhos e gastos em estudos e obras aparecerão aqui de forma transparente."
+          description="Seus ganhos e saídas em estudos, pacotes e obras aparecerão aqui de forma transparente."
           actionLabel="Atualizar Extrato"
           onAction={carregarDados}
         />
@@ -235,6 +251,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         <div className="space-y-2">
           {lancamentosFiltrados.map((item) => {
             const isGanho = item.tipo === "ganho" || item.tipo === "cashback";
+            const valorAbs = Math.abs(item.valor);
             return (
               <div
                 key={item.id}
@@ -283,7 +300,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
                     }`}
                   >
                     {isGanho ? "+" : "-"}
-                    {item.valor}
+                    {valorAbs}
                   </div>
                   <div className="text-[10px] text-[var(--app-text-muted)] font-mono">
                     Saldo: {item.saldoApos}

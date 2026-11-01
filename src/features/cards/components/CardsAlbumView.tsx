@@ -25,13 +25,14 @@ import {
 import { CardItem } from "./CardItem";
 import { CardDetailModal } from "./CardDetailModal";
 import { CardPackOpenerModal } from "./CardPackOpenerModal";
+import { addChestToVault, loadUserChests } from "../../chests/services/chestService";
 
 interface CardsAlbumViewProps {
   userCoins: number;
   userLevel: number;
   inventory: UserCardInventory;
   onUpdateInventory: (newInv: UserCardInventory) => void;
-  onConsumeCoins: (amount: number) => void;
+  onConsumeCoins: (amount: number, origem?: any, descricao?: string, refId?: string) => void;
   onRewardCoins: (coins: number) => void;
   onRewardXp: (xp: number) => void;
   onOpenTradingMarket: () => void;
@@ -86,7 +87,7 @@ export const CardsAlbumView: React.FC<CardsAlbumViewProps> = ({
         alert(`Saldo insuficiente! Você precisa de ${packDef.costCoins} IF Coins.`);
         return;
       }
-      onConsumeCoins(packDef.costCoins);
+      onConsumeCoins(packDef.costCoins, "loja", `Compra de Pacote: ${packDef.name}`, packType);
     }
 
     const { drops, updatedInventory } = openCardPack(packType, inventory);
@@ -111,6 +112,9 @@ export const CardsAlbumView: React.FC<CardsAlbumViewProps> = ({
       onUpdateInventory(res.updatedInventory);
       onRewardCoins(res.reward.coins);
       onRewardXp(res.reward.xp);
+      if (res.reward.chestType) {
+        addChestToVault(res.reward.chestType, loadUserChests());
+      }
 
       try {
         confetti({
