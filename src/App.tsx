@@ -7,6 +7,9 @@ import { EstudarTab } from "./components/tabs/canonical/EstudarTab";
 import { LuminaCanonicalTab } from "./components/tabs/canonical/LuminaCanonicalTab";
 import { JogoTab } from "./components/tabs/canonical/JogoTab";
 import { PerfilTab } from "./components/tabs/canonical/PerfilTab";
+import { ColecaoCanonicalTab } from "./components/tabs/canonical/ColecaoCanonicalTab";
+import { GamesHub } from "./features/games/components/GamesHub";
+import { IfesLiveEventsHub } from "./features/events/components/IfesLiveEventsHub";
 import { Header } from "./components/Header";
 import { AuthModal } from "./components/AuthModal";
 import { LessonModal } from "./components/LessonModal";
@@ -71,7 +74,9 @@ import {
   cacheStudyTracks,
   saveOfflineModuleProgress,
   clearOfflineCache,
+  deleteTrackFromIndexedDB,
 } from "./utils/indexedDB";
+import { excludeCourse } from "./utils/courseTombstones";
 import { loadSavedTheme, applyThemeToDOM, saveTheme } from "./utils/themeManager";
 import { saveUserProfileToFirestore, getUserProfileFromFirestore, auth } from "./lib/firebase";
 import { desconectarUsuario, monitorarEstadoAutenticacao } from "./services/authService";
@@ -253,31 +258,42 @@ export default function App() {
       setCanonicalTab("estudar");
       setCanonicalSubView(target === "estudar" ? subView : target);
       setCurrentTab(target as TabId);
-    } else if (target === "lumina") {
-      setCanonicalTab("lumina");
-      setCanonicalSubView(undefined);
-      setCurrentTab("lumina");
-    } else if (
-      [
-        "jogo",
-        "games",
-        "cidade",
-        "construcoes",
-        "teams",
-        "store",
-        "carteira",
-        "extrato",
-        "fidelidade",
-        "pet",
-      ].includes(target)
-    ) {
-      setCanonicalTab("jogo");
-      setCanonicalSubView(target === "jogo" ? (subView || "games") : target);
-      setCurrentTab(target === "jogo" ? "games" : (target as TabId));
-    } else if (target === "perfil" || target === "settings") {
-      setCanonicalTab("perfil");
+    } else if (target === "games" || target === "jogo" || target === "minigames") {
+      setCanonicalTab("games");
       setCanonicalSubView(subView);
+      setCurrentTab("games");
+    } else if (target === "cidades" || target === "cidade" || target === "construcoes") {
+      setCanonicalTab("cidades");
+      setCanonicalSubView(subView);
+      setCurrentTab("cidade");
+    } else if (target === "eventos" || target === "live" || target === "torneios" || target === "temporada") {
+      setCanonicalTab("eventos");
+      setCanonicalSubView(subView);
+      setCurrentTab("games");
+    } else if (target === "colecao" || target === "album" || target === "trocas" || target === "baus" || target === "cartas") {
+      setCanonicalTab("colecao");
+      setCanonicalSubView(subView);
+      setCurrentTab("store");
+    } else if (
+      target === "perfil" ||
+      target === "settings" ||
+      target === "carteira" ||
+      target === "extrato" ||
+      target === "loja" ||
+      target === "store" ||
+      target === "fidelidade" ||
+      target === "pet" ||
+      target === "teams"
+    ) {
+      setCanonicalTab("perfil");
+      setCanonicalSubView(
+        target === "carteira" || target === "extrato" ? "extrato" : subView
+      );
       setCurrentTab("settings");
+    } else if (target === "lumina") {
+      setCanonicalTab("estudar");
+      setCanonicalSubView("lumina");
+      setCurrentTab("lumina");
     } else {
       setCanonicalTab("inicio");
       setCanonicalSubView(undefined);
@@ -522,8 +538,19 @@ export default function App() {
     setModules([]);
   }, []);
 
-  // Delete a single course universally from everywhere
+  // Delete a single course universally from everywhere (persistent tombstone)
   const handleDeleteSingleCourse = useCallback((courseId: string) => {
+    // 1. Tombstone persistent no Firestore e LocalStorage
+    const targetCourse = ifesCourses.find((c) => c.id === courseId || c.shortname === courseId);
+    if (targetCourse) {
+      const uid = user?.id || user?.uid || user?.email || "local_user";
+      excludeCourse(uid, targetCourse).catch(() => {});
+    }
+
+    // 2. Apagar do IndexedDB offline
+    deleteTrackFromIndexedDB(courseId).catch(() => {});
+
+    // 3. Atualizar estados locais e sincronizados
     setIfesCourses((prevIfes) => {
       const filtered = prevIfes.filter((c) => c.id !== courseId && c.shortname !== courseId);
       saveSyncedCourses(filtered);
@@ -540,7 +567,7 @@ export default function App() {
       if (prev?.id === courseId) {
         const remaining = courses.filter((c) => c.id !== courseId);
         if (remaining.length > 0) {
-          setModules(remaining[0].modules);
+          setModules(remaining[0].modules || []);
           return remaining[0];
         }
         setModules([]);
@@ -559,7 +586,7 @@ export default function App() {
       }
       return prev;
     });
-  }, [courses]);
+  }, [courses, ifesCourses, user]);
 
   // Listen to global course update events
   useEffect(() => {
@@ -1338,8 +1365,8 @@ export default function App() {
         onLogout={handleLogout}
         onOpenNotifications={() => setIsNotificationModalOpen(true)}
         onOpenWallet={() => {
-          setCanonicalTab("jogo");
-          setCanonicalSubView("carteira");
+          setCanonicalTab("perfil");
+          setCanonicalSubView("extrato");
         }}
         onOpenSettings={() => {
           setCanonicalTab("perfil");
@@ -1410,41 +1437,56 @@ export default function App() {
           />
         )}
 
-        {canonicalTab === "lumina" && (
-          <LuminaCanonicalTab
+        {(canonicalTab === "games" || (canonicalTab as any) === "jogo") && (
+          <GamesHub
             user={user}
-            voiceEnabled={voiceEnabled}
-            onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+            onRewardCoins={handleRewardCoins}
             onRewardXp={handleRewardXp}
-            courses={courses}
-            onNavigateToGames={() => handleNavigate("estudar", "simulados")}
+            onNavigateToWallet={() => {
+              setCanonicalTab("perfil");
+              setCanonicalSubView("extrato");
+            }}
           />
         )}
 
-        {canonicalTab === "jogo" && (
-          <JogoTab
+        {canonicalTab === "cidades" && (
+          <CidadeDoConhecimentoTab
             user={user}
-            initialSubView={canonicalSubView}
-            onlineCount={onlineCount}
-            currentTheme={currentTheme}
             onRewardCoins={handleRewardCoins}
             onRewardXp={handleRewardXp}
             onConsumeCoins={handleConsumeCoins}
-            onConsumeEnergy={handleConsumeEnergy}
-            onAddEnergy={handleAddEnergy}
-            onUpdateUserTeam={handleUpdateUserTeam}
-            onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
-            onBuyBadge={handleBuyBadge}
+          />
+        )}
+
+        {canonicalTab === "eventos" && (
+          <IfesLiveEventsHub
+            onRewardCoins={handleRewardCoins}
+            onRewardXp={handleRewardXp}
+            onNavigateToGames={() => setCanonicalTab("games")}
+            onNavigateToCity={() => setCanonicalTab("cidades")}
+            onOpenAlbum={() => setCanonicalTab("colecao")}
+          />
+        )}
+
+        {canonicalTab === "colecao" && (
+          <ColecaoCanonicalTab
+            user={user}
+            initialSubView={
+              canonicalSubView === "trocas" || canonicalSubView === "baus"
+                ? canonicalSubView
+                : "album"
+            }
+            onRewardCoins={handleRewardCoins}
+            onRewardXp={handleRewardXp}
+            onConsumeCoins={handleConsumeCoins}
             onEquipBadge={handleEquipBadge}
-            onPermanentEnergyUpgrade={handlePermanentEnergyUpgrade}
-            onUpdatePet={handleUpdatePet}
-            onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
           />
         )}
 
         {canonicalTab === "perfil" && (
           <PerfilTab
             user={user}
+            initialSubView={canonicalSubView}
             modoFoco={modoFoco}
             onToggleModoFoco={handleToggleModoFoco}
             onSaveUser={handleUpdateProfile}
@@ -1453,6 +1495,7 @@ export default function App() {
             onReopenTutorial={() => setShowTutorial(true)}
             onOpenPaywall={() => setIsPaywallOpen(true)}
             onOpenOfflineDetail={() => setIsOfflineModalOpen(true)}
+            onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
           />
         )}
       </AppShell>

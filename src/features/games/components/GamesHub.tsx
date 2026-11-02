@@ -101,6 +101,9 @@ export const GamesHub: React.FC<GamesHubProps> = ({
   const [leaderboardEntries, setLeaderboardEntries] = useState<GameLeaderboardEntry[]>([]);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState<boolean>(false);
 
+  // Filtro de Categorias de Jogos (PARTE 2.2)
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
+
   // Efeito de Áudio
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
 
@@ -539,11 +542,11 @@ export const GamesHub: React.FC<GamesHubProps> = ({
         {/* ABA 1: ARENA DE JOGOS (GRID DOS 8 MINIGAMES) */}
         {activeTab === "arena" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black text-[var(--app-text)]">Minigames Disponíveis</h2>
                 <p className="text-xs text-[var(--app-text-muted)]">
-                  Selecione um jogo para iniciar uma partida ranqueada.
+                  Selecione um jogo para iniciar imediatamente uma partida ranqueada.
                 </p>
               </div>
               <div className="text-xs text-[var(--app-text-muted)] font-mono">
@@ -551,8 +554,44 @@ export const GamesHub: React.FC<GamesHubProps> = ({
               </div>
             </div>
 
+            {/* Categorias Visuais dos Minigames (PARTE 2.2) */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {[
+                { id: "all", label: "Todos os Estilos" },
+                { id: "raciocinio", label: "Raciocínio & Lógica" },
+                { id: "memoria", label: "Memória" },
+                { id: "combinacao", label: "Combinação & Gestão" },
+                { id: "velocidade", label: "Velocidade & Reflexos" },
+                { id: "conhecimento", label: "Conhecimento & Quizzes" },
+              ].map((cat) => {
+                const isSelected = selectedCategoryFilter === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategoryFilter(cat.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                      isSelected
+                        ? "bg-[var(--app-primary)] text-white shadow-xs"
+                        : "bg-[var(--app-card)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] border border-[var(--app-border)]"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {MINIGAMES_CONFIG.map((game) => {
+              {MINIGAMES_CONFIG.filter((game) => {
+                if (selectedCategoryFilter === "all") return true;
+                if (selectedCategoryFilter === "raciocinio") return game.id === "brain_challenge" || game.id === "code_breaker";
+                if (selectedCategoryFilter === "memoria") return game.id === "memory_cards";
+                if (selectedCategoryFilter === "combinacao") return game.id === "business_tycoon" || game.id === "eco_challenge";
+                if (selectedCategoryFilter === "velocidade") return game.id === "math_rush" || game.id === "word_master";
+                if (selectedCategoryFilter === "conhecimento") return game.id === "quiz_battle";
+                return true;
+              }).map((game) => {
                 const isUnlocked = isGameUnlocked(game.id, userLevel);
                 const Icon = getMinigameIcon(game.iconName);
                 const bestScore = profile.personalBests[game.id] || 0;

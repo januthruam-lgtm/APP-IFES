@@ -198,3 +198,21 @@ export async function getOfflineCacheStats(): Promise<OfflineStats> {
     };
   }
 }
+
+export async function deleteTrackFromIndexedDB(trackId: string): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction("tracks", "readwrite");
+    tx.objectStore("tracks").delete(trackId);
+  } catch {}
+  try {
+    const raw = localStorage.getItem("bs_offline_tracks");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((t: any) => t.id !== trackId);
+        localStorage.setItem("bs_offline_tracks", JSON.stringify(filtered));
+      }
+    }
+  } catch {}
+}

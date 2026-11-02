@@ -6,7 +6,7 @@ import {
   TrackModule,
   LessonStep,
 } from "../types";
-import { filterActiveCourses } from "./courseTombstones";
+import { filterActiveCourses, isCourseExcluded } from "./courseTombstones";
 
 export const DEFAULT_IFES_COURSES: IfesCourse[] = [
   {
@@ -716,12 +716,22 @@ export function saveSyncedAssignments(assignments: IfesAssignment[]): void {
 export function loadSyncedSchedules(): IfesClassSchedule[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+    let list: IfesClassSchedule[] = [];
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        list = parsed;
       }
     }
+    const deletedRaw = localStorage.getItem("brain_studio_deleted_schedules_v1");
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+    return list.filter((s) => {
+      const key = `${s.dayOfWeek}_${s.timeSlot}_${s.courseName}`.toLowerCase().trim();
+      if (deletedSet.has(key)) return false;
+      if (isCourseExcluded({ name: s.courseName })) return false;
+      return true;
+    });
   } catch (e) {
     console.warn("Failed to load schedules from storage:", e);
   }

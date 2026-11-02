@@ -676,6 +676,110 @@ REGRAS OBRIGATÓRIAS:
     }
   });
 
+  // 10.1 GERADOR DINÂMICO DE PERGUNTAS DE QUIZ COM IA & PREVENÇÃO DE REPETIÇÃO (PARTE 3)
+  app.post("/api/quiz/generate-questions", async (req, res) => {
+    try {
+      const {
+        subject = "Conhecimentos Gerais",
+        topic = "",
+        difficulty = "Médio",
+        schoolLevel = "Ensino Médio e Técnico",
+        count = 5,
+        excludeQuestions = [],
+        language = "pt-BR",
+      } = req.body || {};
+
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({
+          error: "Serviço de Inteligência Artificial indisponível no momento. Verifique a chave de API ou conexão.",
+        });
+      }
+
+      const qCount = Math.min(10, Math.max(3, Number(count) || 5));
+      const recentExcludes = Array.isArray(excludeQuestions)
+        ? excludeQuestions.slice(-30).map((q: string) => `- ${q}`).join("\n")
+        : "";
+
+      const prompt = `Você é um gerador pedagógico e examinador sênior para a plataforma educacional IFES.
+Gere exatamente ${qCount} perguntas INÉDITAS de múltipla escolha para a matéria "${subject}"${topic ? ` sobre o tópico "${topic}"` : ""}.
+
+DIRETRIZES RÍGIDAS DE QUALIDADE (PARTE 3):
+1. NÍVEL ESCOLAR: "${schoolLevel}", com nível de dificuldade "${difficulty}".
+2. ENUNCIADOS CLAROS: Sem ambiguidades ou pegadinhas sem valor pedagógico.
+3. ALTERNATIVAS COERENTES: Exatamente 4 opções por questão (A, B, C, D). Apenas UMA alternativa absolutamente correta.
+4. NUNCA criar opções absurdas ou infantis para facilitar; as opções erradas (distratores) devem ser plausíveis e baseadas em conceitos reais da disciplina.
+5. JUSTIFICATIVA PEDAGÓGICA (explanation): Explicação detalhada e didática do motivo pelo qual a resposta correta é a válida e por que as demais são incorretas.
+6. PREVENÇÃO ABSOLUTA DE REPETIÇÃO:
+As seguintes perguntas já foram respondidas pelo estudante e NUNCA devem ser repetidas nem reescritas de forma muito parecida:
+${recentExcludes || "(Nenhuma pergunta anterior cadastrada)"}
+
+7. IDIOMA: Escreva todas as perguntas, opções e justificativas em Português do Brasil (${language}).
+
+Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown e sem texto adicional) no seguinte formato:
+{
+  "subject": "${subject}",
+  "difficulty": "${difficulty}",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Enunciado da pergunta...",
+      "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+      "correctIndex": 0,
+      "explanation": "Explicação detalhada da resposta...",
+      "category": "${subject}"
+    }
+  ]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.7,
+        },
+      });
+
+      const raw = response.text?.trim() || "{}";
+      const cleaned = raw.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        return res.status(500).json({
+          error: "A IA não conseguiu estruturar as perguntas corretamente. Tente novamente.",
+        });
+      }
+
+      // Validar cada questão
+      const validated = parsed.questions.map((q: any, idx: number) => ({
+        id: q.id || `ai-q-${Date.now()}-${idx}`,
+        question: String(q.question || "").trim(),
+        options: Array.isArray(q.options) && q.options.length === 4
+          ? q.options.map(String)
+          : ["Opção A", "Opção B", "Opção C", "Opção D"],
+        correctIndex: typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex <= 3
+          ? q.correctIndex
+          : 0,
+        explanation: String(q.explanation || "Resposta fundamentada nos conceitos da disciplina."),
+        category: subject,
+      })).filter((q: any) => q.question.length > 5);
+
+      return res.json({
+        success: true,
+        subject,
+        difficulty,
+        count: validated.length,
+        questions: validated,
+      });
+    } catch (err: any) {
+      console.warn("[API /quiz/generate-questions] Erro:", err?.message || err);
+      return res.status(500).json({
+        error: `Não foi possível gerar novas perguntas no momento: ${err?.message || "Erro desconhecido"}`,
+      });
+    }
+  });
+
   // 8. FEEDBACK DA LUMINA (👍/👎 com motivo opcional sem registrar conteúdo pessoal)
   app.post("/api/feedback/lumina", async (req, res) => {
     try {

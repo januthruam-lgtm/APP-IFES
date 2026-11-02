@@ -27,6 +27,15 @@ import {
   Type,
   Maximize2,
   RotateCcw,
+  Coins,
+  Trophy,
+  Flame,
+  Zap,
+  Award,
+  Activity,
+  Users,
+  Target,
+  BookOpen,
 } from "lucide-react";
 import { UserProfile } from "../../../types";
 import { Card } from "../../ui/Card";
@@ -37,6 +46,8 @@ import { LanguageSelector } from "../../LanguageSelector";
 import { useAccessibility, TextScale, ColorBlindMode } from "../../../lib/accessibility";
 import { MeusSistemasView } from "../../../features/instituicao/components/MeusSistemasView";
 import { getTemaAtual, alternarTema, TemaTipo, aplicarTema } from "../../../utils/themeManager";
+import { ExtratoMoedasView } from "../../../features/economia/components/ExtratoMoedasView";
+import { calculateLevelFromXp } from "../../../features/progression/levelSystem";
 
 export type SecaoConfigId =
   | "menu"
@@ -54,6 +65,7 @@ export type SecaoConfigId =
 
 export interface PerfilTabProps {
   user: UserProfile;
+  initialSubView?: string;
   modoFoco: boolean;
   onToggleModoFoco: (ativo: boolean) => void;
   onSaveUser: (updatedUser: Partial<UserProfile>) => void;
@@ -62,10 +74,12 @@ export interface PerfilTabProps {
   onReopenTutorial?: () => void;
   onOpenPaywall?: () => void;
   onOpenOfflineDetail?: () => void;
+  onOpenOnlineUsers?: () => void;
 }
 
 export const PerfilTab: React.FC<PerfilTabProps> = ({
   user,
+  initialSubView,
   modoFoco,
   onToggleModoFoco,
   onSaveUser,
@@ -74,8 +88,14 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   onReopenTutorial,
   onOpenPaywall,
   onOpenOfflineDetail,
+  onOpenOnlineUsers,
 }) => {
   const { t, i18n } = useTranslation();
+  const [abaPrincipal, setAbaPrincipal] = useState<"geral" | "extrato" | "config">(() => {
+    if (initialSubView === "extrato" || initialSubView === "carteira") return "extrato";
+    if (initialSubView === "config" || initialSubView === "settings") return "config";
+    return "geral";
+  });
   const [secaoAtiva, setSecaoAtiva] = useState<SecaoConfigId>("menu");
   const [busca, setBusca] = useState("");
   const [temaAtual, setTemaAtual] = useState<TemaTipo>(getTemaAtual);
@@ -193,12 +213,17 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
     setTemaAtual(novo);
   };
 
+  const userUid = user.id || user.uid || user.email || "local_user";
+  const userXp = user.xp || 0;
+  const { level: calculatedLevel, currentMilestone, nextMilestone, progressPercent } = calculateLevelFromXp(userXp);
+  const activeLevel = user.level || calculatedLevel;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
       {/* Cabeçalho da Página */}
       <div className="flex items-center justify-between pb-2 border-b border-[var(--app-border)]">
         <div className="flex items-center gap-3">
-          {secaoAtiva !== "menu" && (
+          {abaPrincipal === "config" && secaoAtiva !== "menu" && (
             <button
               onClick={() => setSecaoAtiva("menu")}
               className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--app-text)] hover:bg-[var(--app-card-secondary)] transition cursor-pointer"
@@ -209,12 +234,20 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           )}
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-[var(--app-text)] tracking-tight">
-              {secaoAtiva === "menu"
+              {abaPrincipal === "geral"
+                ? "Central do Estudante IFES"
+                : abaPrincipal === "extrato"
+                ? "Extrato & Carteira de Moedas"
+                : secaoAtiva === "menu"
                 ? "Perfil e Configurações"
                 : secoes.find((s) => s.id === secaoAtiva)?.titulo}
             </h1>
             <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-              {secaoAtiva === "menu"
+              {abaPrincipal === "geral"
+                ? "Acompanhe seu nível, conquistas, histórico de estudos e ofensiva diária."
+                : abaPrincipal === "extrato"
+                ? "Auditoria e extrato contábil de entradas e saídas de moedas."
+                : secaoAtiva === "menu"
                 ? "Personalize sua conta, preferências de estudo, acessibilidade e temas."
                 : secoes.find((s) => s.id === secaoAtiva)?.descricao}
             </p>
@@ -222,9 +255,261 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
         </div>
       </div>
 
-      {/* Visão de Menu Principal */}
-      {secaoAtiva === "menu" && (
+      {/* Navegação Canônica de Sub-Abas do Perfil */}
+      <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-2 overflow-x-auto scrollbar-none">
+        <button
+          type="button"
+          onClick={() => {
+            setAbaPrincipal("geral");
+            setSecaoAtiva("menu");
+          }}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer shrink-0 ${
+            abaPrincipal === "geral"
+              ? "bg-[var(--app-primary)] text-white shadow-sm"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span>Perfil & Estatísticas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setAbaPrincipal("extrato");
+            setSecaoAtiva("menu");
+          }}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer shrink-0 ${
+            abaPrincipal === "extrato"
+              ? "bg-[var(--app-primary)] text-white shadow-sm"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
+          }`}
+        >
+          <Coins className="w-4 h-4 text-amber-500" />
+          <span>Extrato de Moedas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAbaPrincipal("config")}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer shrink-0 ${
+            abaPrincipal === "config"
+              ? "bg-[var(--app-primary)] text-white shadow-sm"
+              : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
+          }`}
+        >
+          <Sliders className="w-4 h-4" />
+          <span>Ajustes & Configurações</span>
+        </button>
+      </div>
+
+      {/* 1. ABA GERAL: ESTATÍSTICAS, NÍVEL, XP, CONQUISTAS E AMIGOS */}
+      {abaPrincipal === "geral" && (
         <div className="space-y-6">
+          {/* Card Resumo do Estudante */}
+          <Card
+            variant="elevated"
+            padding="lg"
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-[var(--app-card)] to-[var(--app-card-secondary)]"
+          >
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="w-16 h-16 rounded-full bg-[var(--app-primary)]/15 border-2 border-[var(--app-primary)] flex items-center justify-center text-2xl font-black text-[var(--app-primary)] shadow-sm">
+                {user.name ? user.name[0].toUpperCase() : "U"}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 justify-center sm:justify-start">
+                  <h2 className="text-xl font-black text-[var(--app-text)]">{user.name || "Estudante"}</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                    {currentMilestone?.title || "Estudante Dedicado"}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
+                  {user.email || "Sem e-mail cadastrado"} • {user.ifesAccount?.campusName || "IFES"}
+                </p>
+                <div className="mt-1 flex items-center gap-2 justify-center sm:justify-start">
+                  <span className="text-[11px] font-bold text-[var(--app-primary)]">
+                    Nível {activeLevel}
+                  </span>
+                  <span className="text-xs text-[var(--app-text-muted)]">•</span>
+                  <span className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 text-amber-500" />
+                    {user.streakDays || 1} dias de ofensiva
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setAbaPrincipal("config");
+                setSecaoAtiva("conta");
+              }}
+            >
+              Editar Perfil
+            </Button>
+          </Card>
+
+          {/* Barra de Experiência e Nível (100 Níveis) */}
+          <Card variant="default" padding="lg" className="space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-[var(--app-text)] flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                Progresso para o Nível {activeLevel + 1}
+              </span>
+              <span className="font-mono text-[var(--app-primary)] font-black">
+                {userXp} / {nextMilestone?.xpRequired || (activeLevel * 100)} XP ({progressPercent}%)
+              </span>
+            </div>
+
+            <div className="w-full bg-[var(--app-card-secondary)] h-3 rounded-full overflow-hidden border border-[var(--app-border)]">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-[var(--app-primary)] h-full rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-[var(--app-text-muted)]">
+              <span>Marco Atual: {currentMilestone?.title}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                Bônus de evolução: +{currentMilestone?.coinsReward || 150} moedas
+              </span>
+            </div>
+          </Card>
+
+          {/* Grade de Indicadores Vitais */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card variant="default" padding="md" className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-[var(--app-text-muted)]">Saldo de Moedas</span>
+                <Coins className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="text-xl font-black text-amber-500">
+                {user.coins ?? 250} 🪙
+              </div>
+              <button
+                type="button"
+                onClick={() => setAbaPrincipal("extrato")}
+                className="text-[10px] font-bold text-[var(--app-primary)] hover:underline cursor-pointer block pt-1"
+              >
+                Ver Extrato & Auditoria →
+              </button>
+            </Card>
+
+            <Card variant="default" padding="md" className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-[var(--app-text-muted)]">Energia Vital</span>
+                <Zap className="w-4 h-4 text-[var(--app-primary)]" />
+              </div>
+              <div className="text-xl font-black text-[var(--app-text)] font-mono">
+                {user.energy}/{user.maxEnergy || 50} ⚡
+              </div>
+              <span className="text-[10px] text-[var(--app-text-muted)] block pt-1">
+                Regenera 1 a cada 5 min
+              </span>
+            </Card>
+
+            <Card variant="default" padding="md" className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-[var(--app-text-muted)]">Ofensiva Diária</span>
+                <Flame className="w-4 h-4 text-orange-500" />
+              </div>
+              <div className="text-xl font-black text-orange-500">
+                {user.streakDays || 1} Dias 🔥
+              </div>
+              <span className="text-[10px] text-[var(--app-text-muted)] block pt-1">
+                Estudo diário contínuo
+              </span>
+            </Card>
+
+            <Card variant="default" padding="md" className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-[var(--app-text-muted)]">Mascote 3D</span>
+                <Sparkles className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="text-lg font-black text-[var(--app-text)] truncate">
+                {user.pet?.name || "Lumina Pet"}
+              </div>
+              <span className="text-[10px] text-[var(--app-text-muted)] block pt-1">
+                Nível {user.pet?.level || 1} • {user.pet?.happiness ?? 100}% Feliz
+              </span>
+            </Card>
+          </div>
+
+          {/* Conquistas e Insígnias */}
+          <Card variant="default" padding="lg" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase text-[var(--app-text)] tracking-wider flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-500" />
+                Conquistas e Insígnias Conquistadas
+              </h3>
+              <span className="text-xs font-bold text-[var(--app-text-muted)]">
+                {(user.unlockedBadges || []).length} Desbloqueadas
+              </span>
+            </div>
+
+            {(!user.unlockedBadges || user.unlockedBadges.length === 0) ? (
+              <div className="p-6 rounded-2xl bg-[var(--app-card-secondary)] text-center text-xs text-[var(--app-text-muted)] space-y-2 border border-dashed border-[var(--app-border)]">
+                <Award className="w-8 h-8 text-[var(--app-text-muted)] mx-auto opacity-40" />
+                <p>Nenhuma insígnia conquistada ainda.</p>
+                <p className="text-[11px]">Jogue minigames e complete tarefas acadêmicas para desbloquear insígnias exclusivas!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {user.unlockedBadges.map((badge: string, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] flex items-center gap-2.5"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-sm shrink-0">
+                      🏆
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold truncate text-[var(--app-text)]">{badge}</h4>
+                      <span className="text-[10px] text-emerald-500 font-semibold">Conquistada</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Comunidade e Colegas Online */}
+          {onOpenOnlineUsers && (
+            <Card variant="default" padding="lg" className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-[var(--app-text)]">Estudantes do IFES Online</h4>
+                  <p className="text-xs text-[var(--app-text-muted)]">
+                    Converse em tempo real e troque cartas com colegas do campus
+                  </p>
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={onOpenOnlineUsers}>
+                Ver Colegas Online
+              </Button>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* 2. ABA EXTRATO DE MOEDAS: AUDITORIA, ENTRADAS E SAÍDAS MONETÁRIAS */}
+      {abaPrincipal === "extrato" && (
+        <ExtratoMoedasView
+          uid={userUid}
+          saldoAtual={user.coins ?? 250}
+        />
+      )}
+
+      {/* 3. ABA AJUSTES & CONFIGURAÇÕES: MENU E SUBPÁGINAS */}
+      {abaPrincipal === "config" && (
+        <>
+          {secaoAtiva === "menu" && (
+            <div className="space-y-6">
           {/* Card Resumo do Usuário */}
           <Card
             variant="elevated"
@@ -608,6 +893,8 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
               : "Brain Studio v3.2.0 • Plataforma Autônoma de Estudos e Produtividade Acadêmica com Tutoria Socrática e Gamificação."}
           </p>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

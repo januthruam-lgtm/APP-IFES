@@ -1,5 +1,13 @@
 import React from "react";
-import { LayoutDashboard, BookOpen, Brain, Gamepad2, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  BookOpen,
+  Gamepad2,
+  Building2,
+  Trophy,
+  Layers,
+  Users,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CanonicalTabId } from "./TabBar";
 
@@ -20,12 +28,13 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
     id: CanonicalTabId;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
-    isSpecial?: boolean;
   }> = [
     { id: "inicio", label: t("nav.inicio", "Início"), icon: LayoutDashboard },
     { id: "estudar", label: t("nav.estudar", "Estudar"), icon: BookOpen },
-    { id: "lumina", label: t("nav.lumina", "Lumina"), icon: Brain, isSpecial: true },
-    { id: "jogo", label: t("nav.jogo", "Jogo"), icon: Gamepad2 },
+    { id: "games", label: t("nav.games", "Games"), icon: Gamepad2 },
+    { id: "cidades", label: t("nav.cidades", "Cidades"), icon: Building2 },
+    { id: "eventos", label: t("nav.eventos", "Eventos"), icon: Trophy },
+    { id: "colecao", label: t("nav.colecao", "Coleção"), icon: Layers },
     { id: "perfil", label: t("nav.perfil", "Perfil"), icon: Users },
   ];
 
@@ -60,7 +69,7 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
                     : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
                 }`}
               >
-                <Icon className={`w-5 h-5 ${tab.isSpecial && isActive ? "animate-pulse" : ""}`} />
+                <Icon className="w-5 h-5" />
                 <span className="text-[10px] tracking-tight truncate max-w-[50px]">{tab.label}</span>
               </button>
             );

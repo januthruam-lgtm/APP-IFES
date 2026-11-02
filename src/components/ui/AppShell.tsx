@@ -5,6 +5,9 @@ import {
   BookOpen,
   Brain,
   Gamepad2,
+  Building2,
+  Trophy,
+  Layers,
   Users,
   LogOut,
   Zap,
@@ -101,13 +104,17 @@ export const AppShell: React.FC<AppShellProps> = ({
   const getTabTitle = (tab: CanonicalTabId): string => {
     switch (tab) {
       case "inicio":
-        return t("nav.inicio", "Início");
+        return t("nav.inicio", "Início • Painel Geral");
       case "estudar":
-        return t("nav.estudar", "Central de Estudos");
-      case "lumina":
-        return t("nav.lumina", "Lumina • Tutora Socrática");
-      case "jogo":
-        return t("nav.jogo", "Vilas do Saber & Conquistas");
+        return t("nav.estudar", "Estudar • Central Acadêmica");
+      case "games":
+        return t("nav.games", "Games & Minigames");
+      case "cidades":
+        return t("nav.cidades", "Cidades do Conhecimento");
+      case "eventos":
+        return t("nav.eventos", "IFES Live Events & Torneios");
+      case "colecao":
+        return t("nav.colecao", "Central de Coleções & Baús");
       case "perfil":
         return t("nav.perfil", "Perfil & Configurações");
       default:
@@ -118,8 +125,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   const navItems = [
     { id: "inicio" as CanonicalTabId, label: t("nav.inicio", "Início"), icon: LayoutDashboard },
     { id: "estudar" as CanonicalTabId, label: t("nav.estudar", "Estudar"), icon: BookOpen },
-    { id: "lumina" as CanonicalTabId, label: t("nav.lumina", "Lumina"), icon: Brain, isSpecial: true },
-    { id: "jogo" as CanonicalTabId, label: t("nav.jogo", "Jogo"), icon: Gamepad2 },
+    { id: "games" as CanonicalTabId, label: t("nav.games", "Games"), icon: Gamepad2 },
+    { id: "cidades" as CanonicalTabId, label: t("nav.cidades", "Cidades"), icon: Building2 },
+    { id: "eventos" as CanonicalTabId, label: t("nav.eventos", "Eventos"), icon: Trophy },
+    { id: "colecao" as CanonicalTabId, label: t("nav.colecao", "Coleção"), icon: Layers },
     { id: "perfil" as CanonicalTabId, label: t("nav.perfil", "Perfil"), icon: Users },
   ];
 
@@ -166,14 +175,9 @@ export const AppShell: React.FC<AppShellProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-5 h-5 ${item.isSpecial && isActive ? "animate-pulse" : ""}`} />
+                    <Icon className="w-5 h-5" />
                     <span>{item.label}</span>
                   </div>
-                  {item.isSpecial && (
-                    <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-white/20 text-white">
-                      IA
-                    </span>
-                  )}
                 </button>
               );
             })}

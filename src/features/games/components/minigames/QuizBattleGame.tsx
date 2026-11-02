@@ -18,6 +18,11 @@ import {
 import { QUIZ_QUESTIONS, QuizQuestion } from "../../data/quizQuestions";
 import { gameAudio } from "../../audio";
 import { SessionResultPayload } from "../../services/gamesService";
+import {
+  generateUnprecedentedQuizQuestions,
+  saveQuizQuestionToHistory,
+  QuizIaQuestion,
+} from "../../services/quizIaService";
 
 interface QuizBattleGameProps {
   userId: string;
@@ -28,12 +33,15 @@ interface QuizBattleGameProps {
 }
 
 export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
+  userId,
   userName,
   sessionToken,
   onFinishGame,
   onExit,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Matemática");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<"Fácil" | "Médio" | "Difícil">("Médio");
+  const [mode, setMode] = useState<"ai" | "classic">("ai");
   const [vsBotMode, setVsBotMode] = useState<boolean>(true);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
 
@@ -43,6 +51,8 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
+  const [isLoadingIa, setIsLoadingIa] = useState<boolean>(false);
+  const [iaError, setIaError] = useState<string | null>(null);
 
   // Scores & metrics
   const [userScore, setUserScore] = useState<number>(0);
@@ -55,27 +65,69 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
   const timerRef = useRef<any>(null);
 
   const categories = [
-    "Todas",
     "Matemática",
-    "Português",
-    "História",
-    "Geografia",
     "Física",
     "Química",
+    "Biologia",
+    "História",
+    "Geografia",
+    "Português",
     "Administração",
     "Economia",
+    "Informática",
     "Conhecimentos Gerais",
   ];
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     gameAudio.playClick();
-    let filtered = [...QUIZ_QUESTIONS];
-    if (selectedCategory !== "Todas") {
-      filtered = filtered.filter((q) => q.category === selectedCategory);
+    setIaError(null);
+
+    if (mode === "ai") {
+      setIsLoadingIa(true);
+      const res = await generateUnprecedentedQuizQuestions({
+        userId,
+        subject: selectedCategory,
+        difficulty: selectedDifficulty,
+        count: 5,
+      });
+      setIsLoadingIa(false);
+
+      if (!res.success || !res.questions || res.questions.length === 0) {
+        setIaError(res.error || "Não foi possível gerar novas perguntas com a IA no momento.");
+        return;
+      }
+
+      const mapped: QuizQuestion[] = res.questions.map((q) => ({
+        id: q.id,
+        category: q.category as any,
+        difficulty: selectedDifficulty === "Fácil" ? "facil" : selectedDifficulty === "Médio" ? "medio" : "dificil",
+        question: q.question,
+        options: (q.options.length >= 4
+          ? [q.options[0], q.options[1], q.options[2], q.options[3]]
+          : [q.options[0] || "A", q.options[1] || "B", q.options[2] || "C", q.options[3] || "D"]) as [
+          string,
+          string,
+          string,
+          string
+        ],
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+      }));
+
+      // Registrar a primeira pergunta no histórico
+      saveQuizQuestionToHistory(userId, res.questions[0]).catch(() => {});
+
+      setQuestions(mapped);
+    } else {
+      let filtered = [...QUIZ_QUESTIONS];
+      if (selectedCategory !== "Todas") {
+        filtered = filtered.filter((q) => q.category === selectedCategory);
+      }
+      if (filtered.length === 0) filtered = [...QUIZ_QUESTIONS];
+      const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 5);
+      setQuestions(shuffled);
     }
-    // Embaralha as perguntas e seleciona até 10
-    const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 10);
-    setQuestions(shuffled);
+
     setCurrentIndex(0);
     setUserScore(0);
     setBotScore(0);
@@ -163,10 +215,15 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
   const handleNextQuestion = () => {
     gameAudio.playClick();
     if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
       setSelectedAnswer(null);
       setIsAnswerRevealed(false);
       setTimeLeft(20);
+      // Persistir no histórico para prevenção de repetição
+      if (questions[nextIdx]) {
+        saveQuizQuestionToHistory(userId, questions[nextIdx] as any).catch(() => {});
+      }
     } else {
       handleFinishMatch();
     }
@@ -199,8 +256,13 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
             <Brain className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Quiz Battle</h3>
-            <span className="text-xs text-[var(--app-text-muted)]">Nível 1 • Batalha Acadêmica</span>
+            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight flex items-center gap-2">
+              Quiz Battle
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                IA Inédita
+              </span>
+            </h3>
+            <span className="text-xs text-[var(--app-text-muted)]">Nível 1 • Batalha Acadêmica com Prevenção de Repetição</span>
           </div>
         </div>
 
@@ -228,15 +290,96 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
       {gameState === "LOBBY" && (
         <div className="p-6 sm:p-8 space-y-6">
           <div className="text-center max-w-md mx-auto space-y-2">
-            <h4 className="text-xl font-black text-[var(--app-text)]">Pronto para a Batalha?</h4>
+            <h4 className="text-xl font-black text-[var(--app-text)]">Batalha de Conhecimento com IA</h4>
             <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-              Responda a 10 perguntas acadêmicas cronometradas. Quanto mais rápido e assertivo, maior seu combo de IF Coins e XP!
+              Perguntas geradas dinamicamente com histórico anti-repetição. Responda com agilidade para maximizar suas moedas e XP!
             </p>
+          </div>
+
+          {/* Erro de geração da IA */}
+          {iaError && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 space-y-2">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Aviso de Conexão com a IA</span>
+              </div>
+              <p>{iaError}</p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleStartGame()}
+                  className="px-3 py-1 rounded-lg bg-amber-500 text-white font-bold cursor-pointer hover:bg-amber-600 transition"
+                >
+                  Tentar Novamente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("classic");
+                    setIaError(null);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] font-semibold cursor-pointer hover:bg-[var(--app-card-secondary)] transition"
+                >
+                  Usar Modo Clássico Offline
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modo de Geração */}
+          <div className="flex items-center gap-2 p-1 rounded-2xl bg-[var(--app-card-secondary)]/50 border border-[var(--app-border)]">
+            <button
+              type="button"
+              onClick={() => setMode("ai")}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === "ai"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Perguntas Inéditas por IA</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("classic")}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === "classic"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span>Banco Clássico</span>
+            </button>
+          </div>
+
+          {/* Dificuldade */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
+              Dificuldade
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["Fácil", "Médio", "Difícil"] as const).map((dif) => (
+                <button
+                  key={dif}
+                  type="button"
+                  onClick={() => setSelectedDifficulty(dif)}
+                  className={`py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    selectedDifficulty === dif
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                      : "bg-[var(--app-card-secondary)]/50 text-[var(--app-text)] border-[var(--app-border)] hover:border-indigo-500/50"
+                  }`}
+                >
+                  {dif}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-3">
             <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
-              Escolha a Categoria
+              Matéria / Disciplina
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {categories.map((cat) => (
@@ -279,10 +422,20 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
           <button
             onClick={handleStartGame}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm tracking-wide shadow-md transition transform active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+            disabled={isLoadingIa}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-black text-sm tracking-wide shadow-md transition transform active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
           >
-            <span>Iniciar Partida</span>
-            <ChevronRight className="w-4 h-4" />
+            {isLoadingIa ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>A IA está gerando perguntas inéditas de {selectedCategory}...</span>
+              </>
+            ) : (
+              <>
+                <span>Iniciar Partida</span>
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </div>
       )}
