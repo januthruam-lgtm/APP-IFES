@@ -70,13 +70,40 @@ export function isSemanticallySimilar(textA: string, textB: string): boolean {
   return similarity >= 0.70;
 }
 
+const memoryQuizStore: Record<string, string> = {};
+
+function safeStorageGet(key: string): string | null {
+  if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return memoryQuizStore[key] ?? null;
+    }
+  }
+  return memoryQuizStore[key] ?? null;
+}
+
+function safeStorageSet(key: string, val: string): void {
+  if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+    try {
+      window.localStorage.setItem(key, val);
+      return;
+    } catch {}
+  }
+  memoryQuizStore[key] = val;
+}
+
+function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") return "";
+  return process.env.API_BASE_URL || "http://localhost:3000";
+}
+
 /**
  * Carrega o histórico local de perguntas já apresentadas ao jogador.
  */
 export function loadLocalQuizHistory(userId: string): QuizHistoryRecord[] {
-  if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(`${STORAGE_QUIZ_HISTORY_KEY}_${userId}`);
+    const raw = safeStorageGet(`${STORAGE_QUIZ_HISTORY_KEY}_${userId}`);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
@@ -106,7 +133,7 @@ export async function saveQuizQuestionToHistory(
     const current = loadLocalQuizHistory(userId);
     // Limita a 500 itens no histórico para controle de memória
     const updated = [record, ...current.slice(0, 499)];
-    localStorage.setItem(`${STORAGE_QUIZ_HISTORY_KEY}_${userId}`, JSON.stringify(updated));
+    safeStorageSet(`${STORAGE_QUIZ_HISTORY_KEY}_${userId}`, JSON.stringify(updated));
   } catch {}
 
   // 2. Persistir no Firestore associado à conta do aluno
@@ -134,16 +161,22 @@ export function isQuestionAlreadyAsked(
   return false;
 }
 
+import { getAcademicContextForSubject, getStudentWeaknessesLocal } from "./avaGameContentService";
+
+export type QuizDifficultyLevel = "Fácil" | "Intermediária" | "Médio" | "Difícil" | "Avançada";
+
 /**
- * Gera perguntas dinâmicas e inéditas usando a IA com prevenção ativa de repetição.
+ * Gera perguntas dinâmicas e inéditas usando a IA com prevenção ativa de repetição e ancoragem no AVA IFES.
  */
 export async function generateUnprecedentedQuizQuestions(params: {
   userId: string;
   subject: string;
   topic?: string;
-  difficulty?: "Fácil" | "Médio" | "Difícil";
+  difficulty?: QuizDifficultyLevel;
   schoolLevel?: string;
   count?: number;
+  academicContext?: string;
+  isReviewMode?: boolean;
 }): Promise<{
   success: boolean;
   questions: QuizIaQuestion[];
@@ -156,14 +189,19 @@ export async function generateUnprecedentedQuizQuestions(params: {
     difficulty = "Médio",
     schoolLevel = "Ensino Médio e Técnico IFES",
     count = 5,
+    academicContext,
+    isReviewMode = false,
   } = params;
 
   // 1. Carregar histórico do estudante (local + remoto)
   const localHistory = loadLocalQuizHistory(userId);
-  const excludeSnippets = localHistory.slice(0, 25).map((h) => h.question);
+  const excludeSnippets = localHistory.slice(0, 35).map((h) => h.question);
+
+  // 2. Extrair contexto real dos conteúdos das matérias do IFES
+  const context = academicContext || getAcademicContextForSubject(subject).referenceSummary;
 
   try {
-    const res = await fetch("/api/quiz/generate-questions", {
+    const res = await fetch(`${getApiBaseUrl()}/api/quiz/generate-questions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -172,6 +210,8 @@ export async function generateUnprecedentedQuizQuestions(params: {
         difficulty,
         schoolLevel,
         count,
+        academicContext: context,
+        isReviewMode,
         excludeQuestions: excludeSnippets,
         language: "pt-BR",
       }),
@@ -187,7 +227,7 @@ export async function generateUnprecedentedQuizQuestions(params: {
       throw new Error("Nenhuma pergunta válida retornada pelo gerador de IA.");
     }
 
-    // 2. Filtragem secundária rigorosa contra repetições no cliente
+    // 3. Filtragem secundária rigorosa contra repetições no cliente (similaridade Jaccard)
     const filteredQuestions: QuizIaQuestion[] = [];
     for (const q of data.questions) {
       if (!isQuestionAlreadyAsked(q.question, localHistory)) {
@@ -202,7 +242,7 @@ export async function generateUnprecedentedQuizQuestions(params: {
 
     if (filteredQuestions.length === 0) {
       throw new Error(
-        `Todas as perguntas geradas coincidiram com o histórico anterior. Tente solicitar outro tópico de ${subject}.`
+        `Todas as perguntas geradas coincidiram com o histórico anterior. O sistema tentou prevenir duplicidade, mas esgotou variações imediatas de ${subject}. Selecione outro tópico.`
       );
     }
 
@@ -220,4 +260,53 @@ export async function generateUnprecedentedQuizQuestions(params: {
         `Não foi possível gerar novas perguntas de ${subject} neste momento. Verifique a conexão e tente novamente.`,
     };
   }
+}
+
+/**
+ * MODO REVISÃO INTELIGENTE: Gera um quiz direcionado para os tópicos em que o estudante errou anteriormente.
+ */
+export async function generateSmartReviewQuiz(params: {
+  userId: string;
+  count?: number;
+}): Promise<{
+  success: boolean;
+  questions: QuizIaQuestion[];
+  targetTopic?: string;
+  targetSubject?: string;
+  error?: string;
+}> {
+  const { userId, count = 5 } = params;
+  const weaknesses = getStudentWeaknessesLocal(userId);
+
+  if (weaknesses.length === 0) {
+    // Se o estudante não tiver erros registrados ainda, gera uma revisão geral da primeira disciplina
+    return generateUnprecedentedQuizQuestions({
+      userId,
+      subject: "Teoria Geral da Administração II",
+      topic: "Conceitos Fundamentais e Processos",
+      difficulty: "Intermediária",
+      count,
+      isReviewMode: true,
+    });
+  }
+
+  // Pega o ponto fraco mais crítico (com mais erros ou mais recente)
+  const sortedWeaknesses = [...weaknesses].sort((a, b) => b.incorrectAttempts - a.incorrectAttempts);
+  const target = sortedWeaknesses[0];
+
+  const res = await generateUnprecedentedQuizQuestions({
+    userId,
+    subject: target.subject,
+    topic: target.topic,
+    difficulty: "Intermediária",
+    count,
+    isReviewMode: true,
+    academicContext: `Ponto fraco do estudante: ${target.topic} na disciplina ${target.subject}. Questão anterior em que errou: "${target.questionSnippet}". Reforce o conceito central explicando a resolução correta.`,
+  });
+
+  return {
+    ...res,
+    targetTopic: target.topic,
+    targetSubject: target.subject,
+  };
 }

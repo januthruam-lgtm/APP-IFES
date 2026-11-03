@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { gameAudio } from "../../audio";
 import { SessionResultPayload } from "../../services/gamesService";
+import { getEnrolledAcademicCourses } from "../../services/avaGameContentService";
+import { fetchAcademicMathProblems } from "../../services/challengeIaService";
 
 interface MathRushGameProps {
   userId: string;
@@ -26,13 +28,22 @@ interface MathProblem {
   options: number[];
   correctAnswer: number;
   type: "Aritmética" | "Equação" | "Porcentagem" | "Função" | "Financeira";
+  explanation?: string;
 }
 
 export const MathRushGame: React.FC<MathRushGameProps> = ({
+  userId,
   sessionToken,
   onFinishGame,
   onExit,
 }) => {
+  const enrolledCourses = getEnrolledAcademicCourses();
+  const [selectedCourse, setSelectedCourse] = useState<string>(
+    enrolledCourses.find((c) => c.name.toLowerCase().includes("finan") || c.name.toLowerCase().includes("matem"))?.name ||
+    enrolledCourses[0]?.name ||
+    "Gestão Financeira e Orçamentária"
+  );
+
   const [gameState, setGameState] = useState<"LOBBY" | "PLAYING" | "SUMMARY">("LOBBY");
   const [currentProblem, setCurrentProblem] = useState<MathProblem | null>(null);
   const [score, setScore] = useState<number>(0);
@@ -42,6 +53,7 @@ export const MathRushGame: React.FC<MathRushGameProps> = ({
   const [totalProblems, setTotalProblems] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(30); // 30s base
   const [timeNotification, setTimeNotification] = useState<string | null>(null);
+  const [lastExplanation, setLastExplanation] = useState<string | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
 
   const timerRef = useRef<any>(null);
@@ -204,12 +216,23 @@ export const MathRushGame: React.FC<MathRushGameProps> = ({
             <Zap className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Math Rush</h3>
-            <span className="text-xs text-[var(--app-text-muted)]">Nível 8 • Matemática Contra o Tempo</span>
+            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Math Rush • AVA IFES</h3>
+            <span className="text-xs text-[var(--app-text-muted)]">Cálculos aplicados a {selectedCourse}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] cursor-pointer"
+          >
+            {enrolledCourses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={() => {
               const muted = gameAudio.toggleMute();

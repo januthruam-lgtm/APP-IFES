@@ -677,15 +677,18 @@ REGRAS OBRIGATÓRIAS:
   });
 
   // 10.1 GERADOR DINÂMICO DE PERGUNTAS DE QUIZ COM IA & PREVENÇÃO DE REPETIÇÃO (PARTE 3)
+  // 10.1 GERADOR DINÂMICO DE PERGUNTAS DE QUIZ COM IA & PREVENÇÃO DE REPETIÇÃO (AVA IFES)
   app.post("/api/quiz/generate-questions", async (req, res) => {
     try {
       const {
         subject = "Conhecimentos Gerais",
         topic = "",
         difficulty = "Médio",
-        schoolLevel = "Ensino Médio e Técnico",
+        schoolLevel = "Ensino Médio e Técnico IFES",
         count = 5,
         excludeQuestions = [],
+        academicContext = "",
+        isReviewMode = false,
         language = "pt-BR",
       } = req.body || {};
 
@@ -698,23 +701,28 @@ REGRAS OBRIGATÓRIAS:
 
       const qCount = Math.min(10, Math.max(3, Number(count) || 5));
       const recentExcludes = Array.isArray(excludeQuestions)
-        ? excludeQuestions.slice(-30).map((q: string) => `- ${q}`).join("\n")
+        ? excludeQuestions.slice(-35).map((q: string) => `- ${q}`).join("\n")
         : "";
 
-      const prompt = `Você é um gerador pedagógico e examinador sênior para a plataforma educacional IFES.
-Gere exatamente ${qCount} perguntas INÉDITAS de múltipla escolha para a matéria "${subject}"${topic ? ` sobre o tópico "${topic}"` : ""}.
+      const prompt = `Você é o examinador pedagógico sênior oficial do Instituto Federal do Espírito Santo (IFES).
+Sua missão é gerar exatamente ${qCount} perguntas INÉDITAS de múltipla escolha estritamente baseadas na disciplina "${subject}"${topic ? ` e especificamente no tópico curricular "${topic}"` : ""}.
 
-DIRETRIZES RÍGIDAS DE QUALIDADE (PARTE 3):
-1. NÍVEL ESCOLAR: "${schoolLevel}", com nível de dificuldade "${difficulty}".
-2. ENUNCIADOS CLAROS: Sem ambiguidades ou pegadinhas sem valor pedagógico.
-3. ALTERNATIVAS COERENTES: Exatamente 4 opções por questão (A, B, C, D). Apenas UMA alternativa absolutamente correta.
-4. NUNCA criar opções absurdas ou infantis para facilitar; as opções erradas (distratores) devem ser plausíveis e baseadas em conceitos reais da disciplina.
-5. JUSTIFICATIVA PEDAGÓGICA (explanation): Explicação detalhada e didática do motivo pelo qual a resposta correta é a válida e por que as demais são incorretas.
+${isReviewMode ? "ATENÇÃO: MODO DE REVISÃO INTELIGENTE ATIVADO! O estudante teve dificuldades conceituais neste tópico anteriormente. Formule questões que diagnostiquem e reforcem o entendimento do conceito de forma nova e esclarecedora, SEM repetir o enunciado anterior." : ""}
+
+BASE CURRICULAR E MATERIAIS DE REFERÊNCIA DO IFES:
+${academicContext ? academicContext : `Conteúdos programáticos e matriz curricular da disciplina "${subject}" ministrada no IFES.`}
+
+DIRETRIZES RÍGIDAS DE QUALIDADE PEDAGÓGICA DO IFES:
+1. NÍVEL DE ENSINO: "${schoolLevel}", com nível de dificuldade "${difficulty}".
+2. ZERO INVENÇÃO: Não invente temas ou conceitos fora da ementa e realidade de ${subject}. As perguntas devem ser fundamentadas nos conteúdos reais estudados pelo aluno.
+3. ENUNCIADOS CLAROS: Situações-problema contextualizadas, estudos de caso breves ou interpretação conceitual precisa.
+4. EXATAMENTE 4 ALTERNATIVAS (A, B, C, D): Apenas UMA resposta correta. As 3 alternativas incorretas (distratores) DEVEM ser plausíveis, baseadas em erros conceituais comuns da matéria (nunca piadas ou opções infantis).
+5. EXPLICAÇÃO DIDÁTICA (explanation): Justificativa educativa detalhada explicando por que a alternativa correta é a válida e qual a relação direta com a matéria "${subject}".
 6. PREVENÇÃO ABSOLUTA DE REPETIÇÃO:
-As seguintes perguntas já foram respondidas pelo estudante e NUNCA devem ser repetidas nem reescritas de forma muito parecida:
-${recentExcludes || "(Nenhuma pergunta anterior cadastrada)"}
+As seguintes perguntas já foram apresentadas ao estudante e NUNCA devem ser repetidas nem reescritas de forma similar:
+${recentExcludes || "(Nenhuma pergunta anterior)"}
 
-7. IDIOMA: Escreva todas as perguntas, opções e justificativas em Português do Brasil (${language}).
+7. IDIOMA: Português do Brasil (${language}).
 
 Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown e sem texto adicional) no seguinte formato:
 {
@@ -723,17 +731,232 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown e sem texto adi
   "questions": [
     {
       "id": "q1",
-      "question": "Enunciado da pergunta...",
-      "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
+      "question": "Enunciado claro e contextualizado...",
+      "options": ["Alternativa A", "Alternativa B", "Alternativa C", "Alternativa D"],
       "correctIndex": 0,
-      "explanation": "Explicação detalhada da resposta...",
-      "category": "${subject}"
+      "explanation": "Explicação educativa detalhada vinculada ao conceito de...",
+      "category": "${subject}",
+      "topic": "${topic || "Conceito Curricular"}"
     }
   ]
 }`;
 
+      const candidateModels = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
+      let raw = "";
+      let lastErr: any = null;
+
+      for (const modelName of candidateModels) {
+        try {
+          const config: any = {
+            responseMimeType: "application/json",
+          };
+          // Se for gemini-3.8 ou modelo com thinking, usa LOW para reduzir latência drástica
+          if (modelName.includes("3.8") || modelName.includes("argon")) {
+            config.thinkingConfig = { thinkingLevel: "LOW" };
+          } else {
+            config.temperature = 0.5;
+          }
+
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config,
+          });
+
+          const text = response.text?.trim() || "";
+          if (text) {
+            raw = text;
+            break;
+          }
+        } catch (mErr: any) {
+          lastErr = mErr;
+          console.warn(`[Quiz-AI] Modelo ${modelName} falhou:`, mErr?.status || mErr?.message || mErr);
+        }
+      }
+
+      if (!raw) {
+        throw lastErr || new Error("Nenhum modelo de IA pôde responder no momento.");
+      }
+
+      const cleaned = raw.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        return res.status(500).json({
+          error: "A IA não conseguiu estruturar as perguntas corretamente. Tente novamente.",
+        });
+      }
+
+      // Validar e higienizar cada questão
+      const validated = parsed.questions.map((q: any, idx: number) => ({
+        id: q.id || `ai-q-${Date.now()}-${idx}`,
+        question: String(q.question || "").trim(),
+        options: Array.isArray(q.options) && q.options.length === 4
+          ? q.options.map(String)
+          : ["Opção A", "Opção B", "Opção C", "Opção D"],
+        correctIndex: typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex <= 3
+          ? q.correctIndex
+          : 0,
+        explanation: String(q.explanation || `Conceito fundamentado na disciplina de ${subject}.`),
+        category: subject,
+        topic: String(q.topic || topic || "Conteúdo Geral"),
+      })).filter((q: any) => q.question.length > 5);
+
+      return res.json({
+        success: true,
+        subject,
+        topic,
+        difficulty,
+        count: validated.length,
+        questions: validated,
+      });
+    } catch (err: any) {
+      console.warn("[API /quiz/generate-questions] Erro:", err?.message || err);
+      return res.status(500).json({
+        error: `Não foi possível gerar novas perguntas no momento: ${err?.message || "Erro desconhecido"}`,
+      });
+    }
+  });
+
+  // 10.2 GERADOR DINÂMICO DE DESAFIOS PARA MINIGAMES DO IFES (Memória, Palavras, Matemática e Lógica)
+  app.post("/api/games/generate-challenges", async (req, res) => {
+    try {
+      const {
+        gameType = "memory_pairs", // "memory_pairs" | "academic_terms" | "math_problems" | "logic_challenges"
+        subject = "Administração",
+        topic = "",
+        difficulty = "Médio",
+        schoolLevel = "Ensino Médio e Técnico IFES",
+        count = 6,
+        academicContext = "",
+        excludeItems = [],
+      } = req.body || {};
+
+      const ai = getGeminiClient();
+      if (!ai) {
+        return res.status(503).json({
+          error: "Serviço de Inteligência Artificial indisponível no momento.",
+        });
+      }
+
+      const safeCount = Math.min(12, Math.max(3, Number(count) || 6));
+      const excludesList = Array.isArray(excludeItems)
+        ? excludeItems.slice(-30).map((item: string) => `- ${item}`).join("\n")
+        : "";
+
+      let prompt = "";
+
+      if (gameType === "memory_pairs") {
+        prompt = `Você é um coordenador pedagógico do IFES.
+Gere exatamente ${safeCount} pares educativos de CONCEITO <-> DEFINIÇÃO/APLICAÇÃO para o jogo de Memória Cognitiva.
+Disciplina: "${subject}"${topic ? `, com foco no tópico "${topic}"` : ""}.
+Contexto Curricular: ${academicContext || "Matriz do IFES"}.
+Nível: ${schoolLevel}, Dificuldade: ${difficulty}.
+
+REGRAS RÍGIDAS:
+1. "termA" é o Termo Técnico Curricular (máximo 4 palavras).
+2. "termB" é o Significado, Aplicação ou Fórmula correspondente (máximo 12 palavras, claro e sem ambiguidade).
+3. "hint" é uma dica explicativa sucinta.
+4. Itens que NÃO podem ser repetidos:
+${excludesList || "(Nenhum)"}
+
+Retorne ESTRITAMENTE JSON:
+{
+  "subject": "${subject}",
+  "pairs": [
+    {
+      "id": "pair_1",
+      "termA": "Termo Técnico",
+      "termB": "Definição precisa da disciplina",
+      "hint": "Dica de estudo..."
+    }
+  ]
+}`;
+      } else if (gameType === "academic_terms") {
+        prompt = `Você é um professor do IFES.
+Gere exatamente ${safeCount} termos acadêmicos e conceituais da disciplina "${subject}"${topic ? ` (Tópico: "${topic}")` : ""} para o jogo Mestre das Palavras (Anagramas e Termo Secreto).
+Nível: ${schoolLevel}.
+
+REGRAS RÍGIDAS:
+1. "word" deve ser uma palavra ou termo único sem espaços, sem hífens e sem caracteres especiais, em CAIXA ALTA (tamanho entre 4 e 10 letras, ex: "ESTOQUE", "BALANCO", "VARIAVEL", "FAYOL", "DIAGRAMA").
+2. "hint" é uma dica conceitual rica e didática sobre a disciplina.
+3. "explanation" é uma explicação pedagógica completa de 2 a 3 frases sobre o significado acadêmico do termo.
+4. Termos excluídos (não repetir):
+${excludesList || "(Nenhum)"}
+
+Retorne ESTRITAMENTE JSON:
+{
+  "subject": "${subject}",
+  "terms": [
+    {
+      "id": "term_1",
+      "word": "PALAVRA",
+      "hint": "Dica sobre o conceito...",
+      "explanation": "Explicação detalhada..."
+    }
+  ]
+}`;
+      } else if (gameType === "math_problems") {
+        prompt = `Você é o professor de Matemática e Métodos Quantitativos do IFES.
+Gere exatamente ${safeCount} problemas práticos contextualizados na realidade das disciplinas (Finanças, Custos, Logística, Estatística, Funções ou Circuitos).
+Disciplina: "${subject}"${topic ? ` (Tópico: "${topic}")` : ""}. Nível: ${schoolLevel}, Dificuldade: ${difficulty}.
+
+REGRAS RÍGIDAS:
+1. "equation" é a situação-problema prática (curta e objetiva).
+2. "options" é um array com exatamente 4 números (valores numéricos inteiros ou decimais precisos).
+3. "correctAnswer" é o valor correto presente no array options.
+4. "explanation" é a resolução passo a passo concisa demonstrando a fórmula aplicada.
+5. "type" pode ser "Financeira", "Equação", "Porcentagem", "Função" ou "Aritmética".
+6. Exclusões:
+${excludesList || "(Nenhum)"}
+
+Retorne ESTRITAMENTE JSON:
+{
+  "subject": "${subject}",
+  "problems": [
+    {
+      "id": "prob_1",
+      "equation": "Problema contextualizado...",
+      "options": [100, 200, 300, 400],
+      "correctAnswer": 200,
+      "type": "Financeira",
+      "explanation": "Passo a passo do cálculo..."
+    }
+  ]
+}`;
+      } else {
+        // logic_challenges
+        prompt = `Você é o professor de Lógica e Algoritmos do IFES.
+Gere exatamente ${safeCount} desafios de raciocínio dedutivo, sequências lógicas, tabelas-verdade ou estruturas de decisão baseadas na matriz de "${subject}".
+Nível: ${schoolLevel}, Dificuldade: ${difficulty}.
+
+REGRAS RÍGIDAS:
+1. "title" é o nome do princípio lógico abordado.
+2. "instruction" é a orientação de raciocínio para o estudante.
+3. "question" é o desafio ou sequência estruturada.
+4. "options" é um array com 4 alternativas possíveis.
+5. "correctAnswer" é a resposta correta (exatamente igual a um dos itens de options).
+6. "explanation" é o passo a passo lógico que demonstra a dedução correta.
+
+Retorne ESTRITAMENTE JSON:
+{
+  "subject": "${subject}",
+  "challenges": [
+    {
+      "id": "ch_1",
+      "title": "Sequência Condicional",
+      "instruction": "Descubra o valor resultante:",
+      "question": "Enunciado lógico...",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "A",
+      "explanation": "Demonstração lógica..."
+    }
+  ]
+}`;
+      }
+
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.8-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -745,37 +968,16 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem blocos markdown e sem texto adi
       const cleaned = raw.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
       const parsed = JSON.parse(cleaned);
 
-      if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-        return res.status(500).json({
-          error: "A IA não conseguiu estruturar as perguntas corretamente. Tente novamente.",
-        });
-      }
-
-      // Validar cada questão
-      const validated = parsed.questions.map((q: any, idx: number) => ({
-        id: q.id || `ai-q-${Date.now()}-${idx}`,
-        question: String(q.question || "").trim(),
-        options: Array.isArray(q.options) && q.options.length === 4
-          ? q.options.map(String)
-          : ["Opção A", "Opção B", "Opção C", "Opção D"],
-        correctIndex: typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex <= 3
-          ? q.correctIndex
-          : 0,
-        explanation: String(q.explanation || "Resposta fundamentada nos conceitos da disciplina."),
-        category: subject,
-      })).filter((q: any) => q.question.length > 5);
-
       return res.json({
         success: true,
+        gameType,
         subject,
-        difficulty,
-        count: validated.length,
-        questions: validated,
+        data: parsed,
       });
     } catch (err: any) {
-      console.warn("[API /quiz/generate-questions] Erro:", err?.message || err);
+      console.warn("[API /games/generate-challenges] Erro:", err?.message || err);
       return res.status(500).json({
-        error: `Não foi possível gerar novas perguntas no momento: ${err?.message || "Erro desconhecido"}`,
+        error: `Não foi possível gerar desafios dinâmicos no momento: ${err?.message || "Erro desconhecido"}`,
       });
     }
   });

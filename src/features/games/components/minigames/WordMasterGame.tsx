@@ -19,6 +19,8 @@ import {
 } from "../../data/wordMasterData";
 import { gameAudio } from "../../audio";
 import { SessionResultPayload } from "../../services/gamesService";
+import { getEnrolledAcademicCourses } from "../../services/avaGameContentService";
+import { fetchAcademicWordMasterTerms, AcademicTerm } from "../../services/challengeIaService";
 
 interface WordMasterGameProps {
   userId: string;
@@ -31,23 +33,30 @@ interface WordMasterGameProps {
 type WordMode = "ANAGRAM" | "SECRET_TERM" | "WORD_SEARCH";
 
 export const WordMasterGame: React.FC<WordMasterGameProps> = ({
+  userId,
   sessionToken,
   onFinishGame,
   onExit,
 }) => {
+  const enrolledCourses = getEnrolledAcademicCourses();
+  const [selectedSubject, setSelectedSubject] = useState<string>(
+    enrolledCourses[0]?.name || "Teoria Geral da Administração II"
+  );
+
   const [mode, setMode] = useState<WordMode>("SECRET_TERM");
   const [score, setScore] = useState<number>(0);
   const [solvedCount, setSolvedCount] = useState<number>(0);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
+  const [isLoadingTerms, setIsLoadingTerms] = useState<boolean>(false);
 
   // Estado para Anagramas
-  const [anagramItem, setAnagramItem] = useState<AnagramWord>(ANAGRAM_WORDS[0]);
+  const [anagramItem, setAnagramItem] = useState<AnagramWord & { explanation?: string }>(ANAGRAM_WORDS[0]);
   const [anagramScrambled, setAnagramScrambled] = useState<string[]>([]);
   const [anagramSelected, setAnagramSelected] = useState<number[]>([]);
   const [anagramSuccess, setAnagramSuccess] = useState<boolean>(false);
 
   // Estado para Termo Secreto (Wordle Acadêmico)
-  const [secretItem, setSecretItem] = useState<SecretTermWord>(SECRET_TERMS[0]);
+  const [secretItem, setSecretItem] = useState<SecretTermWord & { explanation?: string }>(SECRET_TERMS[0]);
   const [secretGuesses, setSecretGuesses] = useState<string[]>([]);
   const [currentGuess, setCurrentGuess] = useState<string>("");
   const [isSecretWon, setIsSecretWon] = useState<boolean>(false);
@@ -58,8 +67,60 @@ export const WordMasterGame: React.FC<WordMasterGameProps> = ({
   const [searchGrid, setSearchGrid] = useState<string[][]>(SAMPLE_WORD_SEARCH.gridLetters);
   const [selectedWordSearchPath, setSelectedWordSearchPath] = useState<[number, number][]>([]);
 
-  // Inicializa Anagrama
-  const initAnagram = () => {
+  // Inicializa Termos a partir da Disciplina do Aluno
+  const loadDynamicTermsForSubject = async (subject = selectedSubject) => {
+    setIsLoadingTerms(true);
+    let terms: AcademicTerm[] = [];
+    try {
+      terms = await fetchAcademicWordMasterTerms({
+        userId,
+        subject,
+        count: 5,
+      });
+    } catch {
+      terms = [];
+    }
+    setIsLoadingTerms(false);
+
+    if (terms && terms.length > 0) {
+      // Configura Anagrama
+      const t1 = terms[0];
+      const cleanWord1 = t1.word.toUpperCase().replace(/[^A-Z]/g, "");
+      setAnagramItem({
+        id: t1.id,
+        word: cleanWord1,
+        hint: t1.hint,
+        category: subject as any,
+        explanation: t1.explanation,
+      });
+      const letters = cleanWord1.split("").sort(() => Math.random() - 0.5);
+      setAnagramScrambled(letters);
+      setAnagramSelected([]);
+      setAnagramSuccess(false);
+
+      // Configura Termo Secreto
+      const t2 = terms[1] || t1;
+      const cleanWord2 = t2.word.toUpperCase().replace(/[^A-Z]/g, "");
+      setSecretItem({
+        id: t2.id,
+        word: cleanWord2,
+        displayWord: cleanWord2,
+        clue: t2.hint,
+        context: t2.explanation,
+        category: subject as any,
+        explanation: t2.explanation,
+      });
+      setSecretGuesses([]);
+      setCurrentGuess("");
+      setIsSecretWon(false);
+      setIsSecretGameOver(false);
+    } else {
+      initAnagramFallback();
+      initSecretFallback();
+    }
+  };
+
+  const initAnagramFallback = () => {
     const randomItem = ANAGRAM_WORDS[Math.floor(Math.random() * ANAGRAM_WORDS.length)];
     setAnagramItem(randomItem);
     const letters = randomItem.word.split("").sort(() => Math.random() - 0.5);
@@ -68,8 +129,7 @@ export const WordMasterGame: React.FC<WordMasterGameProps> = ({
     setAnagramSuccess(false);
   };
 
-  // Inicializa Termo Secreto
-  const initSecret = () => {
+  const initSecretFallback = () => {
     const randomItem = SECRET_TERMS[Math.floor(Math.random() * SECRET_TERMS.length)];
     setSecretItem(randomItem);
     setSecretGuesses([]);
@@ -78,10 +138,17 @@ export const WordMasterGame: React.FC<WordMasterGameProps> = ({
     setIsSecretGameOver(false);
   };
 
+  const initAnagram = () => {
+    loadDynamicTermsForSubject(selectedSubject);
+  };
+
+  const initSecret = () => {
+    loadDynamicTermsForSubject(selectedSubject);
+  };
+
   useEffect(() => {
-    initAnagram();
-    initSecret();
-  }, []);
+    loadDynamicTermsForSubject(selectedSubject);
+  }, [selectedSubject]);
 
   // --- Handlers Anagrama ---
   const handleSelectScrambledLetter = (idx: number) => {
@@ -194,12 +261,23 @@ export const WordMasterGame: React.FC<WordMasterGameProps> = ({
             <BookOpen className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Word Master</h3>
-            <span className="text-xs text-[var(--app-text-muted)]">Nível 5 • Vocabulário Acadêmico</span>
+            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Word Master • AVA IFES</h3>
+            <span className="text-xs text-[var(--app-text-muted)]">Termos conceituais de {selectedSubject}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="px-2 py-1 rounded-xl text-xs font-bold bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] cursor-pointer"
+          >
+            {enrolledCourses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={() => {
               const muted = gameAudio.toggleMute();

@@ -659,6 +659,9 @@ export function isMockOrPlaceholderCourse(course: IfesCourse): boolean {
 }
 
 export function loadSyncedCourses(): IfesCourse[] {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return [];
+  }
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.COURSES);
     if (saved) {
@@ -677,6 +680,9 @@ export function loadSyncedCourses(): IfesCourse[] {
 }
 
 export function saveSyncedCourses(courses: IfesCourse[]): void {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return;
+  }
   try {
     const clean = (courses || []).filter((c) => !isMockOrPlaceholderCourse(c));
     localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(clean));
@@ -686,6 +692,9 @@ export function saveSyncedCourses(courses: IfesCourse[]): void {
 }
 
 export function loadSyncedAssignments(): IfesAssignment[] {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return [];
+  }
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
     if (saved) {
@@ -706,6 +715,9 @@ export function loadSyncedAssignments(): IfesAssignment[] {
 }
 
 export function saveSyncedAssignments(assignments: IfesAssignment[]): void {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
+    return;
+  }
   try {
     localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(assignments));
   } catch (e) {

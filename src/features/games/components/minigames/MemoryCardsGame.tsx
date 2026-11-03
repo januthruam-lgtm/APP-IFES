@@ -13,6 +13,8 @@ import {
 import { MEMORY_CONCEPT_PAIRS, MemoryConceptPair } from "../../data/memoryPairs";
 import { gameAudio } from "../../audio";
 import { SessionResultPayload } from "../../services/gamesService";
+import { getEnrolledAcademicCourses } from "../../services/avaGameContentService";
+import { fetchAcademicMemoryPairs, MemoryPair } from "../../services/challengeIaService";
 
 interface MemoryCardsGameProps {
   userId: string;
@@ -33,10 +35,16 @@ interface CardItem {
 }
 
 export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
+  userId,
   sessionToken,
   onFinishGame,
   onExit,
 }) => {
+  const enrolledCourses = getEnrolledAcademicCourses();
+  const [selectedSubject, setSelectedSubject] = useState<string>(
+    enrolledCourses[0]?.name || "Teoria Geral da Administração II"
+  );
+
   const [phase, setPhase] = useState<number>(1); // 1 = 6 pares (12 cartas), 2 = 8 pares (16 cartas), 3 = 10 pares (20 cartas)
   const [cards, setCards] = useState<CardItem[]>([]);
   const [flippedIndices, setFlippedIndices] = useState<number[]>([]);
@@ -44,21 +52,36 @@ export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
   const [matchesCount, setMatchesCount] = useState<number>(0);
   const [secondsElapsed, setSecondsElapsed] = useState<number>(0);
   const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
+  const [isLoadingPairs, setIsLoadingPairs] = useState<boolean>(false);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [matchedToast, setMatchedToast] = useState<string | null>(null);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
 
   const timerRef = useRef<any>(null);
 
-  const getPairsForPhase = (ph: number): MemoryConceptPair[] => {
+  const initGame = async (ph: number, subject = selectedSubject) => {
+    setIsLoadingPairs(true);
     const pairCount = ph === 1 ? 6 : ph === 2 ? 8 : 10;
-    const shuffledPool = [...MEMORY_CONCEPT_PAIRS].sort(() => Math.random() - 0.5);
-    return shuffledPool.slice(0, pairCount);
-  };
 
-  const initGame = (ph: number) => {
-    const pairs = getPairsForPhase(ph);
+    let pairs: MemoryPair[] = [];
+    try {
+      pairs = await fetchAcademicMemoryPairs({
+        userId,
+        subject,
+        count: pairCount,
+      });
+    } catch {
+      pairs = [];
+    }
+
+    if (!pairs || pairs.length === 0) {
+      const shuffledPool = [...MEMORY_CONCEPT_PAIRS].sort(() => Math.random() - 0.5);
+      pairs = shuffledPool.slice(0, pairCount);
+    }
+
+    setIsLoadingPairs(false);
+
     const cardList: CardItem[] = [];
-
     pairs.forEach((p, idx) => {
       cardList.push({
         uid: `${p.id}_A_${idx}`,
@@ -91,9 +114,9 @@ export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
   };
 
   useEffect(() => {
-    initGame(phase);
+    initGame(phase, selectedSubject);
     return () => clearInterval(timerRef.current);
-  }, [phase]);
+  }, [phase, selectedSubject]);
 
   // Cronômetro
   useEffect(() => {
@@ -133,6 +156,13 @@ export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
           matchedCards[secondIdx].isMatched = true;
           setCards(matchedCards);
           setFlippedIndices([]);
+
+          // Feedback Educativo: exibe o conceito conectado
+          const term = card1.type === "termA" ? card1.text : card2.text;
+          const def = card1.type === "termB" ? card1.text : card2.text;
+          setMatchedToast(`Conceito Aprendido: "${term}" → ${def}`);
+          setTimeout(() => setMatchedToast(null), 4000);
+
           setMatchesCount((prev) => {
             const nextMatch = prev + 1;
             const totalPairs = cards.length / 2;
@@ -189,12 +219,23 @@ export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Memory Cards</h3>
-            <span className="text-xs text-[var(--app-text-muted)]">Nível 3 • Fórmulas & Conceitos</span>
+            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Memory Cards • AVA IFES</h3>
+            <span className="text-xs text-[var(--app-text-muted)]">Pares conceituais de {selectedSubject}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] cursor-pointer"
+          >
+            {enrolledCourses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={() => {
               const muted = gameAudio.toggleMute();
@@ -249,6 +290,22 @@ export const MemoryCardsGame: React.FC<MemoryCardsGameProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Toast Educativo de Par Encontrado */}
+      {matchedToast && (
+        <div className="mx-6 mt-3 p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-fade-in shadow-xs">
+          <Sparkles className="w-4 h-4 shrink-0 text-emerald-500" />
+          <span>{matchedToast}</span>
+        </div>
+      )}
+
+      {/* Loading de Pares Dinâmicos */}
+      {isLoadingPairs && (
+        <div className="p-4 text-center text-xs text-[var(--app-text-muted)] flex items-center justify-center gap-2">
+          <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <span>Carregando conceitos de {selectedSubject}...</span>
+        </div>
+      )}
 
       {/* Grid de Cartas */}
       <div className="p-4 sm:p-6 lg:p-8 flex-1">

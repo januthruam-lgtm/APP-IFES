@@ -23,7 +23,9 @@ import {
   Layers,
   Volume2,
   VolumeX,
+  RotateCcw,
 } from "lucide-react";
+import { getStudentWeaknessesLocal } from "../services/avaGameContentService";
 import {
   MinigameId,
   MinigameDefinition,
@@ -80,10 +82,12 @@ export const GamesHub: React.FC<GamesHubProps> = ({
   const [profile, setProfile] = useState<UserGamesProfile>(() =>
     loadUserGamesProfile(userUid, userLevel)
   );
+  const studentWeaknesses = getStudentWeaknessesLocal(userUid);
 
   // Minigame ativo em execução
   const [activeMinigame, setActiveMinigame] = useState<MinigameDefinition | null>(null);
   const [activeSessionToken, setActiveSessionToken] = useState<string | null>(null);
+  const [reviewModeActive, setReviewModeActive] = useState<boolean>(false);
 
   // Modal de celebração / recompensa
   const [rewardToast, setRewardToast] = useState<{
@@ -150,6 +154,16 @@ export const GamesHub: React.FC<GamesHubProps> = ({
     const token = await startNewGameSession(userUid, gameDef.id);
     setActiveSessionToken(token);
     setActiveMinigame(gameDef);
+  };
+
+  const handleLaunchReviewMode = async () => {
+    const quizGame = MINIGAMES_CONFIG.find((g) => g.id === "quiz_battle");
+    if (!quizGame) return;
+    setReviewModeActive(true);
+    gameAudio.playClick();
+    const token = await startNewGameSession(userUid, "quiz_battle");
+    setActiveSessionToken(token);
+    setActiveMinigame(quizGame);
   };
 
   const handleFinishMatch = async (payload: any) => {
@@ -245,10 +259,12 @@ export const GamesHub: React.FC<GamesHubProps> = ({
             userId={userUid}
             userName={user.name || "Estudante IFES"}
             sessionToken={activeSessionToken}
+            initialReviewMode={reviewModeActive}
             onFinishGame={handleFinishMatch}
             onExit={() => {
               setActiveMinigame(null);
               setActiveSessionToken(null);
+              setReviewModeActive(false);
             }}
           />
         )}
@@ -542,6 +558,46 @@ export const GamesHub: React.FC<GamesHubProps> = ({
         {/* ABA 1: ARENA DE JOGOS (GRID DOS 8 MINIGAMES) */}
         {activeTab === "arena" && (
           <div className="space-y-6">
+            {/* CENTRAL DE REVISÃO INTELIGENTE AVA IFES (PARTE 5) */}
+            {studentWeaknesses.length > 0 && (
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-fade-in">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-500 flex items-center justify-center font-black shrink-0">
+                    <RotateCcw className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-black text-[var(--app-text)] tracking-tight">
+                        Central de Revisão Inteligente AVA IFES
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono text-[11px] font-bold">
+                        {studentWeaknesses.length} conceito{studentWeaknesses.length > 1 ? "s" : ""} a reforçar
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--app-text-muted)] leading-relaxed">
+                      Erros detectados em partidas anteriores. A IA preparou desafios para fixar esses pontos sem repetir as perguntas.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {studentWeaknesses.slice(0, 3).map((w) => (
+                        <span key={w.id} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)]">
+                          {w.topic} ({w.subject.length > 18 ? w.subject.slice(0, 16) + "..." : w.subject})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLaunchReviewMode}
+                  className="w-full md:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white font-black text-xs tracking-wide shadow-md transition cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Revisar com IA Agora</span>
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black text-[var(--app-text)]">Minigames Disponíveis</h2>

@@ -19,15 +19,26 @@ import { QUIZ_QUESTIONS, QuizQuestion } from "../../data/quizQuestions";
 import { gameAudio } from "../../audio";
 import { SessionResultPayload } from "../../services/gamesService";
 import {
+  getEnrolledAcademicCourses,
+  getTopicsForSubject,
+  recordStudentPerformance,
+  getStudentWeaknessesLocal,
+} from "../../services/avaGameContentService";
+import {
   generateUnprecedentedQuizQuestions,
+  generateSmartReviewQuiz,
   saveQuizQuestionToHistory,
   QuizIaQuestion,
+  QuizDifficultyLevel,
 } from "../../services/quizIaService";
 
 interface QuizBattleGameProps {
   userId: string;
   userName: string;
   sessionToken: string;
+  initialCourse?: string;
+  initialTopic?: string;
+  initialReviewMode?: boolean;
   onFinishGame: (payload: SessionResultPayload) => void;
   onExit: () => void;
 }
@@ -36,11 +47,19 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
   userId,
   userName,
   sessionToken,
+  initialCourse,
+  initialTopic,
+  initialReviewMode = false,
   onFinishGame,
   onExit,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("Matemática");
-  const [selectedDifficulty, setSelectedDifficulty] = useState<"Fácil" | "Médio" | "Difícil">("Médio");
+  const enrolledCourses = getEnrolledAcademicCourses();
+  const defaultCategory = initialCourse || (enrolledCourses[0]?.name ?? "Teoria Geral da Administração II");
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(defaultCategory);
+  const [selectedTopic, setSelectedTopic] = useState<string>(initialTopic || "");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<QuizDifficultyLevel>("Intermediária");
+  const [isReviewMode, setIsReviewMode] = useState<boolean>(initialReviewMode);
   const [mode, setMode] = useState<"ai" | "classic">("ai");
   const [vsBotMode, setVsBotMode] = useState<boolean>(true);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(gameAudio.getMuted());
@@ -64,32 +83,37 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
   const timerRef = useRef<any>(null);
 
-  const categories = [
-    "Matemática",
-    "Física",
-    "Química",
-    "Biologia",
-    "História",
-    "Geografia",
-    "Português",
-    "Administração",
-    "Economia",
-    "Informática",
-    "Conhecimentos Gerais",
-  ];
+  // Tópicos disponíveis para a disciplina selecionada
+  const availableTopics = getTopicsForSubject(selectedCategory);
 
-  const handleStartGame = async () => {
+  // Pontos fracos registrados para o estudante
+  const studentWeaknesses = getStudentWeaknessesLocal(userId);
+
+  const handleStartGame = async (forceReview = isReviewMode) => {
     gameAudio.playClick();
     setIaError(null);
 
     if (mode === "ai") {
       setIsLoadingIa(true);
-      const res = await generateUnprecedentedQuizQuestions({
-        userId,
-        subject: selectedCategory,
-        difficulty: selectedDifficulty,
-        count: 5,
-      });
+
+      let res: { success: boolean; questions: QuizIaQuestion[]; error?: string };
+
+      if (forceReview) {
+        res = await generateSmartReviewQuiz({
+          userId,
+          count: 5,
+        });
+      } else {
+        res = await generateUnprecedentedQuizQuestions({
+          userId,
+          subject: selectedCategory,
+          topic: selectedTopic,
+          difficulty: selectedDifficulty,
+          count: 5,
+          isReviewMode: false,
+        });
+      }
+
       setIsLoadingIa(false);
 
       if (!res.success || !res.questions || res.questions.length === 0) {
@@ -99,8 +123,13 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
       const mapped: QuizQuestion[] = res.questions.map((q) => ({
         id: q.id,
-        category: q.category as any,
-        difficulty: selectedDifficulty === "Fácil" ? "facil" : selectedDifficulty === "Médio" ? "medio" : "dificil",
+        category: (q.category || selectedCategory) as any,
+        difficulty:
+          selectedDifficulty === "Fácil"
+            ? "facil"
+            : selectedDifficulty === "Intermediária" || selectedDifficulty === "Médio"
+            ? "medio"
+            : "dificil",
         question: q.question,
         options: (q.options.length >= 4
           ? [q.options[0], q.options[1], q.options[2], q.options[3]]
@@ -120,8 +149,8 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
       setQuestions(mapped);
     } else {
       let filtered = [...QUIZ_QUESTIONS];
-      if (selectedCategory !== "Todas") {
-        filtered = filtered.filter((q) => q.category === selectedCategory);
+      if (selectedCategory) {
+        filtered = filtered.filter((q) => q.category.toLowerCase().includes(selectedCategory.toLowerCase()));
       }
       if (filtered.length === 0) filtered = [...QUIZ_QUESTIONS];
       const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 5);
@@ -165,6 +194,18 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
     setCurrentStreak(0);
     gameAudio.playWrong();
 
+    const currentQ = questions[currentIndex];
+    if (currentQ) {
+      recordStudentPerformance(
+        userId,
+        currentQ.category,
+        (currentQ as any).topic || selectedTopic || "Conceito Geral",
+        currentQ.question,
+        false,
+        currentQ.explanation
+      ).catch(() => {});
+    }
+
     // Bot tem chance de acertar
     if (vsBotMode) {
       if (Math.random() > 0.35) {
@@ -182,6 +223,16 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
     const currentQ = questions[currentIndex];
     const isCorrect = idx === currentQ.correctIndex;
+
+    // Registra desempenho para revisão inteligente de pontos fracos
+    recordStudentPerformance(
+      userId,
+      currentQ.category,
+      (currentQ as any).topic || selectedTopic || "Conceito Geral",
+      currentQ.question,
+      isCorrect,
+      currentQ.explanation
+    ).catch(() => {});
 
     if (isCorrect) {
       const streakBonus = Math.min(2.0, 1 + currentStreak * 0.2);
@@ -289,12 +340,51 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
       {/* LOBBY / SETUP */}
       {gameState === "LOBBY" && (
         <div className="p-6 sm:p-8 space-y-6">
-          <div className="text-center max-w-md mx-auto space-y-2">
-            <h4 className="text-xl font-black text-[var(--app-text)]">Batalha de Conhecimento com IA</h4>
+          <div className="text-center max-w-lg mx-auto space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Base Curricular Real do AVA IFES</span>
+            </div>
+            <h4 className="text-xl sm:text-2xl font-black text-[var(--app-text)] tracking-tight">
+              Batalha de Conhecimento com IA
+            </h4>
             <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-              Perguntas geradas dinamicamente com histórico anti-repetição. Responda com agilidade para maximizar suas moedas e XP!
+              Desafios gerados dinamicamente a partir das suas matérias matriculadas e planos de aula, com proteção ativa contra repetição de perguntas.
             </p>
           </div>
+
+          {/* BANNER DO MODO DE REVISÃO INTELIGENTE */}
+          {studentWeaknesses.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-500 flex items-center justify-center font-black shrink-0">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                      Modo Revisão Inteligente
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-mono text-[10px] font-bold">
+                      {studentWeaknesses.length} pendência{studentWeaknesses.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
+                    Reforce tópicos onde você errou: <strong className="text-[var(--app-text)]">{studentWeaknesses[0]?.topic}</strong> em {studentWeaknesses[0]?.subject}.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleStartGame(true)}
+                disabled={isLoadingIa}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs tracking-wide shadow-md transition cursor-pointer flex items-center justify-center gap-2 shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Revisar Erros Agora</span>
+              </button>
+            </div>
+          )}
 
           {/* Erro de geração da IA */}
           {iaError && (
@@ -330,20 +420,26 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
           <div className="flex items-center gap-2 p-1 rounded-2xl bg-[var(--app-card-secondary)]/50 border border-[var(--app-border)]">
             <button
               type="button"
-              onClick={() => setMode("ai")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                mode === "ai"
+              onClick={() => {
+                setMode("ai");
+                setIsReviewMode(false);
+              }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === "ai" && !isReviewMode
                   ? "bg-blue-600 text-white shadow-xs"
                   : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Perguntas Inéditas por IA</span>
+              <span>Perguntas Inéditas (AVA IFES)</span>
             </button>
             <button
               type="button"
-              onClick={() => setMode("classic")}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              onClick={() => {
+                setMode("classic");
+                setIsReviewMode(false);
+              }}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 mode === "classic"
                   ? "bg-blue-600 text-white shadow-xs"
                   : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
@@ -354,13 +450,91 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
             </button>
           </div>
 
-          {/* Dificuldade */}
+          {/* 1. SELEÇÃO DA DISCIPLINA MATRICULADA */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
+                Disciplinas Matriculadas ({enrolledCourses.length})
+              </label>
+              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                Sincronizadas com o AVA
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {enrolledCourses.map((c) => {
+                const isSelected = selectedCategory === c.name;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(c.name);
+                      setSelectedTopic(""); // Reseta o tópico ao trocar de disciplina
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-500/20"
+                        : "bg-[var(--app-card-secondary)]/50 text-[var(--app-text)] border-[var(--app-border)] hover:border-blue-500/50"
+                    }`}
+                  >
+                    <span className={`text-[10px] font-mono font-bold tracking-wider ${isSelected ? "text-blue-100" : "text-[var(--app-text-muted)]"}`}>
+                      {c.code || "IFES"}
+                    </span>
+                    <span className="text-xs font-bold mt-1 line-clamp-2">
+                      {c.name}
+                    </span>
+                    <span className={`text-[10px] mt-2 ${isSelected ? "text-blue-200" : "text-[var(--app-text-muted)]"}`}>
+                      Prof: {c.professor || "Corpo Docente"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. SELEÇÃO DO ASSUNTO / TÓPICO ESPECÍFICO */}
+          {availableTopics.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
+                Tópico Curricular de {selectedCategory}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTopic("")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                    selectedTopic === ""
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-[var(--app-card-secondary)]/50 text-[var(--app-text)] border-[var(--app-border)] hover:border-blue-500/50"
+                  }`}
+                >
+                  Todos os tópicos da matéria
+                </button>
+                {availableTopics.map((top) => (
+                  <button
+                    key={top}
+                    type="button"
+                    onClick={() => setSelectedTopic(top)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      selectedTopic === top
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-[var(--app-card-secondary)]/50 text-[var(--app-text)] border-[var(--app-border)] hover:border-blue-500/50"
+                    }`}
+                  >
+                    {top}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. DIFICULDADE PROGRESSIVA */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
-              Dificuldade
+              Nível de Dificuldade
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["Fácil", "Médio", "Difícil"] as const).map((dif) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(["Fácil", "Intermediária", "Difícil", "Avançada"] as const).map((dif) => (
                 <button
                   key={dif}
                   type="button"
@@ -377,27 +551,7 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-[var(--app-text-muted)] uppercase tracking-wider block">
-              Matéria / Disciplina
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition text-left cursor-pointer border ${
-                    selectedCategory === cat
-                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                      : "bg-[var(--app-card-secondary)]/50 text-[var(--app-text)] border-[var(--app-border)] hover:border-blue-500/50"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
+          {/* 4. OPONENTE BOT */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-[var(--app-card-secondary)]/50 border border-[var(--app-border)]">
             <div className="flex items-center gap-3">
               <Bot className="w-5 h-5 text-blue-500" />
@@ -407,6 +561,7 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setVsBotMode(!vsBotMode)}
               className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
                 vsBotMode ? "bg-blue-600" : "bg-[var(--app-border)]"
@@ -421,18 +576,19 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
           </div>
 
           <button
-            onClick={handleStartGame}
+            type="button"
+            onClick={() => handleStartGame(false)}
             disabled={isLoadingIa}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-black text-sm tracking-wide shadow-md transition transform active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-black text-sm tracking-wide shadow-lg transition transform active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
           >
             {isLoadingIa ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>A IA está gerando perguntas inéditas de {selectedCategory}...</span>
+                <span>Gerando perguntas inéditas de {selectedCategory}...</span>
               </>
             ) : (
               <>
-                <span>Iniciar Partida</span>
+                <span>Iniciar Partida de Conhecimento</span>
                 <ChevronRight className="w-4 h-4" />
               </>
             )}
@@ -502,11 +658,23 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
           {/* Card da Pergunta */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-xs text-[var(--app-text-muted)]">
-              <span className="px-2 py-0.5 rounded-md bg-[var(--app-card-secondary)] border border-[var(--app-border)] font-semibold">
-                {currentQ.category}
-              </span>
-              <span className="uppercase tracking-wider font-mono text-[10px]">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--app-text-muted)]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold">
+                  {currentQ.category}
+                </span>
+                {(currentQ as any).topic && (
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--app-card-secondary)] border border-[var(--app-border)] font-semibold text-[11px]">
+                    {(currentQ as any).topic}
+                  </span>
+                )}
+                {isReviewMode && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-[10px] uppercase tracking-wider">
+                    Revisão de Ponto Fraco
+                  </span>
+                )}
+              </div>
+              <span className="uppercase tracking-wider font-mono text-[10px] px-2 py-0.5 rounded bg-[var(--app-card-secondary)] border border-[var(--app-border)]">
                 {currentQ.difficulty}
               </span>
             </div>
@@ -517,12 +685,12 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
 
           {/* Alternativas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {currentQ.options.map((opt, idx) => {
+            {currentQ.options.map((opt: string, idx: number) => {
               let btnClass = "bg-[var(--app-card-secondary)]/60 border-[var(--app-border)] hover:border-blue-500/50 text-[var(--app-text)]";
 
               if (isAnswerRevealed) {
                 if (idx === currentQ.correctIndex) {
-                  btnClass = "bg-emerald-500/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold";
+                  btnClass = "bg-emerald-500/20 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500/30";
                 } else if (idx === selectedAnswer) {
                   btnClass = "bg-red-500/20 border-red-500 text-red-600 dark:text-red-400";
                 } else {
@@ -554,20 +722,34 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
             })}
           </div>
 
-          {/* Feedback & Próxima */}
+          {/* Feedback & Próxima com Justificativa Pedagógica do IFES */}
           {isAnswerRevealed && (
-            <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3 animate-fade-in">
-              <div className="flex items-start gap-2 text-xs text-[var(--app-text-muted)]">
-                <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="leading-relaxed"><strong className="text-[var(--app-text)]">Explicação: </strong>{currentQ.explanation}</p>
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-500/5 via-[var(--app-card-secondary)] to-transparent border border-blue-500/30 space-y-3 animate-fade-in shadow-sm">
+              <div className="flex items-start gap-3 text-xs">
+                <div className="w-7 h-7 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-[var(--app-text)] font-black text-xs uppercase tracking-wider">
+                      Fundamentação Pedagógica IFES
+                    </strong>
+                    <span className="text-[10px] text-[var(--app-text-muted)] font-mono">
+                      {currentQ.category}
+                    </span>
+                  </div>
+                  <p className="leading-relaxed text-[var(--app-text-muted)]">
+                    {currentQ.explanation}
+                  </p>
+                </div>
               </div>
 
               <button
                 onClick={handleNextQuestion}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wide transition cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs tracking-wide transition cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
               >
-                <span>{currentIndex + 1 < questions.length ? "Próxima Questão" : "Ver Resultado"}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <span>{currentIndex + 1 < questions.length ? "Próxima Questão" : "Ver Desempenho Final"}</span>
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -617,7 +799,7 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
           {/* Botões de Ação */}
           <div className="grid grid-cols-2 gap-3 pt-2">
             <button
-              onClick={handleStartGame}
+              onClick={() => handleStartGame()}
               className="py-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-card-secondary)] hover:bg-[var(--app-border)]/50 text-[var(--app-text)] font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />

@@ -90,11 +90,21 @@ const BRAIN_STAGES: LogicStage[] = [
   },
 ];
 
+import { getEnrolledAcademicCourses } from "../../services/avaGameContentService";
+
 export const BrainChallengeGame: React.FC<BrainChallengeGameProps> = ({
+  userId,
   sessionToken,
   onFinishGame,
   onExit,
 }) => {
+  const enrolledCourses = getEnrolledAcademicCourses();
+  const [selectedCourse, setSelectedCourse] = useState<string>(
+    enrolledCourses.find((c) => c.name.toLowerCase().includes("algo") || c.name.toLowerCase().includes("info") || c.name.toLowerCase().includes("matem"))?.name ||
+    enrolledCourses[0]?.name ||
+    "Algoritmos e Estrutura de Dados II"
+  );
+
   const [currentStageIdx, setCurrentStageIdx] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<string | number | null>(null);
@@ -144,18 +154,29 @@ export const BrainChallengeGame: React.FC<BrainChallengeGameProps> = ({
   return (
     <div className="w-full max-w-2xl mx-auto bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl shadow-xl overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[var(--app-border)] bg-[var(--app-card-secondary)]/50 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-[var(--app-border)] bg-[var(--app-card-secondary)]/50 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center font-bold">
             <Puzzle className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Brain Challenge</h3>
-            <span className="text-xs text-[var(--app-text-muted)]">Nível 12 • Raciocínio Lógico & Padrões</span>
+            <h3 className="font-bold text-base text-[var(--app-text)] leading-tight">Brain Challenge • AVA IFES</h3>
+            <span className="text-xs text-[var(--app-text-muted)]">Raciocínio dedutivo curricular de {selectedCourse}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text)] cursor-pointer"
+          >
+            {enrolledCourses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <button
             onClick={() => {
               const muted = gameAudio.toggleMute();
