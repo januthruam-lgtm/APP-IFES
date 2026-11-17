@@ -78,7 +78,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     <nav
       role="navigation"
       aria-label="Navegação Principal"
-      className={`fixed bottom-0 left-0 right-0 z-40 bg-[var(--app-card)]/95 backdrop-blur-md border-t border-[var(--app-border)] px-1 py-1 flex items-center justify-around select-none shadow-[0_-4px_16px_rgba(0,0,0,0.06)] md:hidden overflow-x-auto scrollbar-none ${className}`}
+      className={`fixed bottom-0 left-0 right-0 z-40 bg-[var(--app-card)]/95 backdrop-blur-md border-t border-[var(--app-border)] px-1 pt-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] flex items-center justify-around select-none shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden overflow-x-auto scrollbar-none ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = currentTab === tab.id;
@@ -91,16 +91,19 @@ export const TabBar: React.FC<TabBarProps> = ({
             onClick={() => onTabChange(tab.id)}
             aria-label={tab.label}
             aria-current={isActive ? "page" : undefined}
-            className={`flex flex-col items-center justify-center flex-1 min-w-[46px] min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] ${
+            className={`flex flex-col items-center justify-center flex-1 min-w-[44px] min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] relative ${
               isActive
                 ? "text-[var(--app-primary)] font-black bg-[var(--app-primary)]/10"
                 : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] font-semibold"
             }`}
           >
-            <Icon className={`w-4.5 h-4.5 transition-transform ${isActive ? "scale-110" : ""}`} />
-            <span className="text-[9px] tracking-tight mt-0.5 truncate max-w-[50px] leading-tight text-center">
+            <Icon className={`w-4.5 h-4.5 transition-transform duration-200 ${isActive ? "scale-110" : ""}`} />
+            <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[50px] leading-tight text-center">
               {tab.label}
             </span>
+            {isActive && (
+              <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[var(--app-primary)]" />
+            )}
           </button>
         );
       })}

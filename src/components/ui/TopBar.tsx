@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, Search, Bell, Zap, Coins } from "lucide-react";
+import { ArrowLeft, Search, Bell, Zap, Coins, Menu, Compass } from "lucide-react";
 
 export interface TopBarProps {
   title: string;
@@ -12,6 +12,7 @@ export interface TopBarProps {
   onOpenWallet?: () => void;
   onOpenSearch?: () => void;
   onOpenNotifications?: () => void;
+  onOpenAllMenus?: () => void;
   unreadNotificationsCount?: number;
   className?: string;
 }
@@ -27,6 +28,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenWallet,
   onOpenSearch,
   onOpenNotifications,
+  onOpenAllMenus,
   unreadNotificationsCount = 0,
   className = "",
 }) => {
@@ -34,8 +36,20 @@ export const TopBar: React.FC<TopBarProps> = ({
     <header
       className={`sticky top-0 z-30 w-full min-h-[56px] px-3.5 sm:px-6 bg-[var(--app-bg)]/90 backdrop-blur-md border-b border-[var(--app-border)] flex items-center justify-between gap-3 select-none ${className}`}
     >
-      {/* Lado Esquerdo: Botão Voltar Contextual e Título da Tela */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+      {/* Lado Esquerdo: Menu Geral, Botão Voltar Contextual e Título */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        {onOpenAllMenus && (
+          <button
+            type="button"
+            onClick={onOpenAllMenus}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-[var(--app-text)] hover:bg-[var(--app-card-secondary)] border border-[var(--app-border)] transition cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)]"
+            aria-label="Abrir central de todos os menus"
+            title="Todos os Menus do App"
+          >
+            <Menu className="w-5 h-5 text-[var(--app-primary)]" />
+          </button>
+        )}
+
         {canGoBack && onBack && (
           <button
             type="button"
@@ -106,7 +120,9 @@ export const TopBar: React.FC<TopBarProps> = ({
           >
             <Bell className="w-4 h-4" />
             {unreadNotificationsCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--app-primary)] animate-pulse" />
+              <span className="absolute -top-1 -right-1 px-1.5 min-w-[18px] h-[18px] rounded-full bg-[var(--app-primary)] text-white text-[10px] font-black flex items-center justify-center leading-none shadow-xs">
+                {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+              </span>
             )}
           </button>
         )}

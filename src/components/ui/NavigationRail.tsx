@@ -14,12 +14,14 @@ import { CanonicalTabId } from "./TabBar";
 export interface NavigationRailProps {
   currentTab: CanonicalTabId;
   onTabChange: (tab: CanonicalTabId) => void;
+  onOpenAllMenus?: () => void;
   className?: string;
 }
 
 export const NavigationRail: React.FC<NavigationRailProps> = ({
   currentTab,
   onTabChange,
+  onOpenAllMenus,
   className = "",
 }) => {
   const { t } = useTranslation();
@@ -47,11 +49,11 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
       <div className="flex flex-col items-center gap-6 w-full">
         {/* Logo Icon */}
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[var(--app-primary)] to-amber-500 flex items-center justify-center text-white font-black text-lg shadow-sm">
-          B
+          IF
         </div>
 
         {/* Tab Items */}
-        <div className="flex flex-col items-center gap-2.5 w-full">
+        <div className="flex flex-col items-center gap-2 w-full">
           {tabs.map((tab) => {
             const isActive = currentTab === tab.id;
             const Icon = tab.icon;
@@ -63,7 +65,7 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
                 onClick={() => onTabChange(tab.id)}
                 aria-label={tab.label}
                 aria-current={isActive ? "page" : undefined}
-                className={`w-14 min-h-[52px] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] ${
+                className={`w-14 min-h-[50px] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-primary)] ${
                   isActive
                     ? "bg-[var(--app-primary)]/10 text-[var(--app-primary)] font-black"
                     : "text-[var(--app-text-muted)] hover:text-[var(--app-text)] hover:bg-[var(--app-card-secondary)]"
@@ -76,6 +78,19 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({
           })}
         </div>
       </div>
+
+      {/* Botão de Central de Menus no Rodapé do Trilho */}
+      {onOpenAllMenus && (
+        <button
+          type="button"
+          onClick={onOpenAllMenus}
+          className="w-12 h-12 rounded-2xl bg-[var(--app-primary)]/10 hover:bg-[var(--app-primary)]/20 text-[var(--app-primary)] flex flex-col items-center justify-center transition cursor-pointer"
+          title="Todos os Menus"
+          aria-label="Abrir central de todos os menus"
+        >
+          <span className="text-xs font-black">MENU</span>
+        </button>
+      )}
     </aside>
   );
 };

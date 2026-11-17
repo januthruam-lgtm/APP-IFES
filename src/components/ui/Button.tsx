@@ -1,6 +1,6 @@
 import React from "react";
 
-export type ButtonVariant = "primary" | "secondary" | "text" | "destructive";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "text" | "destructive";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -32,6 +32,8 @@ export const Button: React.FC<ButtonProps> = ({
       "bg-[var(--app-primary)] hover:opacity-90 text-white shadow-sm border border-transparent shadow-[0_2px_8px_rgba(232,93,4,0.25)]",
     secondary:
       "bg-[var(--app-card)] hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] border border-[var(--app-border)] shadow-xs",
+    outline:
+      "bg-transparent hover:bg-[var(--app-card-secondary)] text-[var(--app-text)] border border-[var(--app-border)] shadow-xs",
     text: "bg-transparent hover:bg-[var(--app-card-secondary)] text-[var(--app-text-muted)] hover:text-[var(--app-text)] border border-transparent",
     destructive:
       "bg-rose-600 hover:bg-rose-700 text-white shadow-sm border border-transparent shadow-[0_2px_8px_rgba(225,29,72,0.25)]",

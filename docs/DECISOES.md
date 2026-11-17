@@ -102,6 +102,20 @@ Este documento registra todas as decisões tomadas durante a reorganização do 
   - Reduz drasticamente a latência e o consumo de dados móveis em redes 3G/4G/5G de estudantes de baixa renda.
   - Preserva 100% da colaboração e apoio mútuo através de cronômetro Pomodoro sincronizado, canal de texto e metas de foco em tempo real.
 
+---
+
+## 11. Decisão: Prevenção de Texto Invertido e Conformidade RTL (Bloco 2)
+- **Problema**: Relatos de textos aparecendo invertidos (letras viradas de trás para frente) em idiomas RTL ou de escrita não-latina.
+- **Causas Auditadas**:
+  1. Uso incorreto de `unicode-bidi: bidi-override` ou `transform: scaleX(-1)` / `rotateY(180deg)` em containers de texto para simular espelhamento RTL.
+  2. Arquivos de tradução provisórios ou gerados com strings invertidas via script.
+  3. Aplicação inadvertida de `dir="rtl"` em idiomas que são estritamente LTR.
+- **Decisão Escolhida**:
+  - `dir="rtl"` aplicado exclusivamente no elemento raiz `<html>` para os 4 idiomas RTL oficiais (`ar`, `he`, `fa`, `ur`).
+  - Nenhum elemento de texto utiliza transformações de espelhamento; apenas ícones direcionais recebem a classe utilitária `.rtl-flip`.
+  - Pilha de fontes universais adicionada para cobertura de glifos nativos (Árabe, Hebraico, Devanágari, CJK, Russo/Cirílico, Tailandês, Vietnamita).
+  - Bateria de testes automatizada `scripts/test-idiomas-validacao.ts` que valida reversão de strings em inglês, integridade de placeholders e conformidade bidirecional para todos os 25 idiomas.
+
 
 
 

@@ -117,36 +117,41 @@ export const QuizBattleGame: React.FC<QuizBattleGameProps> = ({
       setIsLoadingIa(false);
 
       if (!res.success || !res.questions || res.questions.length === 0) {
-        setIaError(res.error || "Não foi possível gerar novas perguntas com a IA no momento.");
-        return;
+        console.warn("[QuizBattle] Usando acervo curricular oficial do IFES:", res.error);
+        let filtered = [...QUIZ_QUESTIONS];
+        if (selectedCategory) {
+          filtered = filtered.filter((q) => q.category.toLowerCase().includes(selectedCategory.toLowerCase()));
+        }
+        if (filtered.length === 0) filtered = [...QUIZ_QUESTIONS];
+        const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 5);
+        setQuestions(shuffled);
+      } else {
+        const mapped: QuizQuestion[] = res.questions.map((q) => ({
+          id: q.id,
+          category: (q.category || selectedCategory) as any,
+          difficulty:
+            selectedDifficulty === "Fácil"
+              ? "facil"
+              : selectedDifficulty === "Intermediária" || selectedDifficulty === "Médio"
+              ? "medio"
+              : "dificil",
+          question: q.question,
+          options: (q.options.length >= 4
+            ? [q.options[0], q.options[1], q.options[2], q.options[3]]
+            : [q.options[0] || "A", q.options[1] || "B", q.options[2] || "C", q.options[3] || "D"]) as [
+            string,
+            string,
+            string,
+            string
+          ],
+          correctIndex: q.correctIndex,
+          explanation: q.explanation,
+        }));
+
+        // Registrar a primeira pergunta no histórico
+        saveQuizQuestionToHistory(userId, res.questions[0]).catch(() => {});
+        setQuestions(mapped);
       }
-
-      const mapped: QuizQuestion[] = res.questions.map((q) => ({
-        id: q.id,
-        category: (q.category || selectedCategory) as any,
-        difficulty:
-          selectedDifficulty === "Fácil"
-            ? "facil"
-            : selectedDifficulty === "Intermediária" || selectedDifficulty === "Médio"
-            ? "medio"
-            : "dificil",
-        question: q.question,
-        options: (q.options.length >= 4
-          ? [q.options[0], q.options[1], q.options[2], q.options[3]]
-          : [q.options[0] || "A", q.options[1] || "B", q.options[2] || "C", q.options[3] || "D"]) as [
-          string,
-          string,
-          string,
-          string
-        ],
-        correctIndex: q.correctIndex,
-        explanation: q.explanation,
-      }));
-
-      // Registrar a primeira pergunta no histórico
-      saveQuizQuestionToHistory(userId, res.questions[0]).catch(() => {});
-
-      setQuestions(mapped);
     } else {
       let filtered = [...QUIZ_QUESTIONS];
       if (selectedCategory) {

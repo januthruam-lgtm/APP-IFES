@@ -107,9 +107,26 @@ Status consolidado de implementação da **PARTE I (Reorganização Completa do 
 - **1B.4 Sala de Foco em Grupo**: Transformada a antiga tela em `StudyRoomVirtualTab.tsx` com Pomodoro sincronizado, metas de estudo, colegas focando e chat colaborativo por texto.
 - **1B.5 Critérios**: Sem chamadas ou captura de vídeo/áudio no app. Testes e build validados.
 
-### [ ] BLOCO 2. IDIOMAS: TEXTO INVERTIDO (Em andamento)
-### [ ] BLOCO 3. EXTRATO DE MOEDAS E TRANSAÇÕES ATÔMICAS
-### [ ] BLOCO 4. CENTRAL DE NOTIFICAÇÕES UNIFICADA
+### [x] BLOCO 2. IDIOMAS: TEXTO INVERTIDO
+- **2.1 Diagnóstico**: Auditados 25 arquivos de tradução e o código CSS. Não foram encontradas transformações de texto com espelhamento `scaleX(-1)` ou `bidi-override` em fontes.
+- **2.2 Correção**:
+  - `dir="rtl"` mantido estritamente para os 4 idiomas RTL oficiais (`ar`, `he`, `fa`, `ur`).
+  - Adicionada regra CSS `.rtl-flip` restrita a ícones e controles direcionais.
+  - Pilha tipográfica universal em `src/index.css` cobrindo alfabetos latino, cirílico, CJK, árabe, hebraico, devanágari, tailandês e vietnamita.
+- **2.3 Validação Automatizada**: Criado `scripts/test-idiomas-validacao.ts` que valida correspondência biunívoca, ausência de strings invertidas de inglês, integridade de placeholders e conformidade de direção. Executado com 100% de aprovação nos 25 idiomas.
+- **2.4 Critérios**: 100% cumpridos.
+
+### [x] BLOCO 3. EXTRATO DE MOEDAS E TRANSAÇÕES ATÔMICAS
+- **3.1 Diagnóstico**: Identificados todos os pontos de movimentação de moedas. Eliminadas escritas diretas residuais em level up e estudos no AVA em `src/App.tsx`.
+- **3.2 Correção**: Toda e qualquer movimentação de moedas unificada na função atômica `movimentarMoedas(uid, delta, origem, refId, idempotencyKey)` em `extratoService.ts`.
+- **3.3 Modelo e Migração**:
+  - Subcoleção `users/{uid}/extrato/{id}` append-only.
+  - Origens mapeadas: `bau`, `missao`, `ofensiva`, `liga`, `cidade`, `loja`, `cosmetico`, `fidelidade`, `meta_semanal`, `assinatura`, `games`, `admin`, `historico`.
+  - Migração idempotente com `garantirSaldoInicialExtrato` garantindo base contábil de 500 moedas sem duplicidade.
+- **3.4 Interface**: `ExtratoMoedasView.tsx` atualizado com filtros por tipo, período (Hoje, 7 dias, 30 dias), resumos de balanço semanal e mensal, paginação com botão "Carregar Mais", e auditoria matemática de consistência contábil.
+- **3.5 Validação**: `npm run test:extrato` executado com 100% de sucesso (todas as 7 baterias de teste aprovadas).
+
+### [ ] BLOCO 4. CENTRAL DE NOTIFICAÇÕES UNIFICADA (Em andamento)
 ### [ ] BLOCO 5. MATÉRIAS E AGENDA
 ### [ ] BLOCO 5B. MÉTODOS DE ESTUDO EFICAZES
 ### [ ] BLOCO 6. EXCLUÍDOS

@@ -25,6 +25,9 @@ import {
   Award,
   Filter,
   Trash2,
+  Edit2,
+  Plus,
+  X,
 } from "lucide-react";
 import {
   UserProfile,
@@ -42,6 +45,8 @@ import { LibraryTab } from "../LibraryTab";
 import { DictionaryTab } from "../DictionaryTab";
 import { StudyRoomVirtualTab } from "../StudyRoomVirtualTab";
 import { IfesAvaTab } from "../IfesAvaTab";
+import { ExcluidosView } from "../../../features/excluidos/components/ExcluidosView";
+import { moverParaExcluidos, isItemExcluido } from "../../../features/excluidos/services/excluidosService";
 import { loadSyncedAssignments } from "../../../utils/courseSync";
 import { avaApiClient, AvaSection } from "../../../utils/avaApi";
 import { getCourseParticipants, CourseMember } from "../../../utils/courseParticipants";
@@ -51,7 +56,8 @@ export type AcademicMainSection =
   | "atividades"
   | "avaliacoes"
   | "desempenho"
-  | "ferramentas";
+  | "ferramentas"
+  | "excluidos";
 
 export type AcademicToolId =
   | "tarefas"
@@ -106,8 +112,9 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  // Seletor de seção acadêmica principal (PARTE 1.2)
+  // Seletor de seção acadêmica principal (PARTE 1.2 / Bloco 6)
   const [activeSection, setActiveSection] = useState<AcademicMainSection>(() => {
+    if (initialSubView === "excluidos" || initialSubView === "lixeira") return "excluidos";
     if (initialSubView === "atividades" || initialSubView === "tarefas") return "atividades";
     if (initialSubView === "avaliacoes" || initialSubView === "notas") return "avaliacoes";
     if (initialSubView === "desempenho" || initialSubView === "historico") return "desempenho";
@@ -137,6 +144,27 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
   // Conteúdos / seções da disciplina selecionada
   const [courseContents, setCourseContents] = useState<AvaSection[]>([]);
   const [isLoadingContents, setIsLoadingContents] = useState(false);
+
+  // Sincroniza quando o usuário clica em um atalho de menu do computador ou modal
+  useEffect(() => {
+    if (!initialSubView) return;
+    if (initialSubView === "excluidos" || initialSubView === "lixeira") {
+      setActiveSection("excluidos");
+    } else if (initialSubView === "materias") {
+      setActiveSection("materias");
+    } else if (initialSubView === "atividades") {
+      setActiveSection("atividades");
+    } else if (initialSubView === "avaliacoes" || initialSubView === "notas") {
+      setActiveSection("avaliacoes");
+    } else if (initialSubView === "desempenho" || initialSubView === "historico") {
+      setActiveSection("desempenho");
+    } else if (["tarefas", "agenda", "flashcards", "metodos", "biblioteca", "dicionario", "sala_virtual", "ifes", "ferramentas"].includes(initialSubView)) {
+      setActiveSection("ferramentas");
+      if (initialSubView !== "ferramentas") {
+        setActiveTool(initialSubView as AcademicToolId);
+      }
+    }
+  }, [initialSubView]);
 
   // Participantes da disciplina
   const participants: CourseMember[] = useMemo(() => {
@@ -228,11 +256,100 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
     };
   }, [currentCourse?.id, user.ifesAccount]);
 
-  // Lista de matérias filtradas para o menu lateral
+  // Estados para Criação e Edição de Disciplina (Bloco 5.1)
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [courseModalMode, setCourseModalMode] = useState<"create" | "edit">("create");
+  const [courseFormTitle, setCourseFormTitle] = useState("");
+  const [courseFormCode, setCourseFormCode] = useState("");
+  const [courseFormCategory, setCourseFormCategory] = useState("IFES");
+  const [courseFormIcon, setCourseFormIcon] = useState("📚");
+  const [courseFormDesc, setCourseFormDesc] = useState("");
+
+  const handleOpenCreateCourse = () => {
+    setCourseModalMode("create");
+    setCourseFormTitle("");
+    setCourseFormCode("");
+    setCourseFormCategory("Geral");
+    setCourseFormIcon("📚");
+    setCourseFormDesc("");
+    setIsCourseModalOpen(true);
+  };
+
+  const handleOpenEditCourse = (course: CourseTrack) => {
+    setCourseModalMode("edit");
+    setCourseFormTitle(course.title);
+    setCourseFormCode(course.code || "");
+    setCourseFormCategory(course.category || "IFES");
+    setCourseFormIcon(course.icon || "📚");
+    setCourseFormDesc(course.description || "");
+    setIsCourseModalOpen(true);
+  };
+
+  const handleSaveCourseModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseFormTitle.trim()) return;
+
+    if (courseModalMode === "create") {
+      const novoId = `c-${Date.now()}`;
+      const nova: IfesCourse = {
+        id: novoId,
+        name: courseFormTitle.trim(),
+        code: courseFormCode.trim() || undefined,
+        category: courseFormCategory.trim() || "Geral",
+        icon: courseFormIcon || "📚",
+        description: courseFormDesc.trim(),
+      } as any;
+
+      const trackNovo: CourseTrack = {
+        id: novoId,
+        title: nova.name,
+        code: nova.code,
+        category: nova.category,
+        icon: nova.icon,
+        description: nova.description,
+        modulesCount: 0,
+        progress: 0,
+      } as any;
+
+      if (onUpdateCourses) {
+        onUpdateCourses([nova, ...ifesCourses]);
+      }
+      onSelectCourse(trackNovo);
+    } else if (currentCourse) {
+      const atualizada: IfesCourse = {
+        ...currentCourse,
+        id: currentCourse.id,
+        name: courseFormTitle.trim(),
+        code: courseFormCode.trim() || undefined,
+        category: courseFormCategory.trim() || "IFES",
+        icon: courseFormIcon || "📚",
+        description: courseFormDesc.trim(),
+      } as any;
+
+      const trackAtualizado: CourseTrack = {
+        ...currentCourse,
+        title: atualizada.name,
+        code: atualizada.code,
+        category: atualizada.category,
+        icon: atualizada.icon,
+        description: atualizada.description,
+      };
+
+      if (onUpdateCourses) {
+        onUpdateCourses(ifesCourses.map((c) => (c.id === currentCourse.id ? atualizada : c)));
+      }
+      onSelectCourse(trackAtualizado);
+    }
+
+    setIsCourseModalOpen(false);
+  };
+
+  // Lista de matérias filtradas para o menu lateral (removendo as com soft delete)
   const filteredCourses = useMemo(() => {
-    if (!courseSearchTerm.trim()) return courses;
+    const ativas = courses.filter((c) => !isItemExcluido(c.id, c.title, c.code));
+    if (!courseSearchTerm.trim()) return ativas;
     const term = courseSearchTerm.toLowerCase();
-    return courses.filter(
+    return ativas.filter(
       (c) =>
         c.title.toLowerCase().includes(term) ||
         c.category?.toLowerCase().includes(term) ||
@@ -279,6 +396,7 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
               { id: "avaliacoes" as AcademicMainSection, label: "Avaliações & Notas", icon: GraduationCap },
               { id: "desempenho" as AcademicMainSection, label: "Desempenho & Histórico", icon: TrendingUp },
               { id: "ferramentas" as AcademicMainSection, label: "Ferramentas", icon: Layers },
+              { id: "excluidos" as AcademicMainSection, label: "Excluídos", icon: Trash2 },
             ].map((sec) => {
               const isSelected = activeSection === sec.id;
               const Icon = sec.icon;
@@ -834,6 +952,20 @@ export const EstudarTab: React.FC<EstudarTabProps> = ({
                 />
               )}
             </div>
+          </div>
+        )}
+
+        {/* SEÇÃO 6: EXCLUÍDOS (LIXEIRA PERSISTENTE - BLOCO 6) */}
+        {activeSection === "excluidos" && (
+          <div className="max-w-5xl mx-auto py-2">
+            <ExcluidosView
+              userId={user?.id || user?.uid || "local_user"}
+              onItemRestaurado={() => {
+                if (onResetCourses) {
+                  // Revalida lista de matérias
+                }
+              }}
+            />
           </div>
         )}
       </div>

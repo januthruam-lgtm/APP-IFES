@@ -62,6 +62,7 @@ import { BusinessTycoonGame } from "./minigames/BusinessTycoonGame";
 
 interface GamesHubProps {
   user: UserProfile;
+  initialSubView?: string;
   onRewardCoins?: (amount: number) => void;
   onRewardXp?: (amount: number) => void;
   onNavigateToWallet?: () => void;
@@ -71,6 +72,7 @@ type GamesHubTab = "arena" | "jornada" | "missoes" | "rankings" | "conquistas" |
 
 export const GamesHub: React.FC<GamesHubProps> = ({
   user,
+  initialSubView,
   onRewardCoins,
   onRewardXp,
   onNavigateToWallet,
@@ -78,15 +80,32 @@ export const GamesHub: React.FC<GamesHubProps> = ({
   const userUid = user.id || user.uid || user.email || "local_user";
   const userLevel = user.level || 1;
 
-  const [activeTab, setActiveTab] = useState<GamesHubTab>("arena");
+  const [activeTab, setActiveTab] = useState<GamesHubTab>(() => {
+    if (initialSubView === "jornada") return "jornada";
+    if (initialSubView === "rankings" || initialSubView === "ranking") return "rankings";
+    if (initialSubView === "conquistas") return "conquistas";
+    if (initialSubView === "missoes") return "missoes";
+    if (initialSubView === "historico") return "historico";
+    return "arena";
+  });
   const [profile, setProfile] = useState<UserGamesProfile>(() =>
     loadUserGamesProfile(userUid, userLevel)
   );
   const studentWeaknesses = getStudentWeaknessesLocal(userUid);
 
   // Minigame ativo em execução
-  const [activeMinigame, setActiveMinigame] = useState<MinigameDefinition | null>(null);
-  const [activeSessionToken, setActiveSessionToken] = useState<string | null>(null);
+  const [activeMinigame, setActiveMinigame] = useState<MinigameDefinition | null>(() => {
+    if (initialSubView) {
+      return MINIGAMES_CONFIG.find((g) => g.id === initialSubView) || null;
+    }
+    return null;
+  });
+  const [activeSessionToken, setActiveSessionToken] = useState<string | null>(() => {
+    if (initialSubView && MINIGAMES_CONFIG.some((g) => g.id === initialSubView)) {
+      return `game_token_${Date.now()}`;
+    }
+    return null;
+  });
   const [reviewModeActive, setReviewModeActive] = useState<boolean>(false);
 
   // Modal de celebração / recompensa
@@ -116,6 +135,22 @@ export const GamesHub: React.FC<GamesHubProps> = ({
     const updated = loadUserGamesProfile(userUid, userLevel);
     setProfile(updated);
   }, [userUid, userLevel]);
+
+  // Sincroniza quando o usuário clica em atalhos de jogos no menu lateral ou modal
+  useEffect(() => {
+    if (!initialSubView) return;
+    if (["jornada", "rankings", "ranking", "conquistas", "missoes", "historico", "arena"].includes(initialSubView)) {
+      setActiveTab(initialSubView === "ranking" ? "rankings" : (initialSubView as GamesHubTab));
+      setActiveMinigame(null);
+    } else {
+      const match = MINIGAMES_CONFIG.find((g) => g.id === initialSubView);
+      if (match) {
+        setActiveMinigame(match);
+        setActiveSessionToken(`game_token_${Date.now()}`);
+        setActiveTab("arena");
+      }
+    }
+  }, [initialSubView]);
 
   // Carrega Leaderboard quando a aba for selecionada
   useEffect(() => {

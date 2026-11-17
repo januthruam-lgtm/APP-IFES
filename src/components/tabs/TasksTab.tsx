@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ListTodo,
@@ -6,9 +6,20 @@ import {
   Circle,
   Plus,
   Trash2,
+  Edit2,
+  Calendar,
+  Tag,
+  AlertTriangle,
+  X,
+  Search,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { UserProfile, CourseTrack, TaskItem, TaskPriority } from "../../types";
-import confetti from "canvas-confetti";
+import { Card } from "../ui/Card";
+import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { moverParaExcluidos, isItemExcluido } from "../../features/excluidos/services/excluidosService";
 
 interface TasksTabProps {
   user: UserProfile;
@@ -17,7 +28,7 @@ interface TasksTabProps {
   onRewardCoins?: (coins: number) => void;
 }
 
-const STORAGE_KEY_TASKS = "brain_studio_tasks_v2";
+const STORAGE_KEY_TASKS = "brain_studio_tasks_v3";
 
 const DEFAULT_TASKS: TaskItem[] = [
   {
@@ -51,24 +62,41 @@ const DEFAULT_TASKS: TaskItem[] = [
 
 export const TasksTab: React.FC<TasksTabProps> = ({
   user,
-  courses,
-  onRewardXp,
-  onRewardCoins,
+  courses = [],
 }) => {
   const { t } = useTranslation();
+  const userId = user?.id || user?.uid || "local_user";
 
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TASKS);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t) => !isItemExcluido(t.id, t.title));
+        }
       }
     } catch {}
-    return DEFAULT_TASKS;
+    return DEFAULT_TASKS.filter((t) => !isItemExcluido(t.id, t.title));
   });
 
-  // Salva tarefas sempre que houver alteração
+  const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<"todas" | "pendentes" | "concluidas">("todas");
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
+
+  // Form de nova tarefa
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskCategory, setNewTaskCategory] = useState(courses[0]?.title || "Geral");
+  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>("média");
+  const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().split("T")[0]);
+
+  // Modal de edição de tarefa
+  const [taskEmEdicao, setTaskEmEdicao] = useState<TaskItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("Geral");
+  const [editPriority, setEditPriority] = useState<TaskPriority>("média");
+  const [editDate, setEditDate] = useState("");
+
   const updateTasks = (newTasks: TaskItem[] | ((prev: TaskItem[]) => TaskItem[])) => {
     setTasks((prev) => {
       const updated = typeof newTasks === "function" ? newTasks(prev) : newTasks;
@@ -79,17 +107,11 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     });
   };
 
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskCategory, setNewTaskCategory] = useState(courses[0]?.title || t("tarefas.geral", "Geral"));
-  const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>("média");
-  const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().split("T")[0]);
-
   const handleToggleTask = (id: string) => {
     updateTasks((prev) =>
       prev.map((tItem) => {
         if (tItem.id === id) {
-          const nextCompleted = !tItem.completed;
-          return { ...tItem, completed: nextCompleted };
+          return { ...tItem, completed: !tItem.completed };
         }
         return tItem;
       })
@@ -114,151 +136,354 @@ export const TasksTab: React.FC<TasksTabProps> = ({
     setNewTaskTitle("");
   };
 
-  const handleDeleteTask = (id: string) => {
-    updateTasks((prev) => prev.filter((tItem) => tItem.id !== id));
+  const handleDeleteTask = async (task: TaskItem) => {
+    await moverParaExcluidos(userId, {
+      id: task.id,
+      categoria: "tarefas",
+      nome: task.title,
+      materiaOrigem: task.category,
+      dadosOriginais: task,
+    });
+    updateTasks((prev) => prev.filter((tItem) => tItem.id !== task.id));
   };
+
+  const handleOpenEdit = (task: TaskItem) => {
+    setTaskEmEdicao(task);
+    setEditTitle(task.title);
+    setEditCategory(task.category || "Geral");
+    setEditPriority(task.priority);
+    setEditDate(task.dueDate || new Date().toISOString().split("T")[0]);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskEmEdicao || !editTitle.trim()) return;
+
+    updateTasks((prev) =>
+      prev.map((tItem) => {
+        if (tItem.id === taskEmEdicao.id) {
+          return {
+            ...tItem,
+            title: editTitle.trim(),
+            category: editCategory,
+            priority: editPriority,
+            dueDate: editDate,
+          };
+        }
+        return tItem;
+      })
+    );
+
+    setTaskEmEdicao(null);
+  };
+
+  const tarefasFiltradas = useMemo(() => {
+    return tasks.filter((tItem) => {
+      if (isItemExcluido(tItem.id, tItem.title)) return false;
+      const matchStatus =
+        filtroStatus === "todas"
+          ? true
+          : filtroStatus === "concluidas"
+          ? tItem.completed
+          : !tItem.completed;
+      const matchCat = filtroCategoria === "todas" || tItem.category === filtroCategoria;
+      const matchBusca =
+        !busca.trim() ||
+        tItem.title.toLowerCase().includes(busca.toLowerCase().trim()) ||
+        (tItem.category && tItem.category.toLowerCase().includes(busca.toLowerCase().trim()));
+      return matchStatus && matchCat && matchBusca;
+    });
+  }, [tasks, filtroStatus, filtroCategoria, busca]);
 
   const completedCount = tasks.filter((tItem) => tItem.completed).length;
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
       {/* Top Banner */}
       <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
             <ListTodo className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-[var(--app-text)]">
-              {t("tarefas.gerenciador", "Gerenciador de Tarefas de Estudo")}
+            <h2 className="text-xl sm:text-2xl font-black text-[var(--app-text)] tracking-tight">
+              Gerenciador de Tarefas de Estudo
             </h2>
-            <p className="text-xs text-[var(--app-text-muted)]">
-              {t("tarefas.gerenciador_desc", "Organize seus deveres, leituras e entregas por disciplina com clareza e foco.")}
+            <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
+              Organize seus deveres, prazos e entregas por disciplina com total controle.
             </p>
           </div>
         </div>
 
         <span className="text-xs font-bold text-[var(--app-primary)] px-3 py-1.5 rounded-xl bg-[var(--app-primary)]/10 border border-[var(--app-primary)]/20">
-          {t("tarefas.tarefas_concluidas_count", { completed: completedCount, total: tasks.length, defaultValue: `${completedCount} de ${tasks.length} concluídas` })}
+          {completedCount} de {tasks.length} concluídas
         </span>
       </div>
 
-      {/* Add Task Form */}
+      {/* Formulário de Criação Rápida */}
       <form
         onSubmit={handleAddTask}
-        className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-4 sm:p-5 shadow-xs space-y-3"
+        className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-5 shadow-xs space-y-3"
       >
+        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--app-text-muted)]">
+          Nova Atividade ou Tarefa
+        </h3>
         <div className="flex flex-col sm:flex-row gap-2.5">
           <input
             type="text"
             required
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder={t("tarefas.placeholder_nova_tarefa", "O que você precisa estudar ou entregar hoje?...")}
+            placeholder="O que você precisa estudar ou entregar hoje?..."
             className="flex-1 px-3.5 py-2.5 rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-xs text-[var(--app-text)] outline-none"
           />
 
           <select
             value={newTaskCategory}
             onChange={(e) => setNewTaskCategory(e.target.value)}
-            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold"
+            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold cursor-pointer max-w-[180px] truncate"
           >
+            <option value="Geral">Geral (Sem disciplina)</option>
             {courses.map((c) => (
               <option key={c.id} value={c.title}>
                 {c.title}
               </option>
             ))}
-            <option value="Geral">{t("tarefas.geral", "Geral")}</option>
           </select>
 
           <select
             value={newTaskPriority}
             onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
-            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold"
+            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold cursor-pointer"
           >
-            <option value="alta">{t("tarefas.prioridade_alta", "Alta")}</option>
-            <option value="média">{t("tarefas.prioridade_media", "Média")}</option>
-            <option value="baixa">{t("tarefas.prioridade_baixa", "Baixa")}</option>
+            <option value="alta">Alta Prioridade</option>
+            <option value="média">Média Prioridade</option>
+            <option value="baixa">Baixa Prioridade</option>
           </select>
 
-          <button
-            type="submit"
-            className="px-4 py-2.5 rounded-xl bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition"
-          >
+          <input
+            type="date"
+            value={newTaskDate}
+            onChange={(e) => setNewTaskDate(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl bg-[var(--app-bg)] border border-[var(--app-border)] text-[var(--app-text)] font-semibold cursor-pointer"
+          />
+
+          <Button type="submit" variant="primary" size="sm" className="flex items-center gap-1.5 shrink-0">
             <Plus className="w-4 h-4" />
-            <span>{t("tarefas.adicionar_tarefa", "Adicionar")}</span>
-          </button>
+            <span>Adicionar</span>
+          </Button>
         </div>
       </form>
 
-      {/* Tasks List */}
-      <div className="space-y-2.5">
-        {tasks.length === 0 ? (
-          <div className="p-8 text-center bg-[var(--app-card)] rounded-2xl border border-[var(--app-border)] text-xs text-[var(--app-text-muted)]">
-            {t("tarefas.sem_tarefas", "Nenhuma tarefa cadastrada nesta categoria.")}
+      {/* Barra de Filtros e Pesquisa */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[var(--app-card)] p-4 rounded-2xl border border-[var(--app-border)]">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-text-muted)] pointer-events-none" />
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar tarefas por título ou matéria..."
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Filtro Status */}
+          <div className="flex items-center p-1 rounded-xl bg-[var(--app-card-secondary)] border border-[var(--app-border)]">
+            {(["todas", "pendentes", "concluidas"] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setFiltroStatus(st)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer capitalize ${
+                  filtroStatus === st
+                    ? "bg-[var(--app-card)] text-[var(--app-primary)] shadow-xs"
+                    : "text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+                }`}
+              >
+                {st}
+              </button>
+            ))}
           </div>
+
+          {/* Filtro Categoria */}
+          <select
+            value={filtroCategoria}
+            onChange={(e) => setFiltroCategoria(e.target.value)}
+            className="p-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] text-xs text-[var(--app-text)] font-bold cursor-pointer max-w-[150px] truncate"
+          >
+            <option value="todas">Todas Disciplinas</option>
+            <option value="Geral">Geral</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.title}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Lista de Tarefas */}
+      <div className="space-y-2.5">
+        {tarefasFiltradas.length === 0 ? (
+          <Card variant="default" padding="lg" className="py-12 text-center text-xs text-[var(--app-text-muted)]">
+            Nenhuma tarefa encontrada com os filtros selecionados.
+          </Card>
         ) : (
-          tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`p-4 rounded-2xl border transition flex items-center justify-between gap-3 bg-[var(--app-card)] shadow-xs ${
-                task.completed ? "opacity-60 border-[var(--app-border)]" : "border-[var(--app-border)] hover:border-[var(--app-primary)]/40"
+          tarefasFiltradas.map((tItem) => (
+            <Card
+              key={tItem.id}
+              variant="default"
+              padding="md"
+              className={`flex items-center justify-between gap-3 group transition ${
+                tItem.completed ? "opacity-70 bg-[var(--app-card-secondary)]/50" : ""
               }`}
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-3.5 min-w-0 flex-1">
                 <button
                   type="button"
-                  onClick={() => handleToggleTask(task.id)}
-                  className="text-[var(--app-primary)] shrink-0 cursor-pointer"
-                  title={task.completed ? t("tarefas.marcar_pendente", "Marcar como pendente") : t("tarefas.marcar_concluida", "Marcar como concluída")}
+                  onClick={() => handleToggleTask(tItem.id)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 cursor-pointer transition text-[var(--app-primary)]"
                 >
-                  {task.completed ? (
+                  {tItem.completed ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-500/20" />
                   ) : (
-                    <Circle className="w-5 h-5 text-neutral-400" />
+                    <Circle className="w-5 h-5 text-[var(--app-text-muted)] group-hover:text-[var(--app-primary)]" />
                   )}
                 </button>
 
-                <div className="space-y-0.5 min-w-0 flex-1">
-                  <p
-                    className={`text-xs sm:text-sm font-bold truncate ${
-                      task.completed ? "line-through text-[var(--app-text-muted)]" : "text-[var(--app-text)]"
+                <div className="min-w-0 space-y-1">
+                  <h4
+                    className={`text-sm font-bold truncate ${
+                      tItem.completed
+                        ? "line-through text-[var(--app-text-muted)]"
+                        : "text-[var(--app-text)]"
                     }`}
                   >
-                    {task.title}
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px] text-[var(--app-text-muted)] flex-wrap">
-                    <span>{task.category}</span>
-                    <span>•</span>
-                    <span>{t("tarefas.prazo_prefix", "Prazo:")} {task.dueDate}</span>
-                    <span>•</span>
+                    {tItem.title}
+                  </h4>
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-[var(--app-text-muted)]">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--app-primary)]/10 text-[var(--app-primary)]">
+                      {tItem.category || "Geral"}
+                    </span>
                     <span
-                      className={`font-bold uppercase ${
-                        task.priority === "alta"
-                          ? "text-red-500"
-                          : task.priority === "média"
-                          ? "text-amber-500"
-                          : "text-blue-500"
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        tItem.priority === "alta"
+                          ? "bg-red-500/10 text-red-600"
+                          : tItem.priority === "média"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-blue-500/10 text-blue-600"
                       }`}
                     >
-                      {task.priority === "alta" ? t("tarefas.prioridade_alta", "Alta") : task.priority === "baixa" ? t("tarefas.prioridade_baixa", "Baixa") : t("tarefas.prioridade_media", "Média")}
+                      {tItem.priority}
                     </span>
+                    {tItem.dueDate && (
+                      <span className="font-mono text-[11px] flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-[var(--app-text-muted)]" />
+                        {tItem.dueDate}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleDeleteTask(task.id)}
-                className="p-1.5 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer"
-                title={t("tarefas.excluir", "Excluir")}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(tItem)}
+                  className="p-2 rounded-xl text-[var(--app-text-muted)] hover:text-[var(--app-primary)] hover:bg-[var(--app-card-secondary)] transition cursor-pointer"
+                  title="Editar Tarefa"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTask(tItem)}
+                  className="p-2 rounded-xl text-[var(--app-text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                  title="Mover para Excluídos"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </Card>
           ))
         )}
       </div>
+
+      {/* Modal de Edição de Tarefa */}
+      {taskEmEdicao && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[var(--app-card)] border border-[var(--app-border)] rounded-3xl p-6 max-w-md w-full shadow-xl space-y-5">
+            <div className="flex items-center justify-between pb-2 border-b border-[var(--app-border)]">
+              <h3 className="text-lg font-black text-[var(--app-text)]">Editar Tarefa</h3>
+              <button
+                type="button"
+                onClick={() => setTaskEmEdicao(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-[var(--app-text-muted)] hover:bg-[var(--app-card-secondary)] transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <Input
+                label="Título da Tarefa"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[var(--app-text)]">Disciplina</label>
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] text-xs text-[var(--app-text)] font-bold cursor-pointer"
+                >
+                  <option value="Geral">Geral (Sem disciplina vinculada)</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.title}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-[var(--app-text)]">Prioridade</label>
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
+                    className="w-full p-2.5 rounded-xl border border-[var(--app-border)] bg-[var(--app-card)] text-xs text-[var(--app-text)] font-bold cursor-pointer"
+                  >
+                    <option value="alta">Alta</option>
+                    <option value="média">Média</option>
+                    <option value="baixa">Baixa</option>
+                  </select>
+                </div>
+
+                <Input
+                  label="Data de Vencimento"
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-3">
+                <Button variant="primary" fullWidth type="submit">
+                  Salvar Alterações
+                </Button>
+                <Button variant="secondary" fullWidth type="button" onClick={() => setTaskEmEdicao(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Sidebar, TabId } from "./components/Sidebar";
 import { AppShell } from "./components/ui/AppShell";
+import { ScreenErrorBoundary } from "./components/ui/ScreenErrorBoundary";
 import { CanonicalTabId } from "./components/ui/TabBar";
 import { InicioTab } from "./components/tabs/canonical/InicioTab";
 import { EstudarTab } from "./components/tabs/canonical/EstudarTab";
@@ -88,6 +89,7 @@ import { FEATURES } from "./config/features";
 import { calculateLevelFromXp } from "./features/progression/levelSystem";
 import { addEventPoints } from "./features/events/services/eventService";
 import { movimentarMoedas, OrigemLancamento } from "./features/economia/services/extratoService";
+import { contarNaoLidas } from "./features/notificacoes/services/notificacoesService";
 
 export default function App() {
   // Theme state with Paper & Focus default
@@ -343,6 +345,19 @@ export default function App() {
   } | null>(null);
   const [onlineCount, setOnlineCount] = useState(1);
   const [isAvaConnectOpen, setIsAvaConnectOpen] = useState(false);
+  const userUid = user.id || user.uid || user.email || "local_user";
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(() => contarNaoLidas(userUid));
+
+  useEffect(() => {
+    const handleNotifs = () => {
+      setUnreadNotifsCount(contarNaoLidas(userUid));
+    };
+    handleNotifs();
+    window.addEventListener("brain_studio_notificacoes_updated", handleNotifs);
+    return () => {
+      window.removeEventListener("brain_studio_notificacoes_updated", handleNotifs);
+    };
+  }, [userUid]);
 
   // Poll online count periodically
   useEffect(() => {
@@ -673,6 +688,18 @@ export default function App() {
       const leveledUp = newLevel > (prev.level || 1);
       const bonusCoins = leveledUp ? currentMilestone.coinsReward : 0;
 
+      if (bonusCoins > 0) {
+        const userUid = prev.id || prev.uid || prev.email || "local_user";
+        movimentarMoedas(
+          userUid,
+          bonusCoins,
+          "recompensa",
+          `level_${newLevel}`,
+          undefined,
+          `Bônus por alcançar o Nível ${newLevel}`
+        ).catch(() => {});
+      }
+
       return {
         ...prev,
         xp: newXp,
@@ -777,14 +804,13 @@ export default function App() {
       console.warn("⚡ Energia insuficiente! Visite a Loja para comprar uma Poção de Energia (🪙 50).");
       return;
     }
+    handleRewardCoins(30, "games", "Estudo Prático no AVA IFES");
     setUser((prev) => {
-      const newCoins = (prev.coins ?? 250) + 30;
       const newXp = prev.xp + 25;
       const newLevel = Math.floor(newXp / 500) + 1;
       const newEnergy = Math.max(0, prev.energy - 3);
       return {
         ...prev,
-        coins: newCoins,
         xp: newXp,
         level: newLevel,
         energy: newEnergy,
@@ -1363,7 +1389,11 @@ export default function App() {
         modoFoco={modoFoco}
         onToggleModoFoco={handleToggleModoFoco}
         onLogout={handleLogout}
-        onOpenNotifications={() => setIsNotificationModalOpen(true)}
+        onOpenNotifications={() => {
+          setCanonicalTab("perfil");
+          setCanonicalSubView("notificacoes");
+        }}
+        unreadNotificationsCount={unreadNotifsCount}
         onOpenWallet={() => {
           setCanonicalTab("perfil");
           setCanonicalSubView("extrato");
@@ -1395,108 +1425,169 @@ export default function App() {
         )}
 
         {canonicalTab === "inicio" && (
-          <InicioTab
-            user={user}
-            courses={courses}
-            currentCourse={currentCourse}
-            modules={modules}
-            onNavigate={handleNavigate}
-            onOpenActiveLesson={() => {
-              const active = modules.find((m) => m.status === "active") || modules[0];
-              if (active) {
-                setActiveLessonModule(active);
-              }
+          <ScreenErrorBoundary
+            screenName="Início"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
             }}
-            onUpdatePet={handleUpdatePet}
-            onRewardXp={handleRewardXp}
-          />
+          >
+            <InicioTab
+              user={user}
+              courses={courses}
+              currentCourse={currentCourse}
+              modules={modules}
+              onNavigate={handleNavigate}
+              onOpenActiveLesson={() => {
+                const active = modules.find((m) => m.status === "active") || modules[0];
+                if (active) {
+                  setActiveLessonModule(active);
+                }
+              }}
+              onUpdatePet={handleUpdatePet}
+              onRewardXp={handleRewardXp}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {canonicalTab === "estudar" && (
-          <EstudarTab
-            user={user}
-            courses={courses}
-            modules={modules}
-            currentCourse={currentCourse}
-            ifesCourses={ifesCourses}
-            initialSubView={canonicalSubView}
-            onSelectCourse={handleSelectCourse}
-            onOpenLesson={(mod) => setActiveLessonModule(mod)}
-            onOpenDeck={handleOpenDeckInGames}
-            onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
-            onResetCourses={handleResetCourses}
-            onDeleteCourse={handleDeleteSingleCourse}
-            onRewardXp={handleRewardXp}
-            onRewardCoins={handleRewardCoins}
-            onConsumeEnergy={handleConsumeEnergy}
-            onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
-            onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
-            onNavigateToTab={handleNavigate}
-            onUpdateIfesAccount={handleUpdateIfesAccount}
-            onUpdateCourses={handleUpdateCourses}
-          />
+          <ScreenErrorBoundary
+            screenName="Estudar"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
+            }}
+          >
+            <EstudarTab
+              user={user}
+              courses={courses}
+              modules={modules}
+              currentCourse={currentCourse}
+              ifesCourses={ifesCourses}
+              initialSubView={canonicalSubView}
+              onSelectCourse={handleSelectCourse}
+              onOpenLesson={(mod) => setActiveLessonModule(mod)}
+              onOpenDeck={handleOpenDeckInGames}
+              onOpenOfflineModal={() => setIsOfflineModalOpen(true)}
+              onResetCourses={handleResetCourses}
+              onDeleteCourse={handleDeleteSingleCourse}
+              onRewardXp={handleRewardXp}
+              onRewardCoins={handleRewardCoins}
+              onConsumeEnergy={handleConsumeEnergy}
+              onOpenPrivateChatWithMember={handleOpenPrivateChatWithMember}
+              onOpenAvaConnect={() => setIsAvaConnectOpen(true)}
+              onNavigateToTab={handleNavigate}
+              onUpdateIfesAccount={handleUpdateIfesAccount}
+              onUpdateCourses={handleUpdateCourses}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {(canonicalTab === "games" || (canonicalTab as any) === "jogo") && (
-          <GamesHub
-            user={user}
-            onRewardCoins={handleRewardCoins}
-            onRewardXp={handleRewardXp}
-            onNavigateToWallet={() => {
-              setCanonicalTab("perfil");
-              setCanonicalSubView("extrato");
+          <ScreenErrorBoundary
+            screenName="Games"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
             }}
-          />
+          >
+            <GamesHub
+              user={user}
+              initialSubView={canonicalSubView}
+              onRewardCoins={handleRewardCoins}
+              onRewardXp={handleRewardXp}
+              onNavigateToWallet={() => {
+                setCanonicalTab("perfil");
+                setCanonicalSubView("extrato");
+              }}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {canonicalTab === "cidades" && (
-          <CidadeDoConhecimentoTab
-            user={user}
-            onRewardCoins={handleRewardCoins}
-            onRewardXp={handleRewardXp}
-            onConsumeCoins={handleConsumeCoins}
-          />
+          <ScreenErrorBoundary
+            screenName="Cidades"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
+            }}
+          >
+            <CidadeDoConhecimentoTab
+              user={user}
+              onRewardCoins={handleRewardCoins}
+              onRewardXp={handleRewardXp}
+              onConsumeCoins={handleConsumeCoins}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {canonicalTab === "eventos" && (
-          <IfesLiveEventsHub
-            onRewardCoins={handleRewardCoins}
-            onRewardXp={handleRewardXp}
-            onNavigateToGames={() => setCanonicalTab("games")}
-            onNavigateToCity={() => setCanonicalTab("cidades")}
-            onOpenAlbum={() => setCanonicalTab("colecao")}
-          />
+          <ScreenErrorBoundary
+            screenName="Eventos"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
+            }}
+          >
+            <IfesLiveEventsHub
+              onRewardCoins={handleRewardCoins}
+              onRewardXp={handleRewardXp}
+              onNavigateToGames={() => setCanonicalTab("games")}
+              onNavigateToCity={() => setCanonicalTab("cidades")}
+              onOpenAlbum={() => setCanonicalTab("colecao")}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {canonicalTab === "colecao" && (
-          <ColecaoCanonicalTab
-            user={user}
-            initialSubView={
-              canonicalSubView === "trocas" || canonicalSubView === "baus"
-                ? canonicalSubView
-                : "album"
-            }
-            onRewardCoins={handleRewardCoins}
-            onRewardXp={handleRewardXp}
-            onConsumeCoins={handleConsumeCoins}
-            onEquipBadge={handleEquipBadge}
-          />
+          <ScreenErrorBoundary
+            screenName="Coleção"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
+            }}
+          >
+            <ColecaoCanonicalTab
+              user={user}
+              initialSubView={
+                canonicalSubView === "trocas" || canonicalSubView === "baus"
+                  ? canonicalSubView
+                  : "album"
+              }
+              onRewardCoins={handleRewardCoins}
+              onRewardXp={handleRewardXp}
+              onConsumeCoins={handleConsumeCoins}
+              onEquipBadge={handleEquipBadge}
+            />
+          </ScreenErrorBoundary>
         )}
 
         {canonicalTab === "perfil" && (
-          <PerfilTab
-            user={user}
-            initialSubView={canonicalSubView}
-            modoFoco={modoFoco}
-            onToggleModoFoco={handleToggleModoFoco}
-            onSaveUser={handleUpdateProfile}
-            onLogout={handleLogout}
-            onResetCourses={handleResetCourses}
-            onReopenTutorial={() => setShowTutorial(true)}
-            onOpenPaywall={() => setIsPaywallOpen(true)}
-            onOpenOfflineDetail={() => setIsOfflineModalOpen(true)}
-            onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
-          />
+          <ScreenErrorBoundary
+            screenName="Perfil"
+            onNavigateHome={() => {
+              setCanonicalTab("inicio");
+              setCanonicalSubView(undefined);
+            }}
+          >
+            <PerfilTab
+              user={user}
+              initialSubView={canonicalSubView}
+              modoFoco={modoFoco}
+              onToggleModoFoco={handleToggleModoFoco}
+              onSaveUser={handleUpdateProfile}
+              onLogout={handleLogout}
+              onNavigateToTab={(tab, subView) => {
+                setCanonicalTab(tab as any);
+                setCanonicalSubView(subView);
+              }}
+              onResetCourses={handleResetCourses}
+              onReopenTutorial={() => setShowTutorial(true)}
+              onOpenPaywall={() => setIsPaywallOpen(true)}
+              onOpenOfflineDetail={() => setIsOfflineModalOpen(true)}
+              onOpenOnlineUsers={() => setIsOnlineUsersOpen(true)}
+            />
+          </ScreenErrorBoundary>
         )}
       </AppShell>
 

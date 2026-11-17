@@ -10,12 +10,14 @@ import {
   Calendar,
   AlertCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   carregarExtrato,
   auditarExtrato,
   garantirSaldoInicialExtrato,
   LancamentoExtrato,
   TipoLancamento,
+  OrigemLancamento,
 } from "../services/extratoService";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
@@ -34,9 +36,13 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
   saldoAtual,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [lancamentos, setLancamentos] = useState<LancamentoExtrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState<"todos" | TipoLancamento>("todos");
+  const [filtroPeriodo, setFiltroPeriodo] = useState<"todos" | "hoje" | "7dias" | "30dias">("todos");
+  const [filtroOrigem, setFiltroOrigem] = useState<"todas" | OrigemLancamento>("todas");
+  const [itensVisiveis, setItensVisiveis] = useState(15);
   const [resultadoAuditoria, setResultadoAuditoria] = useState<{
     auditado: boolean;
     valido: boolean;
@@ -47,7 +53,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
     setLoading(true);
     try {
       await garantirSaldoInicialExtrato(uid, saldoAtual);
-      const lista = await carregarExtrato(uid, 60);
+      const lista = await carregarExtrato(uid, 120);
       setLancamentos(lista);
     } catch (err) {
       console.error("Erro ao carregar extrato:", err);
@@ -75,39 +81,76 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
       auditado: true,
       valido: res.valido,
       mensagem: res.valido
-        ? "Seu livro-razão está 100% equilibrado e verificado!"
-        : `Divergência detectada: ${res.diferenca} moedas de diferença contábil.`,
+        ? t("extrato.auditoria_ok", "Seu livro-razão está 100% equilibrado e verificado!")
+        : t("extrato.auditoria_divergencia", `Divergência detectada: ${res.diferenca} moedas de diferença contábil.`),
     });
   };
 
   const isSaida = (t: string) => t === "gasto" || t === "saida";
   const isEntrada = (t: string) => t === "ganho";
 
+  const agora = Date.now();
+  const umDiaMs = 24 * 60 * 60 * 1000;
+  const seteDiasMs = 7 * umDiaMs;
+  const trintaDiasMs = 30 * umDiaMs;
+
   // Filtragem da lista
   const lancamentosFiltrados = lancamentos.filter((item) => {
-    if (filtroTipo === "todos") return true;
-    if (filtroTipo === "gasto" || filtroTipo === "saida") return isSaida(item.tipo);
-    if (filtroTipo === "ganho") return isEntrada(item.tipo);
-    return item.tipo === filtroTipo;
+    // Filtro por Tipo
+    if (filtroTipo === "gasto" || filtroTipo === "saida") {
+      if (!isSaida(item.tipo)) return false;
+    } else if (filtroTipo === "ganho") {
+      if (!isEntrada(item.tipo)) return false;
+    } else if (filtroTipo !== "todos" && item.tipo !== filtroTipo) {
+      return false;
+    }
+
+    // Filtro por Origem
+    if (filtroOrigem !== "todas" && item.origem !== filtroOrigem) {
+      return false;
+    }
+
+    // Filtro por Período
+    const itemTimestamp = new Date(item.criadoEm).getTime();
+    if (filtroPeriodo === "hoje" && agora - itemTimestamp > umDiaMs) {
+      return false;
+    }
+    if (filtroPeriodo === "7dias" && agora - itemTimestamp > seteDiasMs) {
+      return false;
+    }
+    if (filtroPeriodo === "30dias" && agora - itemTimestamp > trintaDiasMs) {
+      return false;
+    }
+
+    return true;
   });
 
-  // Métricas do período (computando com segurança valores absolutos)
-  const totalGanhos = lancamentos
+  // Métricas do período filtrado
+  const totalGanhos = lancamentosFiltrados
     .filter((l) => isEntrada(l.tipo))
     .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
 
-  const totalGastos = lancamentos
+  const totalGastos = lancamentosFiltrados
     .filter((l) => isSaida(l.tipo))
     .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
 
-  const totalCashback = lancamentos
+  const totalCashback = lancamentosFiltrados
     .filter((l) => l.tipo === "cashback")
     .reduce((acc, curr) => acc + Math.abs(curr.valor), 0);
+
+  // Resumos temporais
+  const totalSemanal = lancamentos
+    .filter((l) => agora - new Date(l.criadoEm).getTime() <= seteDiasMs)
+    .reduce((acc, curr) => acc + (isEntrada(curr.tipo) ? Math.abs(curr.valor) : isSaida(curr.tipo) ? -Math.abs(curr.valor) : 0), 0);
+
+  const totalMensal = lancamentos
+    .filter((l) => agora - new Date(l.criadoEm).getTime() <= trintaDiasMs)
+    .reduce((acc, curr) => acc + (isEntrada(curr.tipo) ? Math.abs(curr.valor) : isSaida(curr.tipo) ? -Math.abs(curr.valor) : 0), 0);
 
   const formatarData = (isoStr: string) => {
     try {
       const data = new Date(isoStr);
-      return data.toLocaleDateString("pt-BR", {
+      return data.toLocaleDateString(undefined, {
         day: "2-digit",
         month: "short",
         hour: "2-digit",
@@ -171,7 +214,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
       {/* Cartões de Indicadores Contábeis */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card variant="default" padding="sm" className="flex flex-col">
-          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Saldo Atual</span>
+          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">{t("extrato.saldo_atual", "Saldo Atual")}</span>
           <div className="text-xl sm:text-2xl font-black text-amber-500 flex items-center gap-1 mt-1">
             <Coins className="w-5 h-5" />
             {saldoAtual}
@@ -179,7 +222,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
 
         <Card variant="default" padding="sm" className="flex flex-col">
-          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Entradas</span>
+          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">{t("extrato.entradas", "Entradas")}</span>
           <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
             <ArrowUpRight className="w-5 h-5" />
             +{totalGanhos}
@@ -187,7 +230,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
 
         <Card variant="default" padding="sm" className="flex flex-col">
-          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Saídas Monetárias</span>
+          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">{t("extrato.saidas", "Saídas Monetárias")}</span>
           <div className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 flex items-center gap-1 mt-1">
             <ArrowDownLeft className="w-5 h-5" />
             -{totalGastos}
@@ -195,7 +238,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
 
         <Card variant="default" padding="sm" className="flex flex-col">
-          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">Cashback / Retorno</span>
+          <span className="text-[11px] text-[var(--app-text-muted)] font-medium">{t("extrato.cashback", "Cashback / Retorno")}</span>
           <div className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
             <Sparkles className="w-5 h-5" />
             +{totalCashback}
@@ -203,35 +246,92 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
         </Card>
       </div>
 
-      {/* Filtros de Tipo */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        <Chip
-          label="Todos"
-          selected={filtroTipo === "todos"}
-          onClick={() => setFiltroTipo("todos")}
-          size="sm"
-        />
-        <Chip
-          label="Entradas (+)"
-          selected={filtroTipo === "ganho"}
-          onClick={() => setFiltroTipo("ganho")}
-          size="sm"
-        />
-        <Chip
-          label="Saídas (-)"
-          selected={filtroTipo === "gasto" || filtroTipo === "saida"}
-          onClick={() => setFiltroTipo("gasto")}
-          size="sm"
-        />
-        <Chip
-          label="Cashback & Fidelidade"
-          selected={filtroTipo === "cashback"}
-          onClick={() => setFiltroTipo("cashback")}
-          size="sm"
-        />
+      {/* Resumo Semanal e Mensal Consolidado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--app-text-muted)] font-medium flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-[var(--app-primary)]" />
+            {t("extrato.resumo_semanal", "Balanço Últimos 7 dias:")}
+          </span>
+          <span className={`font-black font-mono ${totalSemanal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+            {totalSemanal >= 0 ? `+${totalSemanal}` : totalSemanal} 🪙
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--app-text-muted)] font-medium flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-blue-500" />
+            {t("extrato.resumo_mensal", "Balanço Últimos 30 dias:")}
+          </span>
+          <span className={`font-black font-mono ${totalMensal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+            {totalMensal >= 0 ? `+${totalMensal}` : totalMensal} 🪙
+          </span>
+        </div>
       </div>
 
-      {/* Lista de Transações */}
+      {/* Controles de Filtros: Período e Tipo */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider shrink-0 mr-1">
+            {t("extrato.periodo", "Período:")}
+          </span>
+          <Chip
+            label={t("extrato.periodo_todos", "Todos")}
+            selected={filtroPeriodo === "todos"}
+            onClick={() => setFiltroPeriodo("todos")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.periodo_hoje", "Hoje (24h)")}
+            selected={filtroPeriodo === "hoje"}
+            onClick={() => setFiltroPeriodo("hoje")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.periodo_7dias", "7 Dias")}
+            selected={filtroPeriodo === "7dias"}
+            onClick={() => setFiltroPeriodo("7dias")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.periodo_30dias", "30 Dias")}
+            selected={filtroPeriodo === "30dias"}
+            onClick={() => setFiltroPeriodo("30dias")}
+            size="sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <span className="text-[10px] font-bold text-[var(--app-text-muted)] uppercase tracking-wider shrink-0 mr-1">
+            {t("extrato.tipo", "Tipo:")}
+          </span>
+          <Chip
+            label={t("extrato.tipo_todos", "Todos")}
+            selected={filtroTipo === "todos"}
+            onClick={() => setFiltroTipo("todos")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.tipo_entradas", "Entradas (+)")}
+            selected={filtroTipo === "ganho"}
+            onClick={() => setFiltroTipo("ganho")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.tipo_saidas", "Saídas (-)")}
+            selected={filtroTipo === "gasto" || filtroTipo === "saida"}
+            onClick={() => setFiltroTipo("gasto")}
+            size="sm"
+          />
+          <Chip
+            label={t("extrato.tipo_cashback", "Cashback & Retorno")}
+            selected={filtroTipo === "cashback"}
+            onClick={() => setFiltroTipo("cashback")}
+            size="sm"
+          />
+        </div>
+      </div>
+
+      {/* Lista de Transações Paginada */}
       {loading ? (
         <div className="space-y-2.5">
           <Skeleton height={56} rounded="xl" />
@@ -242,14 +342,14 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
       ) : lancamentosFiltrados.length === 0 ? (
         <EmptyState
           icon={Coins}
-          title="Nenhuma movimentação registrada"
-          description="Seus ganhos e saídas em estudos, pacotes e obras aparecerão aqui de forma transparente."
-          actionLabel="Atualizar Extrato"
+          title={t("extrato.vazio_titulo", "Nenhuma movimentação registrada")}
+          description={t("extrato.vazio_desc", "Seus ganhos e saídas em estudos, pacotes e obras aparecerão aqui de forma transparente.")}
+          actionLabel={t("extrato.atualizar", "Atualizar Extrato")}
           onAction={carregarDados}
         />
       ) : (
         <div className="space-y-2">
-          {lancamentosFiltrados.map((item) => {
+          {lancamentosFiltrados.slice(0, itensVisiveis).map((item) => {
             const isGanho = item.tipo === "ganho" || item.tipo === "cashback";
             const valorAbs = Math.abs(item.valor);
             return (
@@ -285,7 +385,7 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
                     <div className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-2 mt-0.5">
                       <span>{formatarData(item.criadoEm)}</span>
                       <span>•</span>
-                      <span className="capitalize font-medium">Origem: {item.origem}</span>
+                      <span className="capitalize font-medium">{t("extrato.origem", "Origem")}: {item.origem}</span>
                     </div>
                   </div>
                 </div>
@@ -303,12 +403,28 @@ export const ExtratoMoedasView: React.FC<ExtratoMoedasViewProps> = ({
                     {valorAbs}
                   </div>
                   <div className="text-[10px] text-[var(--app-text-muted)] font-mono">
-                    Saldo: {item.saldoApos}
+                    {t("extrato.saldo", "Saldo")}: {item.saldoApos}
                   </div>
                 </div>
               </div>
             );
           })}
+
+          {/* Botão de Paginação / Carregar Mais */}
+          {itensVisiveis < lancamentosFiltrados.length && (
+            <div className="pt-2 flex justify-center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setItensVisiveis((prev) => prev + 15)}
+                className="w-full sm:w-auto"
+              >
+                {t("extrato.carregar_mais", "Carregar Mais ({{restantes}} restantes)", {
+                  restantes: lancamentosFiltrados.length - itensVisiveis,
+                })}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

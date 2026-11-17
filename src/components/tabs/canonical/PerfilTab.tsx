@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   User,
@@ -48,6 +48,12 @@ import { MeusSistemasView } from "../../../features/instituicao/components/MeusS
 import { getTemaAtual, alternarTema, TemaTipo, aplicarTema } from "../../../utils/themeManager";
 import { ExtratoMoedasView } from "../../../features/economia/components/ExtratoMoedasView";
 import { calculateLevelFromXp } from "../../../features/progression/levelSystem";
+import { CentralNotificacoesView } from "../../../features/notificacoes/components/CentralNotificacoesView";
+import { contarNaoLidas } from "../../../features/notificacoes/services/notificacoesService";
+import { NotificationSettingsModal } from "../../NotificationSettingsModal";
+import { ScreenErrorBoundary } from "../../ui/ScreenErrorBoundary";
+import { getSafeDisplayName, getSafeFullName, getSafeInitial, isMatriculaOuLogin } from "../../../utils/userDisplayName";
+import { Info, Copy, Check } from "lucide-react";
 
 export type SecaoConfigId =
   | "menu"
@@ -70,6 +76,7 @@ export interface PerfilTabProps {
   onToggleModoFoco: (ativo: boolean) => void;
   onSaveUser: (updatedUser: Partial<UserProfile>) => void;
   onLogout: () => void;
+  onNavigateToTab?: (tab: string, subView?: string) => void;
   onResetCourses?: () => void;
   onReopenTutorial?: () => void;
   onOpenPaywall?: () => void;
@@ -84,6 +91,7 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   onToggleModoFoco,
   onSaveUser,
   onLogout,
+  onNavigateToTab,
   onResetCourses,
   onReopenTutorial,
   onOpenPaywall,
@@ -93,18 +101,57 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   const { t, i18n } = useTranslation();
   const [abaPrincipal, setAbaPrincipal] = useState<"geral" | "extrato" | "config">(() => {
     if (initialSubView === "extrato" || initialSubView === "carteira") return "extrato";
-    if (initialSubView === "config" || initialSubView === "settings") return "config";
+    if (initialSubView === "config" || initialSubView === "settings" || initialSubView === "notificacoes") return "config";
     return "geral";
   });
-  const [secaoAtiva, setSecaoAtiva] = useState<SecaoConfigId>("menu");
+  const [secaoAtiva, setSecaoAtiva] = useState<SecaoConfigId>(() => {
+    if (initialSubView === "notificacoes") return "notificacoes";
+    return "menu";
+  });
   const [busca, setBusca] = useState("");
   const [temaAtual, setTemaAtual] = useState<TemaTipo>(getTemaAtual);
+  const [isNotificationPrefsOpen, setIsNotificationPrefsOpen] = useState(false);
+  const userUid = user?.id || user?.uid || user?.email || "local_user";
+  const [unreadNotifs, setUnreadNotifs] = useState(() => contarNaoLidas(userUid));
   const { settings: a11ySettings, updateSetting, resetDefaults } = useAccessibility();
 
-  // Estados de edição de conta
-  const [nome, setNome] = useState(user.name || "");
-  const [email, setEmail] = useState(user.email || "");
+  // Estados de edição de conta com proteção de privacidade (Bloco 17)
+  const [nome, setNome] = useState(() => getSafeFullName(user, "Estudante"));
+  const [apelido, setApelido] = useState(() => (user as any)?.nickname || (user as any)?.apelido || "");
+  const [email, setEmail] = useState(() => user?.email || "");
   const [sucessoSalvar, setSucessoSalvar] = useState(false);
+  const [copiedTechInfo, setCopiedTechInfo] = useState(false);
+
+  // Monitora contagem de notificações não lidas
+  useEffect(() => {
+    const atualizarContador = () => {
+      setUnreadNotifs(contarNaoLidas(userUid));
+    };
+    atualizarContador();
+    window.addEventListener("brain_studio_notificacoes_updated", atualizarContador);
+    return () => {
+      window.removeEventListener("brain_studio_notificacoes_updated", atualizarContador);
+    };
+  }, [userUid]);
+
+  // Sincroniza quando o usuário clica em atalhos de perfil no menu lateral ou modal
+  useEffect(() => {
+    if (!initialSubView) return;
+    if (initialSubView === "extrato" || initialSubView === "carteira") {
+      setAbaPrincipal("extrato");
+    } else if (initialSubView === "notificacoes") {
+      setAbaPrincipal("config");
+      setSecaoAtiva("notificacoes");
+    } else if (initialSubView === "config" || initialSubView === "settings") {
+      setAbaPrincipal("config");
+      setSecaoAtiva("menu");
+    } else if (["conta", "aparencia", "foco", "idioma", "acessibilidade", "notificacoes", "instituicao", "planos", "offline", "privacidade", "sobre"].includes(initialSubView)) {
+      setAbaPrincipal("config");
+      setSecaoAtiva(initialSubView as SecaoConfigId);
+    } else {
+      setAbaPrincipal("geral");
+    }
+  }, [initialSubView]);
 
   // Lista canônica de seções de configurações
   const secoes = [
@@ -203,7 +250,8 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
     onSaveUser({
       name: nome,
       email: email,
-    });
+      nickname: apelido.trim() || undefined,
+    } as any);
     setSucessoSalvar(true);
     setTimeout(() => setSucessoSalvar(false), 3000);
   };
@@ -213,10 +261,9 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
     setTemaAtual(novo);
   };
 
-  const userUid = user.id || user.uid || user.email || "local_user";
-  const userXp = user.xp || 0;
+  const userXp = user?.xp || 0;
   const { level: calculatedLevel, currentMilestone, nextMilestone, progressPercent } = calculateLevelFromXp(userXp);
-  const activeLevel = user.level || calculatedLevel;
+  const activeLevel = user?.level || calculatedLevel;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
@@ -314,17 +361,17 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           >
             <div className="flex items-center gap-4 text-center sm:text-left">
               <div className="w-16 h-16 rounded-full bg-[var(--app-primary)]/15 border-2 border-[var(--app-primary)] flex items-center justify-center text-2xl font-black text-[var(--app-primary)] shadow-sm">
-                {user.name ? user.name[0].toUpperCase() : "U"}
+                {getSafeInitial(user)}
               </div>
               <div>
                 <div className="flex items-center gap-2 justify-center sm:justify-start">
-                  <h2 className="text-xl font-black text-[var(--app-text)]">{user.name || "Estudante"}</h2>
+                  <h2 className="text-xl font-black text-[var(--app-text)]">{getSafeFullName(user)}</h2>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 border border-amber-500/30">
                     {currentMilestone?.title || "Estudante Dedicado"}
                   </span>
                 </div>
                 <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
-                  {user.email || "Sem e-mail cadastrado"} • {user.ifesAccount?.campusName || "IFES"}
+                  {user?.email || "Sem e-mail cadastrado"} • {user?.ifesAccount?.campusName || "IFES"}
                 </p>
                 <div className="mt-1 flex items-center gap-2 justify-center sm:justify-start">
                   <span className="text-[11px] font-bold text-[var(--app-primary)]">
@@ -333,7 +380,7 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
                   <span className="text-xs text-[var(--app-text-muted)]">•</span>
                   <span className="text-[11px] text-[var(--app-text-muted)] flex items-center gap-1">
                     <Flame className="w-3.5 h-3.5 text-amber-500" />
-                    {user.streakDays || 1} dias de ofensiva
+                    {user?.streakDays || 1} dias de ofensiva
                   </span>
                 </div>
               </div>
@@ -518,18 +565,18 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           >
             <div className="flex items-center gap-4 text-center sm:text-left">
               <div className="w-16 h-16 rounded-full bg-[var(--app-primary)]/15 border-2 border-[var(--app-primary)] flex items-center justify-center text-2xl font-black text-[var(--app-primary)]">
-                {user.name ? user.name[0].toUpperCase() : "U"}
+                {getSafeInitial(user)}
               </div>
               <div>
-                <h2 className="text-xl font-black text-[var(--app-text)]">{user.name || "Estudante"}</h2>
-                <p className="text-xs text-[var(--app-text-muted)]">{user.email || "Sem e-mail cadastrado"}</p>
+                <h2 className="text-xl font-black text-[var(--app-text)]">{getSafeFullName(user)}</h2>
+                <p className="text-xs text-[var(--app-text-muted)]">{user?.email || "Sem e-mail cadastrado"}</p>
                 <div className="mt-1 flex items-center gap-2 justify-center sm:justify-start">
                   <span className="text-[11px] font-bold text-[var(--app-primary)]">
-                    Nível {user.level || 1}
+                    Nível {user?.level || 1}
                   </span>
                   <span className="text-xs text-[var(--app-text-muted)]">•</span>
                   <span className="text-[11px] text-[var(--app-text-muted)]">
-                    {user.streakDays || 1} dias de ofensiva
+                    {user?.streakDays || 1} dias de ofensiva
                   </span>
                 </div>
               </div>
@@ -583,7 +630,14 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
                         </p>
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-[var(--app-text-muted)] group-hover:translate-x-0.5 transition shrink-0" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      {secao.id === "notificacoes" && unreadNotifs > 0 && (
+                        <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-[var(--app-primary)] text-white shadow-xs">
+                          {unreadNotifs > 99 ? "99+" : unreadNotifs}
+                        </span>
+                      )}
+                      <ChevronRight className="w-5 h-5 text-[var(--app-text-muted)] group-hover:translate-x-0.5 transition shrink-0" />
+                    </div>
                   </div>
                 );
               })
@@ -604,10 +658,17 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
 
           <div className="space-y-4">
             <Input
+              label="Como você quer ser chamado? (Apelido ou primeiro nome)"
+              value={apelido}
+              onChange={(e) => setApelido(e.target.value)}
+              placeholder="Ex: Gabriel, Bia, Rafa"
+              helperText="Usado em saudações, rankings, ligas e duelos. Protege sua privacidade e nunca exibe matrículas."
+            />
+            <Input
               label="Nome Completo"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Seu nome"
+              placeholder="Seu nome completo"
             />
             <Input
               label="E-mail Institucional ou Pessoal"
@@ -842,6 +903,21 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
         </Card>
       )}
 
+      {/* Subpágina: Notificações (Central de Notificações Unificada) */}
+      {secaoAtiva === "notificacoes" && (
+        <Card variant="default" padding="lg">
+          <CentralNotificacoesView
+            uid={userUid}
+            onOpenPreferences={() => setIsNotificationPrefsOpen(true)}
+            onNavigateToRoute={(route) => {
+              if (onNavigateToTab) {
+                onNavigateToTab(route);
+              }
+            }}
+          />
+        </Card>
+      )}
+
       {/* Subpágina: Instituição e Sistemas */}
       {secaoAtiva === "instituicao" && (
         <Card variant="default" padding="lg">
@@ -881,21 +957,100 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
         </Card>
       )}
 
-      {/* Subpágina: Privacidade e Sobre */}
-      {(secaoAtiva === "privacidade" || secaoAtiva === "sobre") && (
+      {/* Subpágina: Privacidade */}
+      {secaoAtiva === "privacidade" && (
         <Card variant="default" padding="lg" className="space-y-4">
           <h3 className="text-base font-bold text-[var(--app-text)]">
-            {secaoAtiva === "privacidade" ? "Privacidade e Segurança" : "Sobre o Brain Studio"}
+            Privacidade e Segurança
           </h3>
-          <p className="text-xs sm:text-sm text-[var(--app-text-muted)]">
-            {secaoAtiva === "privacidade"
-              ? "Seus dados educacionais e credenciais do AVA Moodle são armazenados estritamente no seu dispositivo, com trânsito criptografado e sem compartilhamento com terceiros."
-              : "Brain Studio v3.2.0 • Plataforma Autônoma de Estudos e Produtividade Acadêmica com Tutoria Socrática e Gamificação."}
+          <p className="text-xs sm:text-sm text-[var(--app-text-muted)] leading-relaxed">
+            Seus dados educacionais e credenciais do AVA Moodle são armazenados estritamente no seu dispositivo, com trânsito criptografado e sem compartilhamento com terceiros.
           </p>
+          <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-2 text-xs">
+            <h4 className="font-bold text-[var(--app-text)]">Direitos do Estudante:</h4>
+            <ul className="list-disc list-inside space-y-1 text-[var(--app-text-muted)]">
+              <li>Nunca exibimos matrículas ou dados pessoais em rankings sociais.</li>
+              <li>Menores de idade possuem anonimização ativa por padrão.</li>
+              <li>Exclusão definitiva de conta e dados locais a qualquer momento.</li>
+            </ul>
+          </div>
+        </Card>
+      )}
+
+      {/* Subpágina: Sobre e Diagnóstico Técnico (Bloco 1C.4 & 12.1) */}
+      {secaoAtiva === "sobre" && (
+        <Card variant="default" padding="lg" className="space-y-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-base font-bold text-[var(--app-text)]">Sobre o Brain Studio</h3>
+              <p className="text-xs text-[var(--app-text-muted)] mt-0.5">
+                Plataforma Autônoma de Estudos e Produtividade Acadêmica Gamificada
+              </p>
+            </div>
+            <span className="px-2.5 py-1 text-xs font-mono font-bold bg-amber-500/10 text-amber-600 rounded-full border border-amber-500/30">
+              v3.2.0-native
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[var(--app-card-secondary)] border border-[var(--app-border)] space-y-3">
+            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--app-text-muted)] flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 text-[var(--app-primary)]" />
+              <span>Informações Técnicas do Build</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div>
+                <span className="text-[var(--app-text-muted)] block">Versão:</span>
+                <span className="font-bold text-[var(--app-text)]">3.2.0</span>
+              </div>
+              <div>
+                <span className="text-[var(--app-text-muted)] block">Release:</span>
+                <span className="font-bold text-[var(--app-text)]">Android Release / PWA</span>
+              </div>
+              <div>
+                <span className="text-[var(--app-text-muted)] block">Build ID:</span>
+                <span className="font-bold text-[var(--app-text)]">2026.11.17</span>
+              </div>
+              <div>
+                <span className="text-[var(--app-text-muted)] block">Ambiente:</span>
+                <span className="font-bold text-emerald-600">Produção Estável</span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const info = `Brain Studio Build Info\nVersão: 3.2.0\nBuild: 2026.11.17\nPlatform: Web/Android\nData: ${new Date().toISOString()}`;
+                navigator.clipboard.writeText(info).then(() => {
+                  setCopiedTechInfo(true);
+                  setTimeout(() => setCopiedTechInfo(false), 2500);
+                });
+              }}
+              className="w-full flex items-center justify-center gap-1.5 text-xs"
+            >
+              {copiedTechInfo ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-600 font-bold">Copiado para a área de transferência!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copiar Informações Técnicas para Suporte</span>
+                </>
+              )}
+            </Button>
+          </div>
         </Card>
       )}
         </>
       )}
+
+      {/* Modal de Preferências de Notificações */}
+      <NotificationSettingsModal
+        isOpen={isNotificationPrefsOpen}
+        onClose={() => setIsNotificationPrefsOpen(false)}
+      />
     </div>
   );
 };

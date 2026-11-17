@@ -27,6 +27,7 @@ import { ProgressBar } from "../../ui/ProgressBar";
 import { Badge } from "../../ui/Badge";
 import { loadSyncedAssignments } from "../../../utils/courseSync";
 import { Pet3DView } from "../../pet3d/Pet3DView";
+import { getSafeDisplayName } from "../../../utils/userDisplayName";
 
 export interface InicioTabProps {
   user: UserProfile;
@@ -146,7 +147,7 @@ export const InicioTab: React.FC<InicioTabProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-[var(--app-text)] tracking-tight">
-            {saudacao}, {user.name ? user.name.split(" ")[0] : "Estudante"}!
+            {saudacao}, {getSafeDisplayName(user)}!
           </h1>
           <p className="text-xs sm:text-sm text-[var(--app-text-muted)] mt-0.5">
             Aqui está o panorama dos seus estudos para hoje.
